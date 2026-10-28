@@ -6,12 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const metadata: Metadata = {
@@ -119,7 +119,7 @@ export default async function LoanApplicationsPage({
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={8} itemLabel="applications">
               {applications.map((app) => (
                 <TableRow key={app.id}>
                   <TableCell>
@@ -163,7 +163,7 @@ export default async function LoanApplicationsPage({
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </div>
       )}

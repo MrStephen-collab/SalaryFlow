@@ -39,12 +39,12 @@ import {
 } from "@/components/ui/select";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { CalendarClock, HandCoins, History, RefreshCw } from "lucide-react";
@@ -425,7 +425,7 @@ export function RestructureHistoryTable({
               <TableHead>Note</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <CollapsibleTableBody columns={7} itemLabel="changes">
             {history.map((entry) => (
               <TableRow key={`${entry.version}-${entry.at}`}>
                 <TableCell>
@@ -451,7 +451,7 @@ export function RestructureHistoryTable({
                 </TableCell>
               </TableRow>
             ))}
-          </TableBody>
+          </CollapsibleTableBody>
         </Table>
       </div>
     </>

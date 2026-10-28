@@ -12,12 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Download, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -143,7 +143,7 @@ export default async function SalaryPeriodPage({
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <CollapsibleTableBody columns={8} itemLabel="salary records">
             {records.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-32 text-center">
@@ -177,7 +177,7 @@ export default async function SalaryPeriodPage({
                 </TableRow>
               ))
             )}
-          </TableBody>
+          </CollapsibleTableBody>
         </Table>
       </div>
     </div>

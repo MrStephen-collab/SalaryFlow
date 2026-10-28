@@ -7,6 +7,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CollapsibleList } from "@/components/ui/collapsible-list";
 import { HandCoins } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -62,7 +63,7 @@ export default async function EmployeeLoansPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
+        <CollapsibleList className="flex flex-col gap-3" itemLabel="loans">
           {loans.map((loan) => {
             const total = Number(loan.total_repayment) || 0;
             return (
@@ -99,7 +100,7 @@ export default async function EmployeeLoansPage() {
               </Link>
             );
           })}
-        </div>
+        </CollapsibleList>
       )}
     </div>
   );

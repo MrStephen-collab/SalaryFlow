@@ -13,12 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { ReconciliationUpload } from "@/components/dashboard/deductions/reconciliation-upload";
 import { ReconciliationExports } from "@/components/dashboard/deductions/reconciliation-exports";
 import { ApplyReconciliationButton } from "@/components/dashboard/deductions/apply-reconciliation-button";
@@ -234,7 +234,7 @@ export default async function ReconciliationPage({
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
+                  <CollapsibleTableBody columns={6} itemLabel="employees">
                     {rows.map((row) => (
                       <TableRow key={row.employeeId}>
                         <TableCell>
@@ -274,7 +274,7 @@ export default async function ReconciliationPage({
                         </TableCell>
                       </TableRow>
                     ))}
-                  </TableBody>
+                  </CollapsibleTableBody>
                 </Table>
               )}
             </CardContent>

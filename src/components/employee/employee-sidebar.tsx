@@ -15,6 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Avatar,
@@ -48,6 +49,7 @@ const employeeNav = [
 
 export function EmployeeSidebar({ user }: { user: User }) {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
   const initials = (user.user_metadata?.full_name ?? user.email ?? "U")
     .slice(0, 2)
     .toUpperCase();
@@ -86,6 +88,7 @@ export function EmployeeSidebar({ user }: { user: User }) {
                       isActive={isActive}
                       tooltip={item.title}
                       render={<Link href={item.href} />}
+                      onClick={() => setOpenMobile(false)}
                     >
                       <item.icon />
                       <span>{item.title}</span>

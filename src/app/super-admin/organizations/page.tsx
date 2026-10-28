@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Badge } from "@/components/ui/badge";
 import { SuperAdminService } from "@/services/super-admin-service";
 import { requireSuperAdmin } from "@/lib/auth";
@@ -62,7 +62,7 @@ export default async function OrganizationsPage() {
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={8} itemLabel="organizations">
               {organizations.length === 0 ? (
                 <TableRow>
                   <TableCell
@@ -100,7 +100,7 @@ export default async function OrganizationsPage() {
                   </TableRow>
                 ))
               )}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </CardContent>
       </Card>

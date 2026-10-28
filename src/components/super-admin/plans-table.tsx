@@ -6,12 +6,12 @@ import { togglePlan } from "@/app/super-admin/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Switch } from "@/components/ui/switch";
 import { CreatePlanForm } from "@/components/super-admin/create-plan-form";
 
@@ -80,7 +80,7 @@ export function PlansTable({ plans: initial }: { plans: Plan[] }) {
                 <TableHead>Active</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={7} itemLabel="plans">
               {plans.map((plan) => (
                 <TableRow key={plan.id}>
                   <TableCell>
@@ -119,7 +119,7 @@ export function PlansTable({ plans: initial }: { plans: Plan[] }) {
                   </TableCell>
                 </TableRow>
               )}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </CardContent>
       </Card>

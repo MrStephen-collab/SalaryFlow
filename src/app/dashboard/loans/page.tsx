@@ -7,12 +7,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { CreateProductDialog } from "@/components/dashboard/loans/create-product-dialog";
 import {
   ManageLoanProduct,
@@ -71,7 +71,7 @@ export default async function LoansPage() {
                 <TableHead className="w-[60px]"></TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={8} itemLabel="products">
               {products.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
@@ -129,7 +129,7 @@ export default async function LoansPage() {
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </div>
       )}

@@ -18,12 +18,12 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 
 export const metadata: Metadata = {
   title: "Audit log",
@@ -183,7 +183,7 @@ export default async function AuditPage({
                 <TableHead>Details</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={5} itemLabel="events">
               {result.rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
@@ -227,7 +227,7 @@ export default async function AuditPage({
                   </TableRow>
                 ))
               )}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </CardContent>
       </Card>

@@ -15,13 +15,13 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { formatCurrency, formatDate } from "@/lib/report-export";
 import { ArrowDownLeft, ArrowUpRight, FileText, Wallet } from "lucide-react";
 
@@ -232,7 +232,7 @@ export default async function EmployeeStatementPage({
                   <TableHead className="text-right">Balance</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={6} itemLabel="transactions">
                 {statement.lines.map((line) => (
                   <TableRow key={line.id}>
                     <TableCell className="text-sm whitespace-nowrap">
@@ -258,7 +258,7 @@ export default async function EmployeeStatementPage({
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
+              </CollapsibleTableBody>
               <TableFooter>
                 <TableRow>
                   <TableCell colSpan={3}>Totals</TableCell>
@@ -299,7 +299,7 @@ export default async function EmployeeStatementPage({
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={6} itemLabel="payslips">
                 {statement.payroll.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="text-sm">
@@ -333,7 +333,7 @@ export default async function EmployeeStatementPage({
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
+              </CollapsibleTableBody>
               <TableFooter>
                 <TableRow>
                   <TableCell>Totals</TableCell>
@@ -374,7 +374,7 @@ export default async function EmployeeStatementPage({
                   <TableHead className="text-right">Receipt</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={6} itemLabel="deductions">
                 {statement.deductions.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="text-sm">
@@ -411,7 +411,7 @@ export default async function EmployeeStatementPage({
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
+              </CollapsibleTableBody>
             </Table>
           </CardContent>
         </Card>
@@ -433,7 +433,7 @@ export default async function EmployeeStatementPage({
                   <TableHead className="text-right">Receipt</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={5} itemLabel="withdrawals">
                 {statement.withdrawals.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="text-sm">
@@ -472,7 +472,7 @@ export default async function EmployeeStatementPage({
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
+              </CollapsibleTableBody>
             </Table>
           </CardContent>
         </Card>

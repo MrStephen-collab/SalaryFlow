@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { CollapsibleList } from "@/components/ui/collapsible-list";
 import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
@@ -39,7 +40,7 @@ export function WithdrawalsHistory({
   }[];
 }) {
   return (
-    <div className="flex flex-col">
+    <CollapsibleList className="flex flex-col" itemLabel="withdrawals">
       {withdrawals.map((w, index) => (
         <div
           key={w.id}
@@ -75,6 +76,6 @@ export function WithdrawalsHistory({
           )}
         </div>
       ))}
-    </div>
+    </CollapsibleList>
   );
 }

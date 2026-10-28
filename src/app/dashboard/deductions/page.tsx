@@ -11,12 +11,12 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { GenerateDeductionsButton } from "@/components/dashboard/deductions/generate-deductions-button";
 import { ProcessDeductionButton } from "@/components/dashboard/deductions/process-deduction-button";
 
@@ -166,7 +166,7 @@ export default async function DeductionsPage({
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={7} itemLabel="deductions">
               {deductions.map((deduction) => (
                 <TableRow key={deduction.id}>
                   <TableCell>
@@ -220,7 +220,7 @@ export default async function DeductionsPage({
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </div>
       )}

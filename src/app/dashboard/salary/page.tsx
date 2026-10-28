@@ -9,12 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { CreatePeriodDialog } from "@/components/dashboard/salary/create-period-dialog";
 import { ArrowRight, FileText } from "lucide-react";
 
@@ -84,7 +84,7 @@ export default async function SalaryPage() {
                 <TableHead className="text-right">View</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={7} itemLabel="periods">
               {periods.map((period) => (
                 <TableRow key={period.id}>
                   <TableCell className="font-medium">{period.name}</TableCell>
@@ -111,7 +111,7 @@ export default async function SalaryPage() {
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </div>
       )}

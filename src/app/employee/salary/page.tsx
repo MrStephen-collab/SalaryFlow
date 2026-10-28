@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CollapsibleList } from "@/components/ui/collapsible-list";
 import { Banknote, ArrowDownUp, CircleMinus, Wallet } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -140,8 +141,12 @@ export default async function EmployeeSalaryPage({
               <CardHeader>
                 <CardTitle>Salary History</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-2">
-                {history.map((r) => (
+              <CardContent>
+                <CollapsibleList
+                  className="flex flex-col gap-2"
+                  itemLabel="payslips"
+                >
+                  {history.map((r) => (
                   <a
                     key={r.id}
                     href={`/employee/salary?period=${encodeURIComponent(r.periodName)}`}
@@ -155,7 +160,8 @@ export default async function EmployeeSalaryPage({
                     </div>
                     <Badge variant="outline">{r.status}</Badge>
                   </a>
-                ))}
+                  ))}
+                </CollapsibleList>
               </CardContent>
             </Card>
           )}

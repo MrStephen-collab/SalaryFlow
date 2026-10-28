@@ -9,12 +9,12 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const metadata: Metadata = {
@@ -186,7 +186,7 @@ export default async function RepaymentsPage({
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={7} itemLabel="repayments">
                 {repayments.map((repayment) => (
                   <TableRow key={repayment.id}>
                     <TableCell className="text-sm">
@@ -244,7 +244,7 @@ export default async function RepaymentsPage({
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
+              </CollapsibleTableBody>
             </Table>
           </div>
         )}
@@ -277,7 +277,7 @@ export default async function RepaymentsPage({
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={7} itemLabel="installments">
                 {schedules.map((schedule) => (
                   <TableRow key={schedule.id}>
                     <TableCell>
@@ -316,7 +316,7 @@ export default async function RepaymentsPage({
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
+              </CollapsibleTableBody>
             </Table>
           </div>
         )}

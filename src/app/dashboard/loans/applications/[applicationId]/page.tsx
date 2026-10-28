@@ -14,12 +14,12 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { ArrowLeft } from "lucide-react";
 import { ApplicationActions } from "@/components/dashboard/loans/application-actions";
 import { SettlementActions, RestructureHistoryTable } from "@/components/dashboard/loans/settlement-actions";
@@ -274,7 +274,7 @@ export default async function LoanApplicationDetailPage({
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <CollapsibleTableBody columns={7} itemLabel="installments">
                   {schedule.map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell className="font-medium">
@@ -312,7 +312,7 @@ export default async function LoanApplicationDetailPage({
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
+                </CollapsibleTableBody>
               </Table>
             </div>
           </CardContent>

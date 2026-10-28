@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { CheckCheck, BellOff } from "lucide-react";
+import { CheckCheck, ChevronDown, ChevronUp, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { NotificationItem } from "@/services/notification-service";
@@ -9,8 +10,13 @@ import { useReadNotifications } from "./use-read-notifications";
 import { NotificationGlyph, formatNotificationTime } from "./notification-visuals";
 
 export function NotificationList({ items }: { items: NotificationItem[] }) {
+  const [expanded, setExpanded] = useState(false);
   const { readIds, unreadCount, markRead, markAllRead } =
     useReadNotifications(items.map((item) => item.id));
+
+  const limit = 10;
+  const hasMore = items.length > limit;
+  const visibleItems = hasMore && !expanded ? items.slice(0, limit) : items;
 
   return (
     <Card>
@@ -48,7 +54,7 @@ export function NotificationList({ items }: { items: NotificationItem[] }) {
           </div>
         ) : (
           <ul>
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               const unread = !readIds.has(item.id);
               return (
                 <li key={item.id} className="border-b last:border-b-0">
@@ -90,6 +96,31 @@ export function NotificationList({ items }: { items: NotificationItem[] }) {
             })}
           </ul>
         )}
+
+        {hasMore ? (
+          <div className="border-t px-4 py-2 text-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((value) => !value)}
+            >
+              {expanded ? (
+                <>
+                  <ChevronUp className="size-4" aria-hidden />
+                  Show less
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="size-4" aria-hidden />
+                  Show all {items.length} notifications
+                </>
+              )}
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

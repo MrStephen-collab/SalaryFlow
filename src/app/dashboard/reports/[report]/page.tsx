@@ -21,12 +21,12 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { ReportFilters } from "@/components/dashboard/reports/report-filters";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
@@ -174,7 +174,10 @@ export default async function ReportPage({
                   ))}
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody
+                columns={report.columns.length}
+                itemLabel="records"
+              >
                 {report.rows.map((row, index) => (
                   <TableRow key={index}>
                     {report.columns.map((column) => (
@@ -215,7 +218,7 @@ export default async function ReportPage({
                     })}
                   </TableRow>
                 )}
-              </TableBody>
+              </CollapsibleTableBody>
             </Table>
           </div>
         )}

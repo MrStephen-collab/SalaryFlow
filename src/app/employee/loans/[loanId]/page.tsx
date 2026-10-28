@@ -13,12 +13,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { ArrowLeft } from "lucide-react";
 import { EarlySettlementCard } from "@/components/employee/loans/early-settlement";
 
@@ -155,7 +155,7 @@ export default async function EmployeeLoanDetailPage({
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={5} itemLabel="installments">
               {(loan.schedule as ScheduleEntry[]).map((entry) => (
                 <TableRow key={entry.id}>
                   <TableCell className="text-sm">
@@ -180,7 +180,7 @@ export default async function EmployeeLoanDetailPage({
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </CardContent>
       </Card>

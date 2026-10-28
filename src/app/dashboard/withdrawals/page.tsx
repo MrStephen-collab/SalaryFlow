@@ -8,12 +8,12 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
@@ -147,7 +147,7 @@ export default async function WithdrawalsPage({
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={6} itemLabel="withdrawals">
               {withdrawals.map((w) => (
                 <TableRow key={w.id}>
                   <TableCell>
@@ -184,7 +184,7 @@ export default async function WithdrawalsPage({
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </div>
       )}

@@ -16,12 +16,12 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -273,7 +273,7 @@ export function SalaryImporter({
                 <TableHead>Message</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={7} limit={5} itemLabel="rows">
               {rows.slice(0, 100).map((r, i) => (
                 <TableRow key={i}>
                   <TableCell>
@@ -307,7 +307,7 @@ export function SalaryImporter({
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </div>
       )}

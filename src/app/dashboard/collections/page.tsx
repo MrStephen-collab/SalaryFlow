@@ -14,12 +14,12 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { RefreshOverdueButton } from "@/components/dashboard/collections/refresh-overdue-button";
 import { RecoverShortfallButton } from "@/components/dashboard/collections/recover-shortfall-button";
 import { WaiveShortfallButton } from "@/components/dashboard/collections/waive-shortfall-button";
@@ -189,7 +189,7 @@ export default async function CollectionsPage() {
                 <TableHead>Loan</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={7} itemLabel="overdue loans">
               {loans.length === 0 ? (
                 <TableRow>
                   <TableCell
@@ -256,7 +256,7 @@ export default async function CollectionsPage() {
                   </TableRow>
                 ))
               )}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </CardContent>
       </Card>
@@ -283,7 +283,10 @@ export default async function CollectionsPage() {
                 {canManage ? <TableHead className="text-right">Action</TableHead> : null}
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody
+              columns={canManage ? 7 : 6}
+              itemLabel="exceptions"
+            >
               {exceptions.length === 0 ? (
                 <TableRow>
                   <TableCell
@@ -342,7 +345,7 @@ export default async function CollectionsPage() {
                   </TableRow>
                 ))
               )}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </CardContent>
       </Card>

@@ -5,12 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { LedgerService } from "@/services/ledger-service";
 
 export const metadata: Metadata = {
@@ -57,7 +57,7 @@ export default async function LedgerPage() {
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={6} itemLabel="transactions">
               {transactions.map((tx) => (
                 <TableRow key={tx.id}>
                   <TableCell className="font-mono text-xs">
@@ -90,7 +90,7 @@ export default async function LedgerPage() {
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </div>
       )}

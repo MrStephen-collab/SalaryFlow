@@ -8,12 +8,12 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { ArrowLeft } from "lucide-react";
 import { DeductionService } from "@/services/deduction-service";
 import { SalaryService } from "@/services/salary-service";
@@ -146,7 +146,7 @@ export default async function PayrollPage({
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={6} itemLabel="employees">
                 {rows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-32 text-center">
@@ -189,7 +189,7 @@ export default async function PayrollPage({
                     </TableRow>
                   ))
                 )}
-              </TableBody>
+              </CollapsibleTableBody>
             </Table>
           </div>
         </>
