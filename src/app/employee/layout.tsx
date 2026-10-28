@@ -12,6 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SignOutButton } from "@/components/employee/sign-out-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { NotificationService } from "@/services/notification-service";
 
 export default async function EmployeeLayout({
   children,
@@ -20,9 +22,10 @@ export default async function EmployeeLayout({
 }) {
   const user = await requireUser();
 
-  const [profile, service] = await Promise.all([
+  const [profile, service, notifications] = await Promise.all([
     getProfile(),
     EmployeePortalService.create(),
+    NotificationService.create().then((notifications) => notifications.list(8)),
   ]);
   if (profile && profile.role !== "EMPLOYEE") {
     redirect("/dashboard");
@@ -60,6 +63,7 @@ export default async function EmployeeLayout({
             </Avatar>
           </div>
           <div className="flex items-center gap-1">
+            <NotificationBell items={notifications} viewAllHref="/employee/notifications" />
             <ThemeToggle />
             <SignOutButton />
           </div>

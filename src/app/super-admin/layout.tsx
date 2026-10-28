@@ -3,6 +3,8 @@ import { requireSuperAdmin } from "@/lib/auth";
 import { SuperAdminNav } from "@/components/super-admin/super-admin-nav";
 import { SignOutButton } from "@/components/employee/sign-out-button";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { NotificationService } from "@/services/notification-service";
 
 export default async function SuperAdminLayout({
   children,
@@ -10,6 +12,9 @@ export default async function SuperAdminLayout({
   children: ReactNode;
 }) {
   await requireSuperAdmin();
+
+  const notificationService = await NotificationService.create();
+  const notifications = await notificationService.list(8);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -20,6 +25,7 @@ export default async function SuperAdminLayout({
             <SuperAdminNav />
           </div>
           <div className="flex items-center gap-1">
+            <NotificationBell items={notifications} viewAllHref="/super-admin/notifications" />
             <ThemeToggle />
             <SignOutButton />
           </div>

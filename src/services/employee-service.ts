@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { recordAudit } from "./audit-service";
 
 export interface EmployeeListParams {
   search?: string;
@@ -322,6 +323,20 @@ export class EmployeeService {
       throw new Error(error.message);
     }
 
+    await recordAudit({
+      organizationId: profile.organization_id,
+      userId: user.id,
+      action: "employee.created",
+      entityType: "employee",
+      entityId: employee.id,
+      after: {
+        employeeNumber: employee.employee_number,
+        name: `${employee.first_name} ${employee.last_name}`,
+        department: employee.department,
+        employmentStatus: employee.employment_status,
+      },
+    });
+
     return employee;
   }
 
@@ -376,6 +391,15 @@ export class EmployeeService {
       .eq("organization_id", profile.organization_id);
 
     if (error) throw new Error(error.message);
+
+    await recordAudit({
+      organizationId: profile.organization_id,
+      userId: user.id,
+      action: "employee.updated",
+      entityType: "employee",
+      entityId: id,
+      after: updateData,
+    });
   }
 
   async suspendEmployee(id: string) {
@@ -411,6 +435,16 @@ export class EmployeeService {
       .eq("organization_id", profile.organization_id);
 
     if (error) throw new Error(error.message);
+
+    await recordAudit({
+      organizationId: profile.organization_id,
+      userId: user.id,
+      action: "employee.status_changed",
+      entityType: "employee",
+      entityId: id,
+      before: { employmentStatus: employee?.employment_status ?? null },
+      after: { employmentStatus: newStatus },
+    });
 
     return newStatus;
   }

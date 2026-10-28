@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/avatar";
 import {
   Banknote,
+  Bell,
   BookOpen,
   Building2,
   FileText,
@@ -33,10 +34,13 @@ import {
   Percent,
   PiggyBank,
   Settings,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import type { NotificationItem } from "@/services/notification-service";
 import { APP_NAME } from "@/config/constants";
 
 const employerNav = [
@@ -101,17 +105,47 @@ const employerNav = [
     icon: LineChart,
   },
   {
+    title: "Notifications",
+    href: "/dashboard/notifications",
+    icon: Bell,
+  },
+  {
+    title: "Audit log",
+    href: "/dashboard/audit",
+    icon: ShieldCheck,
+  },
+  {
     title: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
   },
 ];
 
-export function DashboardSidebar({ user }: { user: User }) {
+const AUDIT_ROLES = new Set([
+  "ORGANIZATION_OWNER",
+  "ORGANIZATION_ADMIN",
+  "AUDITOR",
+  "SUPER_ADMIN",
+]);
+
+export function DashboardSidebar({
+  user,
+  role,
+  notifications,
+}: {
+  user: User;
+  role: string | null;
+  notifications: NotificationItem[];
+}) {
   const pathname = usePathname();
   const initials = (user.email ?? "U")
     .slice(0, 2)
     .toUpperCase();
+
+  const navItems = employerNav.filter(
+    (item) =>
+      item.href !== "/dashboard/audit" || (role ? AUDIT_ROLES.has(role) : false)
+  );
 
   return (
     <Sidebar>
@@ -138,7 +172,7 @@ export function DashboardSidebar({ user }: { user: User }) {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {employerNav.map((item) => {
+              {navItems.map((item) => {
                 const isActive =
                   pathname === item.href ||
                   (item.href !== "/dashboard" &&
@@ -182,6 +216,7 @@ export function DashboardSidebar({ user }: { user: User }) {
                 </p>
               </div>
               <ThemeToggle />
+              <NotificationBell items={notifications} viewAllHref="/dashboard/notifications" />
               <LogoutButton />
             </div>
           </SidebarMenuItem>

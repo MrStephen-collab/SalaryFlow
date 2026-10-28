@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { LedgerService } from "./ledger-service";
+import { recordAudit } from "./audit-service";
 
 export interface PayrollRow {
   employeeId: string;
@@ -114,6 +115,17 @@ export class DeductionService {
       });
 
       if (!error) created++;
+    }
+
+    if (created > 0) {
+      await recordAudit({
+        organizationId: this.orgId,
+        userId: this.userId,
+        action: "payroll.deductions_generated",
+        entityType: "salary_period",
+        entityId: periodId,
+        after: { count: created },
+      });
     }
 
     return { success: `Generated ${created} deduction record(s)`, count: created };
@@ -233,6 +245,27 @@ export class DeductionService {
         }
       }
     }
+
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "payroll.deduction_processed",
+      entityType: "deduction",
+      entityId: deductionRecordId,
+      before: {
+        status: record.status,
+        expectedAmount: expected,
+        actualAmount: Number(record.actual_amount) || 0,
+      },
+      after: {
+        status: newStatus,
+        actualAmount: actual,
+        shortfall,
+        employeeId: record.employee_id,
+        loanApplicationId: record.loan_application_id,
+        salaryPeriodId: record.salary_period_id,
+      },
+    });
 
     return {
       success: isFull

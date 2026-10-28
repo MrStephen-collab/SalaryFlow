@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { bankAccountSchema, withdrawalSchema } from "@/schemas/withdrawal";
 import type { BankAccountValues } from "@/schemas/withdrawal";
 import { getPaymentProvider } from "./payment-provider";
+import { recordAudit } from "./audit-service";
 
 export class WithdrawalService {
   private supabase: Awaited<ReturnType<typeof createClient>>;
@@ -117,6 +118,20 @@ export class WithdrawalService {
       .single();
 
     if (error) return { error: error.message };
+
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "withdrawal.bank_account_added",
+      entityType: "bank_account",
+      entityId: account.id,
+      after: {
+        bankName: account.bank_name,
+        account: this.mask(account.account_number),
+        accountName: account.account_name,
+      },
+    });
+
     return { success: "Bank account added", id: account.id };
   }
 
@@ -130,6 +145,15 @@ export class WithdrawalService {
       .eq("employee_id", this.employeeId);
 
     if (error) return { error: error.message };
+
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "withdrawal.bank_account_removed",
+      entityType: "bank_account",
+      entityId: bankAccountId,
+    });
+
     return { success: "Bank account removed" };
   }
 
@@ -198,16 +222,20 @@ export class WithdrawalService {
 
     const reference = `SLF-WDR-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    const { error } = await this.supabase.from("withdrawal_requests").insert({
-      organization_id: this.orgId,
-      employee_id: this.employeeId,
-      bank_account_id: parsed.data.bankAccountId,
-      amount: parsed.data.amount,
-      fee: 0,
-      net_amount: parsed.data.amount,
-      status: "PENDING",
-      reference,
-    });
+    const { data: created, error } = await this.supabase
+      .from("withdrawal_requests")
+      .insert({
+        organization_id: this.orgId,
+        employee_id: this.employeeId,
+        bank_account_id: parsed.data.bankAccountId,
+        amount: parsed.data.amount,
+        fee: 0,
+        net_amount: parsed.data.amount,
+        status: "PENDING",
+        reference,
+      })
+      .select("id")
+      .single();
 
     if (error) {
       if (error.code === "23505") {
@@ -215,6 +243,21 @@ export class WithdrawalService {
       }
       return { error: error.message };
     }
+
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "withdrawal.requested",
+      entityType: "withdrawal",
+      entityId: created.id,
+      after: {
+        amount: parsed.data.amount,
+        reference,
+        status: "PENDING",
+        bankName: account.bank_name,
+        account: this.mask(account.account_number),
+      },
+    });
 
     return { success: "Withdrawal request submitted", reference };
   }
@@ -365,6 +408,23 @@ export class WithdrawalService {
       .single();
   }
 
+  private audit(
+    action: string,
+    withdrawalId: string,
+    before: Record<string, unknown> | null,
+    after: Record<string, unknown> | null
+  ) {
+    return recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action,
+      entityType: "withdrawal",
+      entityId: withdrawalId,
+      before,
+      after,
+    });
+  }
+
   async submitForReview(withdrawalId: string, notes?: string) {
     const forbidden = await this.assertCanManage();
     if (forbidden) return forbidden;
@@ -386,6 +446,14 @@ export class WithdrawalService {
       .eq("id", withdrawalId);
 
     if (error) return { error: error.message };
+
+    await this.audit(
+      "withdrawal.review",
+      withdrawalId,
+      { status: existing.status },
+      { status: "REVIEW", notes: notes ?? existing.notes }
+    );
+
     return { success: "Withdrawal moved to review" };
   }
 
@@ -410,6 +478,19 @@ export class WithdrawalService {
       .eq("id", withdrawalId);
 
     if (error) return { error: error.message };
+
+    await this.audit(
+      "withdrawal.approved",
+      withdrawalId,
+      { status: existing.status },
+      {
+        status: "APPROVED",
+        amount: Number(existing.amount),
+        reference: existing.reference,
+        notes: notes ?? existing.notes,
+      }
+    );
+
     return { success: "Withdrawal approved" };
   }
 
@@ -434,6 +515,14 @@ export class WithdrawalService {
       .eq("id", withdrawalId);
 
     if (error) return { error: error.message };
+
+    await this.audit(
+      "withdrawal.rejected",
+      withdrawalId,
+      { status: existing.status },
+      { status: "REJECTED", reason, amount: Number(existing.amount) }
+    );
+
     return { success: "Withdrawal rejected" };
   }
 
@@ -471,6 +560,18 @@ export class WithdrawalService {
       .eq("id", withdrawalId);
 
     if (error) return { error: error.message };
+
+    await this.audit(
+      "withdrawal.processing",
+      withdrawalId,
+      { status: existing.status },
+      {
+        status: "PROCESSING",
+        providerReference: transfer.providerReference ?? existing.reference,
+        providerOk: transfer.ok,
+        providerNote: transfer.error ?? null,
+      }
+    );
 
     if (!transfer.ok && transfer.error) {
       return {
@@ -512,6 +613,18 @@ export class WithdrawalService {
       .eq("id", withdrawalId);
 
     if (error) return { error: error.message };
+
+    await this.audit(
+      "withdrawal.paid",
+      withdrawalId,
+      { status: existing.status },
+      {
+        status: "PAID",
+        amount: Number(existing.amount),
+        reference: existing.reference,
+        providerReference: externalReference || existing.provider_reference,
+      }
+    );
 
     const ledger = await (await import("./ledger-service")).LedgerService.create();
     const ledgerResult = await ledger.postWithdrawal(
@@ -561,6 +674,14 @@ export class WithdrawalService {
       .eq("id", withdrawalId);
 
     if (error) return { error: error.message };
+
+    await this.audit(
+      "withdrawal.failed",
+      withdrawalId,
+      { status: existing.status },
+      { status: "FAILED", reason, amount: Number(existing.amount) }
+    );
+
     return { success: "Withdrawal marked as failed" };
   }
 }

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { CreateLoanProductValues } from "@/schemas/loan";
 import { LoanCalculationService } from "./loan-calculation-service";
 import type { InterestMethod } from "./loan-calculation-service";
+import { recordAudit } from "./audit-service";
 
 export class LoanService {
   private supabase: Awaited<ReturnType<typeof createClient>>;
@@ -36,6 +37,24 @@ export class LoanService {
     return service;
   }
 
+  private audit(
+    action: string,
+    entityType: string,
+    entityId: string,
+    before: Record<string, unknown> | null = null,
+    after: Record<string, unknown> | null = null
+  ) {
+    return recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action,
+      entityType,
+      entityId,
+      before,
+      after,
+    });
+  }
+
   async listProducts() {
     if (!this.orgId) return [];
 
@@ -64,30 +83,42 @@ export class LoanService {
   async createProduct(values: CreateLoanProductValues) {
     if (!this.orgId) return { error: "No organization found" };
 
-    const { error } = await this.supabase.from("loan_products").insert({
-      organization_id: this.orgId,
-      name: values.name,
-      description: values.description ?? null,
-      minimum_amount: values.minimumAmount,
-      maximum_amount: values.maximumAmount,
-      interest_rate: values.interestRate,
-      interest_method: values.interestMethod,
-      duration_months: values.durationMonths,
-      repayment_frequency: values.repaymentFrequency,
-      processing_fee: values.processingFee ?? 0,
-      insurance_fee: values.insuranceFee ?? 0,
-      maximum_salary_deduction_percentage:
-        values.maximumSalaryDeductionPercentage,
-      minimum_salary: values.minimumSalary ?? 0,
-      minimum_employment_period_months:
-        values.minimumEmploymentPeriodMonths ?? 0,
-      guarantor_required: values.guarantorRequired ?? false,
-      collateral_required: values.collateralRequired ?? false,
-    });
+    const { data: product, error } = await this.supabase
+      .from("loan_products")
+      .insert({
+        organization_id: this.orgId,
+        name: values.name,
+        description: values.description ?? null,
+        minimum_amount: values.minimumAmount,
+        maximum_amount: values.maximumAmount,
+        interest_rate: values.interestRate,
+        interest_method: values.interestMethod,
+        duration_months: values.durationMonths,
+        repayment_frequency: values.repaymentFrequency,
+        processing_fee: values.processingFee ?? 0,
+        insurance_fee: values.insuranceFee ?? 0,
+        maximum_salary_deduction_percentage:
+          values.maximumSalaryDeductionPercentage,
+        minimum_salary: values.minimumSalary ?? 0,
+        minimum_employment_period_months:
+          values.minimumEmploymentPeriodMonths ?? 0,
+        guarantor_required: values.guarantorRequired ?? false,
+        collateral_required: values.collateralRequired ?? false,
+      })
+      .select("id, name")
+      .single();
 
     if (error) {
       return { error: error.message };
     }
+
+    await this.audit("loan.product_created", "loan_product", product.id, null, {
+      name: product.name,
+      interestRate: values.interestRate,
+      interestMethod: values.interestMethod,
+      durationMonths: values.durationMonths,
+    });
+
     return { success: "Loan product created" };
   }
 
@@ -139,6 +170,9 @@ export class LoanService {
     if (error) {
       return { error: error.message };
     }
+
+    await this.audit("loan.product_updated", "loan_product", productId, null, updateData);
+
     return { success: "Loan product updated" };
   }
 
@@ -154,6 +188,15 @@ export class LoanService {
     if (error) {
       return { error: error.message };
     }
+
+    await this.audit(
+      active ? "loan.product_activated" : "loan.product_deactivated",
+      "loan_product",
+      productId,
+      { active: !active },
+      { active }
+    );
+
     return { success: active ? "Product activated" : "Product deactivated" };
   }
 
@@ -169,6 +212,9 @@ export class LoanService {
     if (error) {
       return { error: error.message };
     }
+
+    await this.audit("loan.product_deleted", "loan_product", productId);
+
     return { success: "Loan product deleted" };
   }
 
@@ -293,23 +339,37 @@ export class LoanService {
       insuranceFee: product.insurance_fee,
     });
 
-    const { error } = await this.supabase.from("loan_applications").insert({
-      organization_id: this.orgId,
-      employee_id: employeeId,
-      loan_product_id: loanProductId,
-      amount,
-      duration_months: durationMonths,
-      interest_rate: product.interest_rate,
-      interest_method: product.interest_method,
-      total_interest: calculation.totalInterest,
-      total_repayment: calculation.totalRepayment,
-      monthly_deduction: calculation.monthlyPayment,
-      purpose: purpose ?? null,
-      status: "SUBMITTED",
-      submitted_at: new Date().toISOString(),
-    });
+    const { data: application, error } = await this.supabase
+      .from("loan_applications")
+      .insert({
+        organization_id: this.orgId,
+        employee_id: employeeId,
+        loan_product_id: loanProductId,
+        amount,
+        duration_months: durationMonths,
+        interest_rate: product.interest_rate,
+        interest_method: product.interest_method,
+        total_interest: calculation.totalInterest,
+        total_repayment: calculation.totalRepayment,
+        monthly_deduction: calculation.monthlyPayment,
+        purpose: purpose ?? null,
+        status: "SUBMITTED",
+        submitted_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
 
     if (error) return { error: error.message };
+
+    await this.audit("loan.application_submitted", "loan_application", application.id, null, {
+      employeeId,
+      productName: product.name,
+      amount,
+      durationMonths,
+      monthlyDeduction: calculation.monthlyPayment,
+      status: "SUBMITTED",
+    });
+
     return { success: "Loan application submitted" };
   }
 
@@ -340,6 +400,15 @@ export class LoanService {
       .eq("organization_id", this.orgId);
 
     if (error) return { error: error.message };
+
+    await this.audit(
+      "loan.approved",
+      "loan_application",
+      applicationId,
+      { status: existing.status },
+      { status: "APPROVED", notes: notes ?? null }
+    );
+
     return { success: "Application approved" };
   }
 
@@ -372,6 +441,15 @@ export class LoanService {
       .eq("organization_id", this.orgId);
 
     if (error) return { error: error.message };
+
+    await this.audit(
+      "loan.rejected",
+      "loan_application",
+      applicationId,
+      { status: existing.status },
+      { status: "REJECTED", reason }
+    );
+
     return { success: "Application rejected" };
   }
 
@@ -465,6 +543,20 @@ export class LoanService {
       );
     }
 
+    await this.audit(
+      "loan.disbursed",
+      "loan_application",
+      applicationId,
+      { status: existing.status },
+      {
+        status: "ACTIVE",
+        amount: Number(existing.amount),
+        employeeId: existing.employee_id,
+        installments: calculation.schedule.length,
+        monthlyDeduction: calculation.monthlyPayment,
+      }
+    );
+
     return { success: "Loan disbursed and repayment schedule created" };
   }
   async getSchedule(applicationId: string) {
@@ -535,7 +627,7 @@ export class LoanService {
 
     const ref = `REP-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    const { error: repaymentError } = await this.supabase
+    const { data: repayment, error: repaymentError } = await this.supabase
       .from("loan_repayments")
       .insert({
         loan_application_id: applicationId,
@@ -544,7 +636,9 @@ export class LoanService {
         payment_method: paymentMethod,
         reference_number: ref,
         recorded_by: this.userId,
-      });
+      })
+      .select("id")
+      .single();
 
     if (repaymentError) return { error: repaymentError.message };
 
@@ -590,7 +684,32 @@ export class LoanService {
         .update({ status: "COMPLETED" })
         .eq("id", applicationId)
         .eq("organization_id", this.orgId);
+
+      await this.audit(
+        "loan.completed",
+        "loan_application",
+        applicationId,
+        { status: "ACTIVE" },
+        { status: "COMPLETED" }
+      );
     }
+
+    await this.audit(
+      "loan.repayment_recorded",
+      "loan_repayment",
+      repayment.id,
+      { schedulePaid: Number(schedule.paid_amount) || 0, scheduleStatus: schedule.status },
+      {
+        amount,
+        paymentMethod,
+        reference: ref,
+        applicationId,
+        scheduleId,
+        schedulePaid: newPaidAmount,
+        scheduleStatus: newStatus,
+        loanCompleted: Boolean(allPaid),
+      }
+    );
 
     return { success: "Repayment recorded", reference: ref };
   }

@@ -24,6 +24,7 @@ import {
 import {
   ArrowDownToLine,
   Banknote,
+  Bell,
   FileText,
   HandCoins,
   Home,
@@ -41,6 +42,7 @@ const employeeNav = [
   { title: "Withdrawals", href: "/employee/withdrawals", icon: ArrowDownToLine },
   { title: "Loans", href: "/employee/loans", icon: HandCoins },
   { title: "Statement", href: "/employee/statement", icon: FileText },
+  { title: "Notifications", href: "/employee/notifications", icon: Bell },
   { title: "Profile", href: "/employee/profile", icon: UserCircle2 },
 ];
 

@@ -8,6 +8,7 @@ const NAV = [
   { href: "/super-admin", label: "Overview", exact: true },
   { href: "/super-admin/organizations", label: "Organizations", exact: false },
   { href: "/super-admin/plans", label: "Plans", exact: false },
+  { href: "/super-admin/notifications", label: "Notifications", exact: false },
 ];
 
 export function SuperAdminNav() {

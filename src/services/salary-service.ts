@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { recordAudit } from "./audit-service";
 
 export interface SalaryRecord {
   id: string;
@@ -25,10 +26,15 @@ export class SalaryService {
   }
 
   private async getOrgId() {
+    const actor = await this.getActor();
+    return actor.orgId;
+  }
+
+  private async getActor() {
     const {
       data: { user },
     } = await this.supabase.auth.getUser();
-    if (!user) return null;
+    if (!user) return { orgId: null, userId: null };
 
     const { data: profile } = await this.supabase
       .from("user_profiles")
@@ -36,7 +42,7 @@ export class SalaryService {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    return profile?.organization_id ?? null;
+    return { orgId: profile?.organization_id ?? null, userId: user.id };
   }
 
   async listPeriods() {
@@ -89,19 +95,39 @@ export class SalaryService {
     const orgId = await this.getOrgId();
     if (!orgId) throw new Error("No organization associated with this account");
 
-    const { error } = await this.supabase.from("salary_periods").insert({
-      organization_id: orgId,
-      name: data.name,
-      start_date: data.startDate,
-      end_date: data.endDate,
-      payment_date: data.paymentDate,
-      status: "DRAFT",
-    });
+    const { data: period, error } = await this.supabase
+      .from("salary_periods")
+      .insert({
+        organization_id: orgId,
+        name: data.name,
+        start_date: data.startDate,
+        end_date: data.endDate,
+        payment_date: data.paymentDate,
+        status: "DRAFT",
+      })
+      .select("id")
+      .single();
 
     if (error) {
       if (error.code === "23505") throw new Error("This salary period already exists");
       throw new Error(error.message);
     }
+
+    const { userId } = await this.getActor();
+    await recordAudit({
+      organizationId: orgId,
+      userId,
+      action: "payroll.period_created",
+      entityType: "salary_period",
+      entityId: period.id,
+      after: {
+        name: data.name,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        paymentDate: data.paymentDate,
+        status: "DRAFT",
+      },
+    });
   }
 
   async getSalaryRecords(periodId: string): Promise<SalaryRecord[]> {
@@ -238,6 +264,20 @@ export class SalaryService {
       .select();
 
     if (error) throw new Error(error.message);
+
+    const { userId } = await this.getActor();
+    await recordAudit({
+      organizationId: orgId,
+      userId,
+      action: "payroll.imported",
+      entityType: "salary_period",
+      entityId: periodId,
+      after: {
+        rows: data?.length ?? records.length,
+        periodName: period.name,
+      },
+    });
+
     return data;
   }
 }

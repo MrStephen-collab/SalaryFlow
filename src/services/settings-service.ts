@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { OrganizationValues } from "@/schemas/settings";
+import { recordAudit } from "./audit-service";
 
 export interface OrganizationSettingsRecord {
   id?: string;
@@ -20,6 +21,7 @@ export interface OrganizationSettingsRecord {
 export class SettingsService {
   private supabase: Awaited<ReturnType<typeof createClient>>;
   private orgId: string | null = null;
+  private userId: string | null = null;
 
   private constructor(
     supabase: Awaited<ReturnType<typeof createClient>>
@@ -45,6 +47,7 @@ export class SettingsService {
 
     const service = new SettingsService(supabase);
     service.orgId = orgId;
+    service.userId = user?.id ?? null;
     return service;
   }
 
@@ -75,6 +78,12 @@ export class SettingsService {
   async updateOrganization(values: OrganizationValues) {
     if (!this.orgId) return { error: "No organization found" };
 
+    const { data: before } = await this.supabase
+      .from("organizations")
+      .select("name, type, email, phone, address, state, currency")
+      .eq("id", this.orgId)
+      .maybeSingle();
+
     const { error } = await this.supabase
       .from("organizations")
       .update({
@@ -91,6 +100,25 @@ export class SettingsService {
       .eq("id", this.orgId);
 
     if (error) return { error: error.message };
+
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "organization.updated",
+      entityType: "organization",
+      entityId: this.orgId,
+      before,
+      after: {
+        name: values.name,
+        type: values.type,
+        email: values.email,
+        phone: values.phone,
+        address: values.address ?? "",
+        state: values.state ?? "",
+        currency: values.currency,
+      },
+    });
+
     return { success: "Organization updated" };
   }
 
@@ -131,6 +159,27 @@ export class SettingsService {
       .upsert(settingsData, { onConflict: "organization_id" });
 
     if (error) return { error: error.message };
+
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "settings.updated",
+      entityType: "settings",
+      entityId: this.orgId,
+      after: {
+        salaryCycle: settingsData.salary_cycle,
+        maxSalaryDeductionPercentage:
+          settingsData.max_salary_deduction_percentage,
+        maxLoanAmount: settingsData.max_loan_amount,
+        defaultInterestRate: settingsData.default_interest_rate,
+        defaultInterestMethod: settingsData.default_interest_method,
+        maxTenure: settingsData.max_tenure,
+        guarantorRequired: settingsData.guarantor_required,
+        approvalWorkflow: settingsData.approval_workflow,
+        withdrawalsEnabled: settingsData.withdrawals_enabled,
+      },
+    });
+
     return { success: "Settings updated" };
   }
 }

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { recordAudit } from "./audit-service";
 
 export class FundService {
   private supabase: Awaited<ReturnType<typeof createClient>>;
@@ -83,6 +84,15 @@ export class FundService {
       );
     }
 
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "fund.account_created",
+      entityType: "fund_account",
+      entityId: account.id,
+      after: { name: account.name, openingBalance },
+    });
+
     return { success: "Fund account created", id: account.id };
   }
 
@@ -98,19 +108,40 @@ export class FundService {
 
     const reference = `SLF-FND-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    const { error } = await this.supabase.from("fund_transactions").insert({
-      organization_id: this.orgId,
-      fund_account_id: fundAccountId,
-      transaction_type: transactionType,
-      reference,
-      amount,
-      direction,
-      description,
-      related_loan_application_id: relatedLoanApplicationId ?? null,
-      created_by: this.userId,
-    });
+    const { data: movement, error } = await this.supabase
+      .from("fund_transactions")
+      .insert({
+        organization_id: this.orgId,
+        fund_account_id: fundAccountId,
+        transaction_type: transactionType,
+        reference,
+        amount,
+        direction,
+        description,
+        related_loan_application_id: relatedLoanApplicationId ?? null,
+        created_by: this.userId,
+      })
+      .select("id")
+      .single();
 
     if (error) return { error: error.message };
+
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "fund.movement",
+      entityType: "fund_transaction",
+      entityId: movement.id,
+      after: {
+        fundAccountId,
+        transactionType,
+        amount,
+        direction,
+        description,
+        relatedLoanApplicationId: relatedLoanApplicationId ?? null,
+      },
+    });
+
     return { success: "Movement recorded", reference };
   }
 

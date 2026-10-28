@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { recordAudit } from "./audit-service";
 
 export interface LedgerEntryInput {
   accountId?: string;
@@ -111,6 +112,21 @@ export class LedgerService {
 
     if (entriesError) return { error: entriesError.message };
 
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "ledger.transaction_posted",
+      entityType: "ledger_transaction",
+      entityId: tx.id,
+      after: {
+        reference: txReference,
+        transactionType: input.transactionType,
+        description: input.description,
+        totalDebit,
+        entries: entries.length,
+      },
+    });
+
     return { success: "Transaction posted", reference: txReference, id: tx.id };
   }
 
@@ -181,6 +197,21 @@ export class LedgerService {
       .update({ status: "REVERSED" })
       .eq("id", transactionId)
       .eq("organization_id", this.orgId);
+
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "ledger.transaction_reversed",
+      entityType: "ledger_transaction",
+      entityId: transactionId,
+      before: { status: tx.status, reference: tx.reference },
+      after: {
+        status: "REVERSED",
+        reason,
+        reversalReference,
+        reversalTransactionId: reversalTx.id,
+      },
+    });
 
     return { success: "Transaction reversed" };
   }
