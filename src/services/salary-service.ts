@@ -162,13 +162,23 @@ export class SalaryService {
       .order("created_at", { ascending: true });
 
     return (data ?? []).map((row) => {
-      const employeeList = row.employees as unknown as {
-        employee_number: string;
-        first_name: string;
-        last_name: string;
-        department: string | null;
-      }[];
-      const employee = Array.isArray(employeeList) ? employeeList[0] : null;
+      const employeeEmbed = row.employees as unknown as
+        | {
+            employee_number: string;
+            first_name: string;
+            last_name: string;
+            department: string | null;
+          }
+        | {
+            employee_number: string;
+            first_name: string;
+            last_name: string;
+            department: string | null;
+          }[]
+        | null;
+      const employee = Array.isArray(employeeEmbed)
+        ? (employeeEmbed[0] ?? null)
+        : employeeEmbed;
       return {
         id: row.id,
         employee_id: row.employee_id,
