@@ -34,6 +34,7 @@ import {
   Percent,
   PiggyBank,
   Settings,
+  ShieldAlert,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -83,6 +84,11 @@ const employerNav = [
     title: "Deductions",
     href: "/dashboard/deductions",
     icon: Percent,
+  },
+  {
+    title: "Collections",
+    href: "/dashboard/collections",
+    icon: ShieldAlert,
   },
   {
     title: "Ledger",

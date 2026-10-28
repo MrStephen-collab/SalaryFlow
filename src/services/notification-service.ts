@@ -120,7 +120,7 @@ export class NotificationService {
     const admin = createAdminClient();
     const items: NotificationItem[] = [];
 
-    const [loans, withdrawals, deductions] = await Promise.all([
+    const [loans, withdrawals, deductions, schedules] = await Promise.all([
       admin
         .from("loan_applications")
         .select(
@@ -156,6 +156,20 @@ export class NotificationService {
         .in("status", ["PROCESSED", "PARTIAL", "FAILED"])
         .order("processed_at", { ascending: false })
         .limit(20),
+      admin
+        .from("loan_schedules")
+        .select(
+          `
+          id, status, due_date, total_payment, paid_amount,
+          loan_applications!inner(id, employee_id, status)
+        `
+        )
+        .eq("loan_applications.employee_id", this.employeeId)
+        .in("loan_applications.status", ["ACTIVE", "DEFAULTED"])
+        .in("status", ["DUE", "LATE", "UPCOMING"])
+        .lte("due_date", daysFromNow(7))
+        .order("due_date", { ascending: true })
+        .limit(10),
     ]);
 
     for (const loan of loans.data ?? []) {
@@ -291,6 +305,61 @@ export class NotificationService {
       }
     }
 
+    for (const schedule of schedules.data ?? []) {
+      const loan = unwrap(
+        schedule.loan_applications as unknown as Embedded<{
+          id: string;
+          status: string;
+        }>
+      );
+      const outstanding = Math.max(
+        0,
+        Number(schedule.total_payment) - Number(schedule.paid_amount ?? 0)
+      );
+      if (outstanding <= 0) continue;
+
+      const due = schedule.due_date
+        ? new Date(schedule.due_date).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
+        : "the due date";
+      const daysOverdue = schedule.due_date
+        ? Math.max(
+            0,
+            Math.floor(
+              (Date.now() -
+                new Date(`${schedule.due_date.slice(0, 10)}T00:00:00.000Z`).getTime()) /
+                (24 * 60 * 60 * 1000)
+            )
+          )
+        : 0;
+
+      items.push({
+        id: `my-schedule-${schedule.status.toLowerCase()}-${schedule.id}`,
+        title:
+          schedule.status === "LATE"
+            ? daysOverdue >= 90
+              ? "Loan seriously overdue"
+              : "Payment overdue"
+            : schedule.status === "DUE"
+              ? "Payment due"
+              : "Loan approaching due date",
+        description:
+          schedule.status === "LATE"
+            ? `${naira(outstanding)} was due on ${due} — ${daysOverdue} day${
+                daysOverdue === 1 ? "" : "s"
+              } overdue.`
+            : `${naira(outstanding)} is due on ${due}.`,
+        href: loan ? `/employee/loans/${loan.id}` : "/employee/loans",
+        createdAt: timestamp(schedule.due_date),
+        tone: schedule.status === "DUE" || schedule.status === "LATE" ? "danger" : "info",
+        category: "loan",
+        amount: outstanding,
+      });
+    }
+
     return this.finish(items, limit);
   }
 
@@ -341,7 +410,7 @@ export class NotificationService {
         .from("loan_schedules")
         .select(
           `
-          id, status, due_date, total_payment,
+          id, status, due_date, total_payment, paid_amount,
           loan_applications!inner(
             id, organization_id,
             employees:employee_id(first_name, last_name)
@@ -349,7 +418,7 @@ export class NotificationService {
         `
         )
         .eq("loan_applications.organization_id", this.orgId)
-        .in("status", ["DUE", "UPCOMING"])
+        .in("status", ["DUE", "LATE", "UPCOMING"])
         .lte("due_date", daysFromNow(7))
         .order("due_date", { ascending: true })
         .limit(10),
@@ -458,15 +527,43 @@ export class NotificationService {
           })
         : "soon";
 
+      const daysOverdue = schedule.due_date
+        ? Math.max(
+            0,
+            Math.floor(
+              (Date.now() - new Date(`${schedule.due_date.slice(0, 10)}T00:00:00.000Z`).getTime()) /
+                (24 * 60 * 60 * 1000)
+            )
+          )
+        : 0;
+
+      const outstanding = Math.max(
+        0,
+        Number(schedule.total_payment) - Number(schedule.paid_amount ?? 0)
+      );
+      if (outstanding <= 0) continue;
+
       items.push({
-        id: `schedule-due-${schedule.id}`,
-        title: schedule.status === "DUE" ? "Repayment due" : "Repayment due soon",
-        description: `${name} owes ${naira(Number(schedule.total_payment) || 0)} by ${due}.`,
+        id: `schedule-${schedule.status.toLowerCase()}-${schedule.id}`,
+        title:
+          schedule.status === "LATE"
+            ? daysOverdue >= 90
+              ? "Loan seriously overdue"
+              : "Payment overdue"
+            : schedule.status === "DUE"
+              ? "Repayment due"
+              : "Repayment due soon",
+        description:
+          schedule.status === "LATE"
+            ? `${name} owes ${naira(outstanding)}, ${daysOverdue} day${
+                daysOverdue === 1 ? "" : "s"
+              } past due (since ${due}).`
+            : `${name} owes ${naira(outstanding)} by ${due}.`,
         href: application ? `/dashboard/loans/applications/${application.id}` : "/dashboard/loans",
         createdAt: timestamp(schedule.due_date),
-        tone: schedule.status === "DUE" ? "danger" : "info",
+        tone: schedule.status === "DUE" || schedule.status === "LATE" ? "danger" : "info",
         category: "loan",
-        amount: Number(schedule.total_payment) || 0,
+        amount: outstanding,
       });
     }
 

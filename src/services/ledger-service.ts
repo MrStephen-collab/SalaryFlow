@@ -322,8 +322,10 @@ export class LedgerService {
   /**
    * Post a loan disbursement to the ledger.
    * Debit: Loan Receivable         (amount)
-   * Credit: Lending Fund           (amount)
    * Credit: Employee Balance       (amount)  -- disbursed funds available to employee
+   *
+   * The cash itself leaves the lending fund when the employee withdraws, which
+   * is where the employee balance is debited against the fund.
    */
   async postLoanDisbursement(
     employeeId: string,
@@ -333,17 +335,15 @@ export class LedgerService {
     await this.ensureChartOfAccounts();
     const financialAccount = await this.ensureFinancialAccount(employeeId);
     const receivable = await this.getAccountByCode("1100");
-    const fund = await this.getAccountByCode("1000");
 
     const entries = [
       { accountId: receivable?.id, debit: amount, credit: 0, description: "Loan disbursement - receivable" },
-      { accountId: fund?.id, debit: 0, credit: amount, description: "Loan disbursement - lending fund" },
       { financialAccountId: financialAccount?.id, debit: 0, credit: amount, description: "Loan disbursed to employee balance" },
     ].filter((e) => e.accountId || e.financialAccountId);
 
     return this.postTransaction(
       {
-        description: `Loan disbursement - amount ${amount}`,
+        description: `Loan disbursement ${loanApplicationId.slice(0, 8)} - amount ${amount}`,
         transactionType: "LOAN_DISBURSEMENT",
         entries,
       },
@@ -382,10 +382,9 @@ export class LedgerService {
 
   /**
    * Post a loan repayment to the ledger.
-   * Debit: Lending Fund      (amount)
+   * Debit: Lending Fund      (amount)   -- cash received via salary deduction
    * Credit: Loan Principal   (principal portion)
    * Credit: Interest Income  (interest portion)
-   * Debit: Employee Balance  (amount)  -- deduction from employee balance
    */
   async postLoanRepayment(
     employeeId: string,
@@ -394,8 +393,9 @@ export class LedgerService {
     principalPortion: number,
     interestPortion: number
   ) {
+    void employeeId;
+
     await this.ensureChartOfAccounts();
-    const financialAccount = await this.ensureFinancialAccount(employeeId);
     const fund = await this.getAccountByCode("1000");
     const principalAccount = await this.getAccountByCode("2000");
     const interestAccount = await this.getAccountByCode("4000");
@@ -404,12 +404,11 @@ export class LedgerService {
       { accountId: fund?.id, debit: amount, credit: 0, description: "Loan repayment - lending fund" },
       { accountId: principalAccount?.id, debit: 0, credit: principalPortion, description: "Loan repayment - principal" },
       { accountId: interestAccount?.id, debit: 0, credit: interestPortion, description: "Loan repayment - interest" },
-      { financialAccountId: financialAccount?.id, debit: amount, credit: 0, description: "Loan repayment deduction - employee balance" },
-    ].filter((e) => e.accountId || e.financialAccountId);
+    ].filter((e) => e.accountId);
 
     return this.postTransaction(
       {
-        description: `Loan repayment - amount ${amount}`,
+        description: `Loan repayment ${loanApplicationId.slice(0, 8)} - amount ${amount}`,
         transactionType: "LOAN_REPAYMENT",
         entries,
       },
