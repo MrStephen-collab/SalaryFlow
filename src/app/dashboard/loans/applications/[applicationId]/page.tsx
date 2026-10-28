@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LoanService } from "@/services/loan-service";
+import { LoanSettlementService } from "@/services/loan-settlement-service";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { ArrowLeft } from "lucide-react";
 import { ApplicationActions } from "@/components/dashboard/loans/application-actions";
+import { SettlementActions, RestructureHistoryTable } from "@/components/dashboard/loans/settlement-actions";
 
 export const metadata: Metadata = {
   title: "Loan Application",
@@ -68,6 +70,13 @@ export default async function LoanApplicationDetailPage({
   }
 
   const schedule = await service.getSchedule(applicationId);
+
+  const settlement = await LoanSettlementService.create();
+  const canManageSettlements = settlement.canManageSettlements();
+  const quoteResult = await settlement.getSettlementQuote(applicationId);
+  const restructureHistory = canManageSettlements
+    ? await settlement.getRestructureHistory(applicationId)
+    : [];
 
   const totalPaid = schedule.reduce(
     (sum, s) => sum + (Number(s.paid_amount) || 0),
@@ -141,6 +150,30 @@ export default async function LoanApplicationDetailPage({
           </CardHeader>
         </Card>
       </div>
+
+      {canManageSettlements && quoteResult.quote && (
+        <SettlementActions
+          applicationId={application.id}
+          quote={quoteResult.quote}
+          history={restructureHistory}
+        />
+      )}
+
+      {canManageSettlements &&
+        !quoteResult.quote &&
+        restructureHistory.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Restructure history</CardTitle>
+              <CardDescription>
+                Previous versions of this loan&apos;s repayment plan.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RestructureHistoryTable history={restructureHistory} />
+            </CardContent>
+          </Card>
+        )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

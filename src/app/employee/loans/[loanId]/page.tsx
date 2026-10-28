@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmployeePortalService } from "@/services/employee-portal-service";
+import { LoanSettlementService } from "@/services/loan-settlement-service";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowLeft } from "lucide-react";
+import { EarlySettlementCard } from "@/components/employee/loans/early-settlement";
 
 export const metadata: Metadata = {
   title: "Loan Detail",
@@ -69,6 +71,9 @@ export default async function EmployeeLoanDetailPage({
   if (!loan) {
     notFound();
   }
+
+  const settlement = await LoanSettlementService.create();
+  const quoteResult = await settlement.getSettlementQuote(loanId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -127,6 +132,13 @@ export default async function EmployeeLoanDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      {quoteResult.quote && (
+        <EarlySettlementCard
+          applicationId={loan.id as string}
+          quote={quoteResult.quote}
+        />
+      )}
 
       <Card>
         <CardHeader>

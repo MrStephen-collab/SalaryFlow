@@ -368,7 +368,8 @@ export class NotificationService {
     const admin = createAdminClient();
     const items: NotificationItem[] = [];
 
-    const [applications, withdrawals, shortfalls, schedules] = await Promise.all([
+    const [applications, withdrawals, shortfalls, schedules, settlementRequests] =
+      await Promise.all([
       admin
         .from("loan_applications")
         .select(
@@ -421,6 +422,13 @@ export class NotificationService {
         .in("status", ["DUE", "LATE", "UPCOMING"])
         .lte("due_date", daysFromNow(7))
         .order("due_date", { ascending: true })
+        .limit(10),
+      admin
+        .from("audit_logs")
+        .select("id, entity_id, created_at, after_data")
+        .eq("organization_id", this.orgId)
+        .eq("action", "loan.early_settlement_requested")
+        .order("created_at", { ascending: false })
         .limit(10),
     ]);
 
@@ -564,6 +572,32 @@ export class NotificationService {
         tone: schedule.status === "DUE" || schedule.status === "LATE" ? "danger" : "info",
         category: "loan",
         amount: outstanding,
+      });
+    }
+
+    const seenSettlementLoans = new Set<string>();
+    for (const request of settlementRequests.data ?? []) {
+      if (!request.entity_id || seenSettlementLoans.has(request.entity_id)) {
+        continue;
+      }
+      seenSettlementLoans.add(request.entity_id);
+
+      const after = request.after_data as Record<string, unknown> | null;
+      const name =
+        typeof after?.employeeName === "string" && after.employeeName
+          ? after.employeeName
+          : "An employee";
+      const amount = Number(after?.settlementTotal) || 0;
+
+      items.push({
+        id: `settlement-request-${request.entity_id}`,
+        title: "Early settlement requested",
+        description: `${name} asked to settle their loan early for ${naira(amount)}.`,
+        href: `/dashboard/loans/applications/${request.entity_id}`,
+        createdAt: timestamp(request.created_at),
+        tone: "warning",
+        category: "approval",
+        amount,
       });
     }
 

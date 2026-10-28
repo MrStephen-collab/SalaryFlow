@@ -1,6 +1,8 @@
 "use server";
 
 import { LoanService } from "@/services/loan-service";
+import { LoanSettlementService } from "@/services/loan-settlement-service";
+import type { RestructureInput } from "@/services/loan-settlement-service";
 import type { CreateLoanProductValues } from "@/schemas/loan";
 
 export async function listLoanProducts() {
@@ -90,4 +92,22 @@ export async function recordLoanRepayment(
 ) {
   const service = await LoanService.create();
   return service.recordRepayment(applicationId, scheduleId, amount, paymentMethod);
+}
+
+export async function getSettlementQuote(applicationId: string) {
+  const service = await LoanSettlementService.create();
+  return service.getSettlementQuote(applicationId);
+}
+
+export async function settleLoanEarly(applicationId: string, note?: string) {
+  const service = await LoanSettlementService.create();
+  return service.settleEarly(applicationId, { note });
+}
+
+export async function restructureLoan(
+  applicationId: string,
+  input: RestructureInput
+) {
+  const service = await LoanSettlementService.create();
+  return service.restructureLoan(applicationId, input);
 }

@@ -177,8 +177,14 @@ async function fetchRepayment(
   );
 
   const amount = Number(data.amount) || 0;
+  const isEarlySettlement = (data.notes ?? "").startsWith("Early settlement");
   const details = [
-    { label: "Payment method", value: humanize(data.payment_method) },
+    {
+      label: "Payment method",
+      value: isEarlySettlement
+        ? "Early settlement"
+        : humanize(data.payment_method),
+    },
     { label: "Loan product", value: product?.name ?? "Loan" },
   ];
 

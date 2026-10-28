@@ -208,7 +208,9 @@ export default async function RepaymentsPage({
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
-                        {repayment.payment_method.replace("_", " ")}
+                        {repayment.notes?.startsWith("Early settlement")
+                          ? "Early settlement"
+                          : repayment.payment_method.replace("_", " ")}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">

@@ -1,6 +1,7 @@
 "use server";
 
 import { LoanService } from "@/services/loan-service";
+import { LoanSettlementService } from "@/services/loan-settlement-service";
 import { EmployeePortalService } from "@/services/employee-portal-service";
 import { WithdrawalService } from "@/services/withdrawal-service";
 import type { BankAccountValues } from "@/schemas/withdrawal";
@@ -27,6 +28,14 @@ export async function applyForLoan(
   );
   if ("error" in outcome) return { error: outcome.error };
   return { success: outcome.success };
+}
+
+export async function requestEarlySettlement(
+  applicationId: string,
+  note?: string
+) {
+  const service = await LoanSettlementService.create();
+  return service.requestEarlySettlement(applicationId, note);
 }
 
 export async function addBankAccount(values: BankAccountValues) {
