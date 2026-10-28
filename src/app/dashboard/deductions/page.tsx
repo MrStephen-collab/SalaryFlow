@@ -4,6 +4,7 @@ import { DeductionService } from "@/services/deduction-service";
 import { SalaryService } from "@/services/salary-service";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ClipboardCheck, FileText } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -94,6 +95,22 @@ export default async function DeductionsPage({
               />
             ))}
           </div>
+          <Button
+            size="sm"
+            variant="outline"
+            render={<Link href="/dashboard/deductions/payroll" />}
+          >
+            <FileText className="size-4" />
+            Payroll
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            render={<Link href="/dashboard/deductions/reconciliation" />}
+          >
+            <ClipboardCheck className="size-4" />
+            Reconcile
+          </Button>
           <GenerateDeductionsButton
             periods={periods.map((p) => ({ id: p.id, name: p.name }))}
           />

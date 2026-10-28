@@ -91,6 +91,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "payroll.imported": "Salary records imported",
   "payroll.deductions_generated": "Scheduled deductions generated",
   "payroll.deduction_processed": "Deduction processed",
+  "payroll.reconciled": "Payroll actuals imported",
+  "payroll.reconciliation_applied": "Reconciliation posted to loans",
   "collections.overdue_swept": "Overdue loans refreshed",
   "collections.loan_defaulted": "Loan marked as defaulted",
   "collections.shortfall_recovered": "Deduction shortfall recovered",

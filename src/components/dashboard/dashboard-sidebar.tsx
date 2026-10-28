@@ -26,6 +26,7 @@ import {
   Bell,
   BookOpen,
   Building2,
+  ClipboardCheck,
   FileText,
   HandCoins,
   LayoutDashboard,
@@ -84,6 +85,11 @@ const employerNav = [
     title: "Deductions",
     href: "/dashboard/deductions",
     icon: Percent,
+  },
+  {
+    title: "Reconciliation",
+    href: "/dashboard/deductions/reconciliation",
+    icon: ClipboardCheck,
   },
   {
     title: "Collections",
