@@ -72,6 +72,16 @@ export default async function WithdrawalDetailPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {withdrawal.status === "PAID" && (
+            <Button
+              variant="outline"
+              render={
+                <Link href={`/receipts/withdrawal/${withdrawal.id}`} />
+              }
+            >
+              Receipt
+            </Button>
+          )}
           <Button
             variant="outline"
             render={<Link href="/dashboard/withdrawals" />}

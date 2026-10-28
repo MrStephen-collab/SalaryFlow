@@ -215,17 +215,30 @@ export default async function RepaymentsPage({
                       {repayment.reference_number ?? "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        render={
-                          <Link
-                            href={`/dashboard/loans/applications/${repayment.loan_application_id}`}
-                          />
-                        }
-                      >
-                        View Loan
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          render={
+                            <Link
+                              href={`/dashboard/loans/applications/${repayment.loan_application_id}`}
+                            />
+                          }
+                        >
+                          View Loan
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          render={
+                            <Link
+                              href={`/receipts/repayment/${repayment.id}`}
+                            />
+                          }
+                        >
+                          Receipt
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -13,7 +13,7 @@ export default async function SuperAdminLayout({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-10 border-b bg-background">
+      <header className="sticky top-0 z-10 border-b bg-background print:hidden">
         <div className="flex h-14 items-center justify-between gap-4 px-4">
           <div className="flex items-center gap-6">
             <p className="font-semibold">SalaryFlow Admin</p>

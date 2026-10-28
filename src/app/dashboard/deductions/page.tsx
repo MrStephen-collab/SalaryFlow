@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DeductionService } from "@/services/deduction-service";
 import { SalaryService } from "@/services/salary-service";
 import { Badge } from "@/components/ui/badge";
@@ -181,10 +182,24 @@ export default async function DeductionsPage({
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <ProcessDeductionButton
-                      deductionId={deduction.id}
-                      status={deduction.status}
-                    />
+                    <div className="flex items-center justify-end gap-1">
+                      {["PROCESSED", "PARTIAL"].includes(deduction.status) &&
+                        Number(deduction.actual_amount) > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            render={
+                              <Link href={`/receipts/deduction/${deduction.id}`} />
+                            }
+                          >
+                            Receipt
+                          </Button>
+                        )}
+                      <ProcessDeductionButton
+                        deductionId={deduction.id}
+                        status={deduction.status}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

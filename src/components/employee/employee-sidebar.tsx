@@ -22,7 +22,9 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar";
 import {
+  ArrowDownToLine,
   Banknote,
+  FileText,
   HandCoins,
   Home,
   UserCircle2,
@@ -36,7 +38,9 @@ const employeeNav = [
   { title: "Dashboard", href: "/employee", icon: Home },
   { title: "Salary", href: "/employee/salary", icon: Banknote },
   { title: "Money", href: "/employee/money", icon: Wallet },
+  { title: "Withdrawals", href: "/employee/withdrawals", icon: ArrowDownToLine },
   { title: "Loans", href: "/employee/loans", icon: HandCoins },
+  { title: "Statement", href: "/employee/statement", icon: FileText },
   { title: "Profile", href: "/employee/profile", icon: UserCircle2 },
 ];
 

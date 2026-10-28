@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
+import Link from "next/link";
 
 function naira(amount: number) {
   return new Intl.NumberFormat("en-NG", {
@@ -64,6 +65,14 @@ export function WithdrawalsHistory({
             )}
           </div>
           <Badge variant={statusVariant(w.status)}>{w.status}</Badge>
+          {w.status === "PAID" && (
+            <Link
+              href={`/receipts/withdrawal/${w.id}`}
+              className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Receipt
+            </Link>
+          )}
         </div>
       ))}
     </div>
