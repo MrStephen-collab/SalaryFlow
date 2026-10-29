@@ -38,7 +38,13 @@ export async function middleware(request: NextRequest) {
   );
 
   // Protected routes that require auth
-  const protectedPrefixes = ["/dashboard", "/employee", "/super-admin", "/onboarding"];
+  const protectedPrefixes = [
+    "/dashboard",
+    "/employee",
+    "/member",
+    "/super-admin",
+    "/onboarding",
+  ];
   const isProtectedRoute = protectedPrefixes.some((prefix) =>
     pathname.startsWith(prefix)
   );
@@ -52,33 +58,54 @@ export async function middleware(request: NextRequest) {
 
   if (isPublicRoute && user && pathname !== "/") {
     // Route by role after login
-    const { data: isEmployee } = await supabase.rpc("user_has_role", {
-      required_role: "EMPLOYEE",
-    });
+    const [{ data: isEmployee }, { data: isMember }] = await Promise.all([
+      supabase.rpc("user_has_role", { required_role: "EMPLOYEE" }),
+      supabase.rpc("user_has_role", { required_role: "MEMBER" }),
+    ]);
     const url = request.nextUrl.clone();
-    url.pathname = isEmployee ? "/employee" : "/dashboard";
+    url.pathname = isMember ? "/member" : isEmployee ? "/employee" : "/dashboard";
     return NextResponse.redirect(url);
   }
 
   if (user) {
-    const { data: isEmployee } = await supabase.rpc("user_has_role", {
-      required_role: "EMPLOYEE",
-    });
+    const [{ data: isEmployee }, { data: isMember }] = await Promise.all([
+      supabase.rpc("user_has_role", { required_role: "EMPLOYEE" }),
+      supabase.rpc("user_has_role", { required_role: "MEMBER" }),
+    ]);
 
-    // Block EMPLOYEE users from admin/super-admin areas
+    // External members only see their savings portal.
+    if (isMember) {
+      if (!pathname.startsWith("/member") && pathname !== "/") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/member";
+        return NextResponse.redirect(url);
+      }
+      return supabaseResponse;
+    }
+
+    // Block EMPLOYEE users from admin/super-admin/member areas
     if (
       isEmployee &&
-      (pathname.startsWith("/dashboard") || pathname.startsWith("/super-admin"))
+      (pathname.startsWith("/dashboard") ||
+        pathname.startsWith("/super-admin") ||
+        pathname.startsWith("/member"))
     ) {
       const url = request.nextUrl.clone();
       url.pathname = "/employee";
       return NextResponse.redirect(url);
     }
 
-    // Block non-EMPLOYEE users from the employee portal
+    // Block non-EMPLOYEE, non-MEMBER users from the employee portal
     if (!isEmployee && pathname.startsWith("/employee")) {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    // Block staff from the member portal.
+    if (!isMember && pathname.startsWith("/member")) {
+      const url = request.nextUrl.clone();
+      url.pathname = isEmployee ? "/employee" : "/dashboard";
       return NextResponse.redirect(url);
     }
   }

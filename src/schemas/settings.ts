@@ -50,6 +50,17 @@ export const organizationSettingsSchema = z.object({
   guarantor_required: z.boolean().default(false),
   approval_workflow: z.enum(APPROVAL_WORKFLOWS),
   withdrawals_enabled: z.boolean().default(false),
+  salary_payment_day: z.coerce
+    .number()
+    .int()
+    .min(1, "Choose a day between 1 and 28")
+    .max(28, "Choose a day between 1 and 28")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  auto_disburse_salaries: z.boolean().default(false),
+  savings_min_membership_months: z.coerce.number().int().min(0).max(60).default(6),
+  member_loan_multiplier: z.coerce.number().min(1).max(10).default(2),
+  member_savings_withdrawals_enabled: z.boolean().default(true),
 });
 
 export type OrganizationSettingsValues = z.infer<

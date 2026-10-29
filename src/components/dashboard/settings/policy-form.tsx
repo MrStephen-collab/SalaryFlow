@@ -32,6 +32,13 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
     guarantor_required: settings?.guarantor_required ?? false,
     approval_workflow: settings?.approval_workflow ?? "two_level",
     withdrawals_enabled: settings?.withdrawals_enabled ?? false,
+    salary_payment_day: settings?.salary_payment_day ?? 25,
+    auto_disburse_salaries: settings?.auto_disburse_salaries ?? false,
+    savings_min_membership_months:
+      settings?.savings_min_membership_months ?? 6,
+    member_loan_multiplier: settings?.member_loan_multiplier ?? 2,
+    member_savings_withdrawals_enabled:
+      settings?.member_savings_withdrawals_enabled ?? true,
   });
 
   const set = <K extends keyof typeof form>(
@@ -212,6 +219,96 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
             <Switch
               checked={form.withdrawals_enabled}
               onCheckedChange={(v) => set("withdrawals_enabled", v)}
+            />
+          </div>
+
+          <div className="pt-2 sm:col-span-2">
+            <h3 className="text-sm font-semibold">Payroll automation</h3>
+            <p className="text-xs text-muted-foreground">
+              Fund your salary pool online, then have salaries paid into employee
+              wallets automatically.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Salary Payment Day</Label>
+            <Input
+              type="number"
+              min={1}
+              max={28}
+              value={form.salary_payment_day}
+              onChange={(e) =>
+                set("salary_payment_day", Number(e.target.value))
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Day of the month (1-28) salaries leave the pool.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <Label>Automatic Salary Payment</Label>
+              <p className="text-xs text-muted-foreground">
+                Pay due salary periods without manual approval
+              </p>
+            </div>
+            <Switch
+              checked={form.auto_disburse_salaries}
+              onCheckedChange={(v) => set("auto_disburse_salaries", v)}
+            />
+          </div>
+
+          <div className="pt-2 sm:col-span-2">
+            <h3 className="text-sm font-semibold">External members</h3>
+            <p className="text-xs text-muted-foreground">
+              Rules for non-employees who save with your organization and later
+              borrow against their savings.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Membership Before Loan (Months)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={60}
+              value={form.savings_min_membership_months}
+              onChange={(e) =>
+                set("savings_min_membership_months", Number(e.target.value))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Loan Multiple of Savings</Label>
+            <Input
+              type="number"
+              min={1}
+              max={10}
+              step="0.5"
+              value={form.member_loan_multiplier}
+              onChange={(e) =>
+                set("member_loan_multiplier", Number(e.target.value))
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              A member can borrow up to savings × this multiple.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+            <div>
+              <Label>Member Savings Withdrawals</Label>
+              <p className="text-xs text-muted-foreground">
+                Allow members to withdraw their own savings
+              </p>
+            </div>
+            <Switch
+              checked={form.member_savings_withdrawals_enabled}
+              onCheckedChange={(v) =>
+                set("member_savings_withdrawals_enabled", v)
+              }
             />
           </div>
         </div>

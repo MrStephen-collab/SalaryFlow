@@ -16,6 +16,11 @@ export interface OrganizationSettingsRecord {
   guarantor_required: boolean;
   approval_workflow: string;
   withdrawals_enabled: boolean;
+  salary_payment_day?: number | null;
+  auto_disburse_salaries?: boolean;
+  savings_min_membership_months?: number;
+  member_loan_multiplier?: number;
+  member_savings_withdrawals_enabled?: boolean;
 }
 
 export class SettingsService {
@@ -152,11 +157,47 @@ export class SettingsService {
       guarantor_required: Boolean(values.guarantor_required),
       approval_workflow: values.approval_workflow as string,
       withdrawals_enabled: Boolean(values.withdrawals_enabled),
+      salary_payment_day:
+        values.salary_payment_day === undefined ||
+        values.salary_payment_day === null ||
+        values.salary_payment_day === ""
+          ? null
+          : Number(values.salary_payment_day),
+      auto_disburse_salaries: Boolean(values.auto_disburse_salaries),
+      savings_min_membership_months: Number(
+        values.savings_min_membership_months ?? 6
+      ),
+      member_loan_multiplier: Number(values.member_loan_multiplier ?? 2),
+      member_savings_withdrawals_enabled:
+        values.member_savings_withdrawals_enabled === undefined
+          ? true
+          : Boolean(values.member_savings_withdrawals_enabled),
     };
 
-    const { error } = await this.supabase
+    // The money-platform columns only exist after the companion migration has
+    // been applied. Fall back to the legacy column set so settings keep saving
+    // on deployments that have not run it yet.
+    const moneyPlatformColumns = [
+      "salary_payment_day",
+      "auto_disburse_salaries",
+      "savings_min_membership_months",
+      "member_loan_multiplier",
+      "member_savings_withdrawals_enabled",
+    ];
+
+    let { error } = await this.supabase
       .from("organization_settings")
       .upsert(settingsData, { onConflict: "organization_id" });
+
+    if (error && /column|schema cache/i.test(error.message)) {
+      const fallback = { ...settingsData };
+      for (const column of moneyPlatformColumns) {
+        delete fallback[column as keyof typeof fallback];
+      }
+      ({ error } = await this.supabase
+        .from("organization_settings")
+        .upsert(fallback, { onConflict: "organization_id" }));
+    }
 
     if (error) return { error: error.message };
 

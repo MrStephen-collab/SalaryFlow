@@ -56,6 +56,10 @@ export async function login(values: unknown): Promise<ActionResult> {
       redirect("/employee");
     }
 
+    if (profile?.role === "MEMBER") {
+      redirect("/member");
+    }
+
     if (profile?.organization_id) {
       redirect("/dashboard");
     }

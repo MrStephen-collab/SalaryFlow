@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAudit } from "./audit-service";
 
 export interface LedgerEntryInput {
@@ -51,6 +52,21 @@ export class LedgerService {
     const service = new LedgerService(supabase);
     service.orgId = orgId;
     service.userId = user?.id ?? null;
+    return service;
+  }
+
+  /**
+   * Service-role variant for jobs with no user session (payment webhooks,
+   * scheduled disbursement runs). The organization must be supplied explicitly
+   * because there is no session to read it from.
+   */
+  static createForOrganization(organizationId: string, actorUserId?: string | null) {
+    const supabase = createAdminClient() as unknown as Awaited<
+      ReturnType<typeof createClient>
+    >;
+    const service = new LedgerService(supabase);
+    service.orgId = organizationId;
+    service.userId = actorUserId ?? null;
     return service;
   }
 
@@ -260,6 +276,9 @@ export class LedgerService {
       { code: "1100", name: "Loan Receivable", type: "ASSET" },
       { code: "2000", name: "Loan Principal", type: "LIABILITY" },
       { code: "4000", name: "Interest Income", type: "INCOME" },
+      { code: "4100", name: "Gateway & Other Income", type: "INCOME" },
+      { code: "5000", name: "Salary Expense", type: "EXPENSE" },
+      { code: "5100", name: "Gateway Fees", type: "EXPENSE" },
     ];
 
     const { data } = await this.supabase
@@ -317,6 +336,149 @@ export class LedgerService {
       .single();
 
     return created ?? null;
+  }
+
+  /**
+   * Ensure a savings wallet exists for an external member.
+   */
+  async ensureMemberFinancialAccount(memberId: string) {
+    if (!this.orgId) return null;
+
+    const { data: existing } = await this.supabase
+      .from("financial_accounts")
+      .select("id")
+      .eq("member_id", memberId)
+      .eq("account_type", "SAVINGS")
+      .maybeSingle();
+
+    if (existing) return existing;
+
+    const { data: created } = await this.supabase
+      .from("financial_accounts")
+      .insert({
+        organization_id: this.orgId,
+        member_id: memberId,
+        account_type: "SAVINGS",
+        currency: "NGN",
+        status: "ACTIVE",
+      })
+      .select()
+      .single();
+
+    return created ?? null;
+  }
+
+  /**
+   * Credit a member's savings wallet and mirror the movement.
+   * Debit:  Lending Fund (cash received)   Credit: Member Savings wallet
+   */
+  async postSavingsDeposit(
+    memberId: string,
+    reference: string,
+    amount: number,
+    description = "Savings deposit"
+  ) {
+    await this.ensureChartOfAccounts();
+    const wallet = await this.ensureMemberFinancialAccount(memberId);
+    const cash = await this.getAccountByCode("1000");
+
+    if (!wallet?.id) return { error: "Could not open a savings wallet for this member" };
+
+    return this.postTransaction(
+      {
+        description,
+        transactionType: "SAVINGS_DEPOSIT",
+        entries: [
+          { accountId: cash?.id, debit: amount, credit: 0, description: `${description} - cash received` },
+          { financialAccountId: wallet.id, debit: 0, credit: amount, description: `${description} - member savings` },
+        ],
+      },
+      reference
+    );
+  }
+
+  /**
+   * Debit a member's savings wallet (member withdrawal).
+   * Debit: Member Savings wallet   Credit: Lending Fund (cash paid out)
+   */
+  async postSavingsWithdrawal(
+    memberId: string,
+    reference: string,
+    amount: number,
+    description = "Savings withdrawal"
+  ) {
+    await this.ensureChartOfAccounts();
+    const wallet = await this.ensureMemberFinancialAccount(memberId);
+    const cash = await this.getAccountByCode("1000");
+
+    if (!wallet?.id) return { error: "Savings wallet not found" };
+
+    return this.postTransaction(
+      {
+        description,
+        transactionType: "SAVINGS_WITHDRAWAL",
+        entries: [
+          { financialAccountId: wallet.id, debit: amount, credit: 0, description: `${description} - member savings` },
+          { accountId: cash?.id, debit: 0, credit: amount, description: `${description} - cash paid out` },
+        ],
+      },
+      reference
+    );
+  }
+
+  /**
+   * Salary run credit: the org's salary expense becomes spendable employee
+   * balance. Cash has not left the organization yet - it leaves on withdrawal.
+   * Debit: Salary Expense   Credit: Employee Balance
+   */
+  async postSalaryDisbursement(
+    employeeId: string,
+    runId: string,
+    amount: number
+  ) {
+    await this.ensureChartOfAccounts();
+    const wallet = await this.ensureFinancialAccount(employeeId);
+    const expense = await this.getAccountByCode("5000");
+
+    if (!wallet?.id) return { error: "Could not open a wallet for this employee" };
+
+    return this.postTransaction(
+      {
+        description: `Salary disbursement ${runId.slice(0, 8)} - amount ${amount}`,
+        transactionType: "SALARY_DISBURSEMENT",
+        entries: [
+          { accountId: expense?.id, debit: amount, credit: 0, description: "Salary run - expense" },
+          { financialAccountId: wallet.id, debit: 0, credit: amount, description: "Salary run - employee wallet" },
+        ],
+      },
+      `SLF-SAL-${runId.slice(0, 8)}-${employeeId.slice(0, 8)}`
+    );
+  }
+
+  /**
+   * Member loan payout: principal receivable against member wallet.
+   * Debit: Loan Receivable   Credit: Member Savings wallet
+   */
+  async postMemberLoanDisbursement(
+    memberId: string,
+    loanApplicationId: string,
+    amount: number
+  ) {
+    await this.ensureChartOfAccounts();
+    const wallet = await this.ensureMemberFinancialAccount(memberId);
+    const receivable = await this.getAccountByCode("1100");
+
+    return this.postTransaction(
+      {
+        description: `Member loan disbursement ${loanApplicationId.slice(0, 8)} - amount ${amount}`,
+        transactionType: "LOAN_DISBURSEMENT",
+        entries: [
+          { accountId: receivable?.id, debit: amount, credit: 0, description: "Member loan - receivable" },
+          { financialAccountId: wallet?.id, debit: 0, credit: amount, description: "Member loan - savings wallet" },
+        ],
+      },
+      `SLF-MLOAN-${Date.now()}`
+    );
   }
 
   /**

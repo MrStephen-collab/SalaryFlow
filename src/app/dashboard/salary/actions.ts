@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { SalaryService } from "@/services/salary-service";
+import { DisbursementService } from "@/services/disbursement-service";
 import {
   createSalaryPeriodSchema,
   salaryImportSchema,
@@ -57,8 +58,7 @@ export async function getSalaryRecords(periodId: string) {
 
 export async function importSalary(
   values: unknown
-): Promise<ActionResult<{ imported: number }>> {
-  try {
+): Promise<ActionResult<{ imported: number }>> {  try {
     const parsed = salaryImportSchema.safeParse(values);
     if (!parsed.success) {
       const firstIssue = parsed.error.issues[0];
@@ -88,4 +88,28 @@ export async function importSalary(
       error: error instanceof Error ? error.message : "Unable to import salary",
     };
   }
+}
+
+/** Pay a salary period into employee wallets from the funded pool. */
+export async function paySalaryPeriod(periodId: string) {
+  try {
+    const result = await DisbursementService.payPeriodNow(periodId);
+    revalidatePath("/dashboard/salary");
+    revalidatePath(`/dashboard/salary/${periodId}`);
+    revalidatePath("/dashboard/funds");
+    return result;
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unable to run payroll",
+    };
+  }
+}
+
+export async function getDisbursementRun(periodId: string) {
+  return DisbursementService.getRunForPeriod(periodId);
+}
+
+export async function getDisbursementRunItems(runId: string) {
+  return DisbursementService.getRunItems(runId);
 }

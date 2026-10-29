@@ -1,0 +1,75 @@
+import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
+import { requireUser, getProfile } from "@/lib/auth";
+import { MemberSidebar } from "@/components/member/member-sidebar";
+import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { SignOutButton } from "@/components/employee/sign-out-button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+export default async function MemberLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const user = await requireUser();
+  const profile = await getProfile();
+
+  if (!profile) {
+    redirect("/onboarding");
+  }
+  if (profile.role !== "MEMBER") {
+    if (profile.role === "EMPLOYEE") redirect("/employee");
+    if (profile.role === "SUPER_ADMIN") redirect("/super-admin");
+    redirect("/dashboard");
+  }
+
+  const initials = (user.user_metadata?.full_name ?? user.email ?? "U")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <SidebarProvider>
+      <MemberSidebar user={user} />
+      <SidebarInset>
+        <header className="flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur lg:px-6 print:hidden">
+          <SidebarTrigger className="-ml-1" />
+          <Separator
+            orientation="vertical"
+            className="mr-2 data-[orientation=vertical]:h-4"
+          />
+          <SalaryFlowLogo variant="icon" size="sm" className="lg:hidden" />
+          <div className="flex-1" />
+          <div className="hidden items-center gap-3 sm:flex">
+            <div className="text-right">
+              <p className="text-sm font-medium leading-tight">
+                {user.user_metadata?.full_name ?? "Member"}
+              </p>
+              <p className="text-xs text-muted-foreground">{user.email}</p>
+            </div>
+            <Avatar className="h-8 w-8">
+              <AvatarImage
+                src={user.user_metadata?.avatar_url ?? ""}
+                alt={user.email ?? ""}
+              />
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+          </div>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <SignOutButton />
+          </div>
+        </header>
+        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+          <div className="mx-auto w-full max-w-5xl">{children}</div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}

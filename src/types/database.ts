@@ -792,6 +792,11 @@ export interface Database {
           created_at: string
           default_interest_method: string
           default_interest_rate: number | null
+          salary_payment_day: number | null
+          auto_disburse_salaries: boolean
+          savings_min_membership_months: number
+          member_loan_multiplier: number
+          member_savings_withdrawals_enabled: boolean
           guarantor_required: boolean
           id: string
           max_loan_amount: number | null

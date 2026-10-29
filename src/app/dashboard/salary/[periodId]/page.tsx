@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SalaryService } from "@/services/salary-service";
+import { FundService } from "@/services/fund-service";
+import { DisbursementService } from "@/services/disbursement-service";
 import {
   Card,
+  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -18,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
+import { PayPeriodButton } from "@/components/dashboard/salary/pay-period-button";
 import { Download, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -59,6 +63,15 @@ export default async function SalaryPeriodPage({
   }
 
   const records = await service.getSalaryRecords(periodId);
+
+  const fundService = await FundService.create();
+  const fundAccounts = await fundService.listFundAccounts();
+  const poolBalance = (
+    await Promise.all(fundAccounts.map((account) => fundService.fundAccountBalance(account.id)))
+  ).reduce((sum, balance) => sum + balance, 0);
+
+  const run = await DisbursementService.getRunForPeriod(periodId);
+  const alreadyPaid = run?.status === "COMPLETED";
 
   const totals = records.reduce(
     (acc, r) => {
@@ -128,6 +141,69 @@ export default async function SalaryPeriodPage({
           </CardHeader>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle className="text-base">Payroll status</CardTitle>
+            <CardDescription>
+              {run
+                ? `Run ${run.status.toLowerCase()}${
+                    run.completed_at
+                      ? ` · ${new Date(run.completed_at).toLocaleString("en-NG")}`
+                      : ""
+                  }${run.failure_reason ? ` · ${run.failure_reason}` : ""}`
+                : "No payroll run yet. Salaries have not been paid into wallets."}
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {run ? (
+              <Badge
+                variant={
+                  run.status === "COMPLETED"
+                    ? "default"
+                    : run.status === "FAILED"
+                      ? "destructive"
+                      : "secondary"
+                }
+              >
+                {run.status}
+              </Badge>
+            ) : null}
+            <PayPeriodButton
+              periodId={periodId}
+              periodName={period.name}
+              netPayable={totals.net}
+              poolBalance={poolBalance}
+              alreadyPaid={alreadyPaid}
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
+          <div>
+            <p className="text-muted-foreground">Salary pool</p>
+            <p className="font-mono text-base font-medium">{naira(poolBalance)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Credited to wallets</p>
+            <p className="font-mono text-base font-medium">
+              {naira(Number(run?.total_amount ?? 0))}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Employees paid</p>
+            <p className="font-mono text-base font-medium">
+              {run?.processed_count ?? 0} / {records.length}
+            </p>
+          </div>
+          {poolBalance < totals.net && !alreadyPaid ? (
+            <p className="text-sm text-destructive sm:col-span-3">
+              The pool is short by {naira(totals.net - poolBalance)}. Fund the pool
+              before paying this period.
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <div className="rounded-md border">
         <Table>
