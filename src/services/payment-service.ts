@@ -133,14 +133,14 @@ export class PaymentService {
     });
 
     if (!init.ok || !init.authorizationUrl) {
-      await supabase
+      await createAdminClient()
         .from("payment_transactions")
         .update({ status: "FAILED", metadata: { failure: init.error ?? "Gateway error" } })
         .eq("id", intent.id);
       return { ok: false, error: init.error ?? "The payment gateway did not return a checkout link" };
     }
 
-    await supabase
+    await createAdminClient()
       .from("payment_transactions")
       .update({
         authorization_url: init.authorizationUrl,
@@ -232,14 +232,14 @@ export class PaymentService {
     });
 
     if (!init.ok || !init.authorizationUrl) {
-      await supabase
+      await createAdminClient()
         .from("payment_transactions")
         .update({ status: "FAILED", metadata: { failure: init.error ?? "Gateway error" } })
         .eq("id", intent.id);
       return { ok: false, error: init.error ?? "The payment gateway did not return a checkout link" };
     }
 
-    await supabase
+    await createAdminClient()
       .from("payment_transactions")
       .update({
         authorization_url: init.authorizationUrl,
