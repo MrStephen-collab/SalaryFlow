@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { changePassword } from "@/app/employee/profile/actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export function ChangePasswordForm() {
   const [isPending, startTransition] = useTransition();
@@ -39,9 +39,9 @@ export function ChangePasswordForm() {
   return (
     <div className="flex flex-col gap-4">
       <div className="space-y-2">
-        <Label>Current password</Label>
-        <Input
-          type="password"
+        <Label htmlFor="currentPassword">Current password</Label>
+        <PasswordInput
+          id="currentPassword"
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
           placeholder="Enter current password"
@@ -49,9 +49,9 @@ export function ChangePasswordForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label>New password</Label>
-        <Input
-          type="password"
+        <Label htmlFor="newPassword">New password</Label>
+        <PasswordInput
+          id="newPassword"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           placeholder="At least 8 characters"
@@ -59,9 +59,9 @@ export function ChangePasswordForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label>Confirm new password</Label>
-        <Input
-          type="password"
+        <Label htmlFor="confirmPassword">Confirm new password</Label>
+        <PasswordInput
+          id="confirmPassword"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           placeholder="Repeat new password"
