@@ -60,7 +60,7 @@ export function StatCard({
         <p className="text-[10px] font-medium uppercase tracking-wider text-white/75 sm:text-xs">
           {title}
         </p>
-        <p className="mt-0.5 truncate text-lg font-bold tracking-tight sm:text-2xl">
+        <p className="mt-0.5 truncate text-base font-bold tracking-tight sm:text-2xl">
           {value}
         </p>
         {description && (
