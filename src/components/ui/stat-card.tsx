@@ -39,7 +39,7 @@ export function StatCard({
   const body = (
     <div
       className={cn(
-        "group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br p-4 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/40 sm:p-5",
+        "group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br p-3 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/40 sm:p-5",
         statAccents[accent]
       )}
       style={{ animationDelay: `${delay}ms` }}
@@ -48,23 +48,23 @@ export function StatCard({
       <div className="pointer-events-none absolute -bottom-14 -left-8 size-28 rounded-full bg-black/10 blur-xl" />
 
       <div className="relative flex items-start justify-between gap-2 sm:gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30 backdrop-blur-sm sm:size-11">
-          <Icon className="size-5" />
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/20 ring-1 ring-white/30 backdrop-blur-sm sm:size-11">
+          <Icon className="size-4 sm:size-5" />
         </div>
         {href && (
-          <ArrowUpRight className="size-5 shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          <ArrowUpRight className="size-4 shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 sm:size-5" />
         )}
       </div>
 
-      <div className="relative mt-3 sm:mt-4">
-        <p className="text-xs font-medium uppercase tracking-wider text-white/75">
+      <div className="relative mt-2.5 sm:mt-4">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-white/75 sm:text-xs">
           {title}
         </p>
-        <p className="mt-1 truncate text-xl font-bold tracking-tight sm:text-2xl">
+        <p className="mt-0.5 truncate text-lg font-bold tracking-tight sm:text-2xl">
           {value}
         </p>
         {description && (
-          <p className="mt-0.5 text-xs text-white/85">{description}</p>
+          <p className="mt-0.5 text-[11px] text-white/85 sm:text-xs">{description}</p>
         )}
       </div>
     </div>

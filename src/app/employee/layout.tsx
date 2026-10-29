@@ -3,13 +3,11 @@ import { redirect } from "next/navigation";
 import { requireUser, getProfile } from "@/lib/auth";
 import { EmployeePortalService } from "@/services/employee-portal-service";
 import { EmployeeSidebar } from "@/components/employee/employee-sidebar";
-import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SignOutButton } from "@/components/employee/sign-out-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -47,8 +45,6 @@ export default async function EmployeeLayout({
       <SidebarInset>
         <header className="flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur lg:px-6 print:hidden">
           <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-          <SalaryFlowLogo variant="icon" size="sm" className="lg:hidden" />
           <div className="flex-1" />
           <div className="hidden items-center gap-3 sm:flex">
             <div className="text-right">

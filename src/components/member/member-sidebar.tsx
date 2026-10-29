@@ -25,6 +25,8 @@ import {
 import { HandCoins, Home, PiggyBank } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SignOutButton } from "@/components/employee/sign-out-button";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import type { NotificationItem } from "@/services/notification-service";
 import { APP_NAME } from "@/config/constants";
 import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 
@@ -34,7 +36,13 @@ const memberNav = [
   { title: "Loans", href: "/member/loans", icon: HandCoins },
 ];
 
-export function MemberSidebar({ user }: { user: User }) {
+export function MemberSidebar({
+  user,
+  notifications = [],
+}: {
+  user: User;
+  notifications?: NotificationItem[];
+}) {
   const pathname = usePathname();
   const { setOpenMobile } = useSidebar();
   const initials = (user.user_metadata?.full_name ?? user.email ?? "U")
@@ -108,6 +116,7 @@ export function MemberSidebar({ user }: { user: User }) {
                 </p>
               </div>
               <ThemeToggle />
+              <NotificationBell items={notifications} viewAllHref="/member/notifications" />
               <SignOutButton />
             </div>
           </SidebarMenuItem>
