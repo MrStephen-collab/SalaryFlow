@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAudit } from "./audit-service";
 
 export interface EmployeeListParams {
@@ -233,16 +234,23 @@ export class EmployeeService {
     const orgId = await this.getOrgId();
     if (!orgId) throw new Error("No organization associated with this account");
 
-    const { error } = await this.supabase
+    // `departments` currently has no authenticated UPDATE policy, so writes
+    // through the user client return zero rows without an error. Write with
+    // the service-role client (like audit-service does) and keep the update
+    // scoped to the caller's organization.
+    const admin = createAdminClient();
+    const { data, error } = await admin
       .from("departments")
       .update({ name })
       .eq("id", id)
-      .eq("organization_id", orgId);
+      .eq("organization_id", orgId)
+      .select("id");
 
     if (error) {
       if (error.code === "23505") throw new Error("This department already exists");
       throw new Error(error.message);
     }
+    if (!data?.length) throw new Error("Department not found");
     return true;
   }
 
@@ -250,13 +258,17 @@ export class EmployeeService {
     const orgId = await this.getOrgId();
     if (!orgId) throw new Error("No organization associated with this account");
 
-    const { error } = await this.supabase
+    // Same RLS gap as updateDepartment: archive through the service role.
+    const admin = createAdminClient();
+    const { data, error } = await admin
       .from("departments")
       .update({ active: false })
       .eq("id", id)
-      .eq("organization_id", orgId);
+      .eq("organization_id", orgId)
+      .select("id");
 
     if (error) throw new Error(error.message);
+    if (!data?.length) throw new Error("Department not found");
     return true;
   }
 
