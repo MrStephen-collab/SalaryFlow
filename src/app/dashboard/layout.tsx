@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
+import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 import { requireUser, getProfile } from "@/lib/auth";
 import { NotificationService } from "@/services/notification-service";
 
@@ -35,6 +36,7 @@ export default async function DashboardLayout({
             orientation="vertical"
             className="data-[orientation=vertical]:h-4"
           />
+          <SalaryFlowLogo variant="icon" size="sm" />
           <span className="text-sm font-semibold">Navigation</span>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">

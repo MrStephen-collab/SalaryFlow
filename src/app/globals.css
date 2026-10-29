@@ -201,6 +201,95 @@
   animation: shimmer 1.6s linear infinite;
 }
 
+/* SalaryFlow brand */
+@keyframes sf-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sf-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sf-loader-progress {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes sf-sheen {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translateX(-160px);
+  }
+  50% {
+    opacity: 0.45;
+  }
+  75% {
+    opacity: 0.15;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(520px);
+  }
+}
+
+.sf-logo-animated .sf-logo-mark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sf-mark-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sf-logo-animated .sf-logo-wordmark {
+  transform-box: fill-box;
+  animation: sf-word-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.75s both;
+}
+
+.sf-logo-sheen {
+  opacity: 0;
+}
+
+.sf-logo-animated .sf-logo-sheen {
+  animation: sf-sheen 1.05s ease-in-out 0.55s both;
+}
+
+.sf-loader-bar {
+  animation: sf-loader-progress 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-logo-animated .sf-logo-mark,
+  .sf-logo-animated .sf-logo-wordmark,
+  .sf-loader-bar {
+    animation: none;
+  }
+
+  .sf-logo-animated .sf-logo-sheen {
+    display: none;
+  }
+
+  .sf-loader-bar {
+    transform: translateX(75%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .shimmer {
     -webkit-text-fill-color: currentColor;

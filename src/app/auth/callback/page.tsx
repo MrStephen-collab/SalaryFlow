@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { SalaryFlowLoader } from "@/components/brand/salaryflow-loader";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -30,14 +31,5 @@ export default function AuthCallbackPage() {
     handleCallback();
   }, [router]);
 
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="text-sm text-muted-foreground">
-          Completing authentication...
-        </p>
-      </div>
-    </div>
-  );
+  return <SalaryFlowLoader status="Securing your session..." />;
 }

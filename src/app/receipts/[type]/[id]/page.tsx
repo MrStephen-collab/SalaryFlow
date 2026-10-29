@@ -6,6 +6,7 @@ import { ReceiptService } from "@/services/receipt-service";
 import { ReceiptSheet } from "@/components/receipts/receipt-sheet";
 import { ReceiptActions } from "@/components/receipts/receipt-actions";
 import { APP_NAME } from "@/config/constants";
+import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 import { ArrowLeft } from "lucide-react";
 
 interface ReceiptPageProps {
@@ -51,14 +52,17 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
   return (
     <div className="min-h-screen bg-muted/40 px-4 py-6 sm:px-8 sm:py-10 print:bg-white print:p-0">
       <div className="mx-auto mb-6 flex max-w-3xl flex-col gap-4 print:hidden">
-        <div className="flex items-center justify-between gap-4">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Back to {APP_NAME}
-          </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
+            <SalaryFlowLogo layout="horizontal" size="sm" label={null} />
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="size-4" />
+              Back to {APP_NAME}
+            </Link>
+          </div>
           <p className="text-xs text-muted-foreground">
             Receipt {receipt.receiptNumber}
           </p>

@@ -37,7 +37,10 @@
     "@types/react-dom": "19.2.5",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.4",
+    "png-to-ico": "^3.0.2",
     "postcss": "8.5.26",
+    "potrace": "^2.1.8",
+    "sharp": "^0.35.5",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3"
   }

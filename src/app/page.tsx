@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -64,12 +65,9 @@ export default function LandingPage() {
     <div className="flex flex-col">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-              SF
-            </span>
-            <span className="text-lg font-bold tracking-tight">SalaryFlow</span>
-          </div>
+          <Link href="/" aria-label="SalaryFlow home">
+            <SalaryFlowLogo layout="horizontal" size="sm" label={null} />
+          </Link>
           <nav className="hidden items-center gap-6 md:flex">
             <Link
               href="#how-it-works"

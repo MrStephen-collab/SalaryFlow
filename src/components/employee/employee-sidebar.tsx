@@ -35,6 +35,7 @@ import {
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SignOutButton } from "@/components/employee/sign-out-button";
 import { APP_NAME } from "@/config/constants";
+import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 
 const employeeNav = [
   { title: "Dashboard", href: "/employee", icon: Home },
@@ -60,8 +61,8 @@ export function EmployeeSidebar({ user }: { user: User }) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/employee" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-sm font-bold">SF</span>
+              <div className="flex aspect-square size-8 items-center justify-center">
+                <SalaryFlowLogo variant="icon" size="md" />
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
                 <span className="font-semibold">{APP_NAME}</span>

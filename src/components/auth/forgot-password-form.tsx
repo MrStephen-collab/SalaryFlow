@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 export function ForgotPasswordForm() {
   const [message, setMessage] = useState<string | null>(null);
@@ -65,7 +66,14 @@ export function ForgotPasswordForm() {
         )}
       </div>
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Sending..." : "Send reset link"}
+        {isPending ? (
+          <>
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Sending...
+          </>
+        ) : (
+          "Send reset link"
+        )}
       </Button>
     </form>
   );

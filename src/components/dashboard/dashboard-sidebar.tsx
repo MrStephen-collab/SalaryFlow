@@ -47,6 +47,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import type { NotificationItem } from "@/services/notification-service";
 import { APP_NAME } from "@/config/constants";
+import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -333,8 +334,8 @@ export function DashboardSidebar({
               size="lg"
               render={<Link href="/dashboard" />}
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-sm font-bold">SF</span>
+              <div className="flex aspect-square size-8 items-center justify-center">
+                <SalaryFlowLogo variant="icon" size="md" />
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
                 <span className="font-semibold">{APP_NAME}</span>

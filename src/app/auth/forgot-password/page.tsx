@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
+import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 
 export const metadata: Metadata = {
   title: "Forgot Password",
@@ -16,9 +17,11 @@ export const metadata: Metadata = {
 export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold tracking-tight">SalaryFlow</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <div className="mb-8 flex flex-col items-center text-center">
+        <h1>
+          <SalaryFlowLogo size="md" animated />
+        </h1>
+        <p className="mt-3 text-sm text-muted-foreground">
           Reset your password
         </p>
       </div>

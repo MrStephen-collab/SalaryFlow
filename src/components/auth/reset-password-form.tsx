@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 export function ResetPasswordForm() {
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +72,14 @@ export function ResetPasswordForm() {
         )}
       </div>
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Resetting..." : "Reset password"}
+        {isPending ? (
+          <>
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Resetting...
+          </>
+        ) : (
+          "Reset password"
+        )}
       </Button>
     </form>
   );

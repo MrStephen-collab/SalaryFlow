@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -97,7 +98,14 @@ export function RegisterForm() {
         )}
       </div>
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Creating account..." : "Create account"}
+        {isPending ? (
+          <>
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Creating account...
+          </>
+        ) : (
+          "Create account"
+        )}
       </Button>
     </form>
   );

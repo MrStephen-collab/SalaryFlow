@@ -4,6 +4,7 @@ import { ReceiptService } from "@/services/receipt-service";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/report-export";
 import { receiptStatusClasses } from "@/components/receipts/receipt-sheet";
 import { APP_NAME } from "@/config/constants";
+import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 import { CheckCircle2, ShieldAlert, XCircle } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -24,11 +25,13 @@ export default async function VerifyReceiptPage({
   return (
     <div className="flex min-h-screen flex-col bg-muted/40 px-4 py-10">
       <div className="mx-auto w-full max-w-xl">
-        <div className="mb-6 text-center">
-          <Link href="/" className="text-lg font-bold tracking-tight">
-            {APP_NAME}
+        <div className="mb-6 flex flex-col items-center text-center">
+          <Link href="/" aria-label="SalaryFlow home">
+            <SalaryFlowLogo size="sm" label={null} />
           </Link>
-          <p className="text-xs text-muted-foreground">Receipt verification</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Receipt verification
+          </p>
         </div>
 
         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
