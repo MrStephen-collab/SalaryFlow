@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { EmployeeForm } from "@/components/dashboard/employees/employee-form";
 import { toggleEmployeeStatus } from "@/app/dashboard/employees/actions";
-import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Search, UserX } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Search, UserX, X } from "lucide-react";
 import { EMPLOYMENT_STATUSES } from "@/config/constants";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -88,24 +88,104 @@ export function EmployeesTable({
 }: EmployeesTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const urlSearch = searchParams.get("search") ?? "";
+  const [search, setSearch] = useState(urlSearch);
   const [isPending, startTransition] = useTransition();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<number | null>(null);
+  const skipSearchEffectRef = useRef(false);
+  const hasFilters = Boolean(
+    urlSearch ||
+      searchParams.get("status") ||
+      searchParams.get("department")
+  );
 
-  const updateParams = (updates: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    for (const [key, value] of Object.entries(updates)) {
-      if (value === null || value === "") {
-        params.delete(key);
-      } else {
-        params.set(key, value);
+  const updateParams = useCallback(
+    (
+      updates: Record<string, string | null>,
+      mode: "push" | "replace" = "push"
+    ) => {
+      // Read the committed URL rather than the render snapshot so a delayed
+      // debounce can never re-apply filters the user has already cleared.
+      const params = new URLSearchParams(window.location.search);
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === null || value === "") {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
       }
+      params.delete("page");
+      const query = params.toString();
+      const href = `/dashboard/employees${query ? `?${query}` : ""}`;
+      if (mode === "replace") {
+        router.replace(href);
+      } else {
+        router.push(href);
+      }
+    },
+    [router]
+  );
+
+  // Filter while typing, without spamming the history stack.
+  useEffect(() => {
+    if (skipSearchEffectRef.current) {
+      skipSearchEffectRef.current = false;
+      return;
     }
-    params.delete("page");
-    router.push(`/dashboard/employees?${params.toString()}`);
+
+    const trimmed = search.trim();
+    if (trimmed === urlSearch) return;
+
+    if (!trimmed) {
+      updateParams({ search: null }, "replace");
+      return;
+    }
+
+    searchTimeoutRef.current = window.setTimeout(() => {
+      searchTimeoutRef.current = null;
+      updateParams({ search: trimmed }, "replace");
+    }, 450);
+
+    return () => {
+      if (searchTimeoutRef.current !== null) {
+        window.clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+    };
+  }, [search, urlSearch, updateParams]);
+
+  // Keep the input in step with the URL (Clear button, back/forward) unless
+  // the user is actively typing in it.
+  useEffect(() => {
+    if (searchInputRef.current === document.activeElement) return;
+    setSearch(urlSearch);
+  }, [urlSearch]);
+
+  const cancelPendingSearch = () => {
+    if (searchTimeoutRef.current !== null) {
+      window.clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
   };
 
   const handleSearch = () => {
-    updateParams({ search });
+    cancelPendingSearch();
+    updateParams({ search: search.trim() || null });
+  };
+
+  const clearSearch = () => {
+    cancelPendingSearch();
+    skipSearchEffectRef.current = true;
+    setSearch("");
+    updateParams({ search: null });
+  };
+
+  const clearAllFilters = () => {
+    cancelPendingSearch();
+    skipSearchEffectRef.current = true;
+    setSearch("");
+    updateParams({ search: null, status: null, department: null });
   };
 
   const handleStatusToggle = (id: string) => {
@@ -127,12 +207,26 @@ export function EmployeesTable({
           <div className="relative flex-1 sm:max-w-xs">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               placeholder="Search name, number, email..."
-              className="pl-9"
+              className="pr-9 pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              aria-label="Search employees"
             />
+            {search && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={clearSearch}
+                aria-label="Clear search"
+              >
+                <X className="size-4" aria-hidden="true" />
+              </Button>
+            )}
           </div>
           <Select
             value={searchParams.get("status") ?? ""}
@@ -155,14 +249,11 @@ export function EmployeesTable({
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          {(searchParams.get("search") ||
+          {(urlSearch ||
             searchParams.get("status") ||
             searchParams.get("department") ||
             searchParams.get("page")) && (
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/dashboard/employees")}
-            >
+            <Button variant="ghost" onClick={clearAllFilters}>
               Clear
             </Button>
           )}
@@ -189,7 +280,9 @@ export function EmployeesTable({
                 <TableCell colSpan={7} className="h-32 text-center">
                   <p className="text-sm font-medium">No employees found</p>
                   <p className="text-sm text-muted-foreground">
-                    Add your first employee to get started.
+                    {hasFilters
+                      ? "No one matches the current search or filters. Try a different name, number, or email."
+                      : "Add your first employee to get started."}
                   </p>
                 </TableCell>
               </TableRow>

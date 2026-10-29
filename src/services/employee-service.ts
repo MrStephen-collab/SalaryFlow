@@ -3,6 +3,25 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAudit } from "./audit-service";
 
+const SEARCH_FIELDS = [
+  "first_name",
+  "last_name",
+  "other_names",
+  "employee_number",
+  "email",
+  "phone",
+  "position",
+] as const;
+
+/**
+ * PostgREST splits `or`/`and` filters on commas and parentheses, so values
+ * containing those characters must be double quoted.
+ */
+function postgrestValue(value: string) {
+  if (!/[,()"\\]/.test(value)) return value;
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 export interface EmployeeListParams {
   search?: string;
   department?: string;
@@ -60,9 +79,22 @@ export class EmployeeService {
       .eq("organization_id", profile.organization_id);
 
     if (search) {
-      query = query.or(
-        `first_name.ilike.%${search}%,last_name.ilike.%${search}%,employee_number.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`
-      );
+      const tokens = search.trim().split(/\s+/).filter(Boolean).slice(0, 5);
+
+      if (tokens.length > 0) {
+        // Every token must match at least one field, so "Adebayo Akinola"
+        // finds the person whose first and last names are split across columns.
+        const groups = tokens.map((token) =>
+          SEARCH_FIELDS.map(
+            (field) => `${field}.ilike.${postgrestValue(`%${token}%`)}`
+          ).join(",")
+        );
+
+        query =
+          groups.length === 1
+            ? query.or(groups[0])
+            : query.or(`and(${groups.map((group) => `or(${group})`).join(",")})`);
+      }
     }
 
     if (department) {
