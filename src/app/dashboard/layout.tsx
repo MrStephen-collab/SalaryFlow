@@ -6,6 +6,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { requireUser, getProfile } from "@/lib/auth";
 import { NotificationService } from "@/services/notification-service";
 
@@ -32,9 +33,10 @@ export default async function DashboardLayout({
           <SidebarTrigger className="-ml-1" />
           <div className="flex-1" />
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+        <div className="flex flex-1 flex-col gap-4 p-4 pb-20 lg:gap-6 lg:p-6 lg:pb-6">
           {children}
         </div>
+        <MobileBottomNav variant="dashboard" />
       </SidebarInset>
     </SidebarProvider>
   );

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireUser, getProfile } from "@/lib/auth";
 import { EmployeePortalService } from "@/services/employee-portal-service";
 import { EmployeeSidebar } from "@/components/employee/employee-sidebar";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import {
   SidebarProvider,
   SidebarInset,
@@ -66,9 +67,10 @@ export default async function EmployeeLayout({
             <SignOutButton />
           </div>
         </header>
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+        <main className="flex flex-1 flex-col gap-4 p-4 pb-20 lg:gap-6 lg:p-6 lg:pb-6">
           <div className="mx-auto w-full max-w-5xl">{children}</div>
         </main>
+        <MobileBottomNav variant="employee" />
       </SidebarInset>
     </SidebarProvider>
   );

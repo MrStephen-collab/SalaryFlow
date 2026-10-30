@@ -1,5 +1,5 @@
-import { SalaryFlowPageSkeleton } from "@/components/brand/salaryflow-page-skeleton";
+import { SalaryFlowLoader } from "@/components/brand/salaryflow-loader";
 
 export default function DashboardLoading() {
-  return <SalaryFlowPageSkeleton />;
+  return <SalaryFlowLoader status="Loading your dashboard…" />;
 }

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { requireUser, getProfile } from "@/lib/auth";
 import { MemberSidebar } from "@/components/member/member-sidebar";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import {
   SidebarProvider,
   SidebarInset,
@@ -59,9 +60,10 @@ export default async function MemberLayout({
             <SignOutButton />
           </div>
         </header>
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+        <main className="flex flex-1 flex-col gap-4 p-4 pb-20 lg:gap-6 lg:p-6 lg:pb-6">
           <div className="mx-auto w-full max-w-5xl">{children}</div>
         </main>
+        <MobileBottomNav variant="member" />
       </SidebarInset>
     </SidebarProvider>
   );
