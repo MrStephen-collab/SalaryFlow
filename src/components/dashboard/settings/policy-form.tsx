@@ -121,6 +121,10 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
                 set("min_employment_period_months", Number(e.target.value))
               }
             />
+            <p className="text-xs text-muted-foreground">
+              Months an employee must have worked before loan eligibility. 12
+              months = 1 year. Set 0 to allow new employees.
+            </p>
           </div>
 
           <div className="space-y-2">

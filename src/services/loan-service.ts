@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { CreateLoanProductValues } from "@/schemas/loan";
 import { LoanCalculationService } from "./loan-calculation-service";
 import type { InterestMethod } from "./loan-calculation-service";
@@ -329,6 +330,44 @@ export class LoanService {
 
     if (!product) return { error: "Loan product not found" };
     if (!product.active) return { error: "Loan product is not active" };
+
+    // Employment-period eligibility. The organization policy and the product
+    // can each require a minimum number of months worked.
+    const admin = createAdminClient();
+    const [{ data: employee }, { data: settings }] = await Promise.all([
+      admin
+        .from("employees")
+        .select("date_joined")
+        .eq("id", employeeId)
+        .eq("organization_id", this.orgId)
+        .maybeSingle(),
+      admin
+        .from("organization_settings")
+        .select("min_employment_period_months")
+        .eq("organization_id", this.orgId)
+        .maybeSingle(),
+    ]);
+
+    const requiredMonths = Math.max(
+      Number(settings?.min_employment_period_months ?? 0),
+      Number(product.minimum_employment_period_months ?? 0)
+    );
+
+    if (requiredMonths > 0 && employee?.date_joined) {
+      const start = new Date(employee.date_joined);
+      const now = new Date();
+      let monthsWorked =
+        (now.getFullYear() - start.getFullYear()) * 12 +
+        (now.getMonth() - start.getMonth());
+      if (now.getDate() < start.getDate()) monthsWorked -= 1;
+
+      if (monthsWorked < requiredMonths) {
+        const remaining = requiredMonths - Math.max(0, monthsWorked);
+        return {
+          error: `You are not eligible for a loan yet. You need ${requiredMonths} month(s) of employment; ${remaining} more month(s) to go.`,
+        };
+      }
+    }
 
     const calculation = LoanCalculationService.calculate({
       principal: amount,

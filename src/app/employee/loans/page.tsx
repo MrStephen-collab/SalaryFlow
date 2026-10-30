@@ -36,29 +36,69 @@ function statusVariant(status: string) {
 
 export default async function EmployeeLoansPage() {
   const service = await EmployeePortalService.create();
-  const loans = await service.getLoans();
+  const [loans, eligibility] = await Promise.all([
+    service.getLoans(),
+    service.getLoanEligibility(),
+  ]);
+
+  const requiredMonths = eligibility?.requiredMonths ?? 0;
+  const eligible = eligibility?.eligible ?? true;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Loans</h1>
           <p className="text-sm text-muted-foreground">
             Track your applications and repayments
           </p>
         </div>
-        <Button render={<Link href="/employee/loans/apply" />}>
-          <HandCoins className="size-4" />
-          Apply for Loan
-        </Button>
+        {eligible ? (
+          <Button render={<Link href="/employee/loans/apply" />}>
+            <HandCoins className="size-4" />
+            Apply for Loan
+          </Button>
+        ) : (
+          <Button disabled>
+            <HandCoins className="size-4" />
+            Apply for Loan
+          </Button>
+        )}
       </div>
+
+      {!eligible ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-medium">Loan eligibility</p>
+          <p className="mt-1">
+            You must have worked for {requiredMonths} month
+            {requiredMonths === 1 ? "" : "s"}
+            {requiredMonths >= 12
+              ? ` (about ${(requiredMonths / 12).toFixed(1).replace(/\.0$/, "")} year${
+                  requiredMonths >= 24 ? "s" : ""
+                })`
+              : ""}{" "}
+            before you can apply for a loan.
+          </p>
+          <p className="mt-1">
+            You have worked {eligibility?.monthsWorked ?? 0} month
+            {(eligibility?.monthsWorked ?? 0) === 1 ? "" : "s"} so far
+            {eligibility?.remainingMonths
+              ? ` — ${eligibility.remainingMonths} more month${
+                  eligibility.remainingMonths === 1 ? "" : "s"
+                } to go.`
+              : "."}
+          </p>
+        </div>
+      ) : null}
 
       {loans.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-sm font-medium">No loans yet</p>
             <p className="text-sm text-muted-foreground">
-              Apply for your first salary-backed loan.
+              {eligible
+                ? "Apply for your first salary-backed loan."
+                : "You will be able to apply once you meet the employment period."}
             </p>
           </CardContent>
         </Card>
@@ -66,6 +106,7 @@ export default async function EmployeeLoansPage() {
         <CollapsibleList className="flex flex-col gap-3" itemLabel="loans">
           {loans.map((loan) => {
             const total = Number(loan.total_repayment) || 0;
+            const progress = Number(loan.progressPercent) || 0;
             return (
               <Link
                 key={loan.id}
@@ -79,7 +120,10 @@ export default async function EmployeeLoansPage() {
                       Applied {new Date(loan.created_at).toLocaleDateString("en-GB")}
                     </p>
                   </div>
-                  <Badge variant={statusVariant(loan.status)}>{loan.status}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{progress}% repaid</Badge>
+                    <Badge variant={statusVariant(loan.status)}>{loan.status}</Badge>
+                  </div>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-4 text-sm">
                   <div>
@@ -95,6 +139,20 @@ export default async function EmployeeLoansPage() {
                   <div>
                     <p className="text-xs text-muted-foreground">Total</p>
                     <p className="font-medium">{naira(total)}</p>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Repayment progress</span>
+                    <span>
+                      {naira(Number(loan.paidAmount) || 0)} of {naira(total)}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-500"
+                      style={{ width: `${progress}%` }}
+                    />
                   </div>
                 </div>
               </Link>

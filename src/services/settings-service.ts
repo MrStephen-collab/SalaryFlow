@@ -179,6 +179,22 @@ export class SettingsService {
 
   async updateSettings(values: Record<string, unknown>) {
     if (!this.orgId) return { error: "No organization found" };
+    if (!this.userId) return { error: "Unauthorized" };
+
+    const { data: profile } = await this.supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("user_id", this.userId)
+      .maybeSingle();
+
+    if (
+      !profile ||
+      !["ORGANIZATION_OWNER", "ORGANIZATION_ADMIN"].includes(profile.role)
+    ) {
+      return {
+        error: "Only an admin or the chairman can change the loan policy",
+      };
+    }
 
     const settingsData: Partial<OrganizationSettingsRecord> = {
       organization_id: this.orgId,

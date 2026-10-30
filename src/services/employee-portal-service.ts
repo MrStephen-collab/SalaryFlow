@@ -247,16 +247,88 @@ export class EmployeePortalService {
       .eq("employee_id", this.employeeId)
       .order("created_at", { ascending: false });
 
-    return (data ?? []).map((row) => {
+    const rows = data ?? [];
+    const loanIds = rows.map((row) => row.id as string);
+    let paidByLoan = new Map<string, number>();
+
+    if (loanIds.length > 0) {
+      const { data: schedules } = await admin
+        .from("loan_schedules")
+        .select("loan_application_id, total_payment, status")
+        .in("loan_application_id", loanIds);
+
+      for (const schedule of schedules ?? []) {
+        if (schedule.status !== "PAID") continue;
+        const id = schedule.loan_application_id as string;
+        paidByLoan.set(
+          id,
+          (paidByLoan.get(id) ?? 0) + (Number(schedule.total_payment) || 0)
+        );
+      }
+    }
+
+    return rows.map((row) => {
       const product = row.loan_products as unknown as
         | { name: string; interest_method: string }
         | null;
+      const totalRepayment = Number(row.total_repayment) || 0;
+      const paid = Math.round((paidByLoan.get(row.id as string) ?? 0) * 100) / 100;
+      const progressPercent =
+        totalRepayment > 0
+          ? Math.min(100, Math.round((paid / totalRepayment) * 1000) / 10)
+          : 0;
+
       return {
         ...row,
         productName: product?.name ?? "Loan",
         interestMethod: product?.interest_method ?? "FLAT",
+        paidAmount: paid,
+        progressPercent,
       };
     });
+  }
+
+  /**
+   * Employment-period eligibility for employee loans. The organization policy
+   * (Settings -> Min Employment Period) decides how long an employee must have
+   * worked before applying.
+   */
+  async getLoanEligibility() {
+    if (!this.employeeId || !this.orgId) return null;
+
+    const admin = createAdminClient();
+    const [{ data: employee }, { data: settings }] = await Promise.all([
+      admin.from("employees").select("date_joined").eq("id", this.employeeId).maybeSingle(),
+      admin
+        .from("organization_settings")
+        .select("min_employment_period_months")
+        .eq("organization_id", this.orgId)
+        .maybeSingle(),
+    ]);
+
+    const requiredMonths = Number(settings?.min_employment_period_months ?? 0);
+    const dateJoined = (employee?.date_joined as string | null) ?? null;
+
+    let monthsWorked = 0;
+    if (dateJoined) {
+      const start = new Date(dateJoined);
+      const now = new Date();
+      monthsWorked =
+        (now.getFullYear() - start.getFullYear()) * 12 +
+        (now.getMonth() - start.getMonth());
+      if (now.getDate() < start.getDate()) monthsWorked -= 1;
+      monthsWorked = Math.max(0, monthsWorked);
+    }
+
+    const remainingMonths = Math.max(0, requiredMonths - monthsWorked);
+
+    return {
+      requiredMonths,
+      monthsWorked,
+      remainingMonths,
+      eligible: remainingMonths === 0,
+      dateJoined,
+    };
   }
 
   async getActiveLoan() {
