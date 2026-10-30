@@ -11,6 +11,7 @@ import { FundService } from "@/services/fund-service";
 import { DeductionService } from "@/services/deduction-service";
 import { WithdrawalService } from "@/services/withdrawal-service";
 import { LoanService } from "@/services/loan-service";
+import { MemberService } from "@/services/member-service";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -49,8 +50,9 @@ export default async function DashboardPage() {
   const deductionService = await DeductionService.create();
   const withdrawalService = await WithdrawalService.create();
   const loanService = await LoanService.create();
+  const memberService = await MemberService.createForStaff();
 
-  const [employeeList, applications, fundAccounts, deductions, withdrawals, repayments] =
+  const [employeeList, applications, fundAccounts, deductions, withdrawals, repayments, membersOverview] =
     await Promise.all([
       employeeService.list({ pageSize: 1 }),
       loanService.listApplications(),
@@ -58,6 +60,7 @@ export default async function DashboardPage() {
       deductionService.listDeductions(),
       withdrawalService.listWithdrawals(),
       loanService.listRepayments(undefined, 5),
+      memberService.getMembersOverview(),
     ]);
 
   const fundBalances = await Promise.all(
@@ -157,6 +160,47 @@ export default async function DashboardPage() {
           />
         ))}
       </div>
+
+      {membersOverview ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
+          <StatCard
+            title="Total Members"
+            value={membersOverview.members.toLocaleString()}
+            description={`${membersOverview.active} active · ${membersOverview.pending} pending approval`}
+            href="/dashboard/members"
+            icon={Users}
+            accent="blue"
+            delay={720}
+          />
+          <StatCard
+            title="Member Savings Deposited"
+            value={naira(Math.round(membersOverview.savingsDeposited * 100) / 100)}
+            description="Across member savings wallets"
+            href="/dashboard/members"
+            icon={PiggyBank}
+            accent="emerald"
+            delay={800}
+          />
+          <StatCard
+            title="Member Loans Disbursed"
+            value={naira(Math.round(membersOverview.savingsLent * 100) / 100)}
+            description="Principal lent from savings"
+            href="/dashboard/loans"
+            icon={HandCoins}
+            accent="amber"
+            delay={880}
+          />
+          <StatCard
+            title="Pending Member Approvals"
+            value={membersOverview.pending.toLocaleString()}
+            description="Awaiting employer approval"
+            href="/dashboard/members"
+            icon={Percent}
+            accent="rose"
+            delay={960}
+          />
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card className="animate-fade-up" style={{ animationDelay: "320ms" }}>

@@ -38,6 +38,13 @@ export async function approveMemberLoan(applicationId: string) {
   return result;
 }
 
+export async function approveMemberMembership(memberId: string) {
+  const service = await MemberService.createForStaff();
+  const result = await service.approveMembership(memberId);
+  revalidatePath("/dashboard/members");
+  return result;
+}
+
 export async function rejectMemberLoan(applicationId: string, reason: string) {
   const service = await MemberService.createForStaff();
   const result = await service.rejectApplication(applicationId, reason);

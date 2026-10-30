@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const BUCKET = "nin-documents";
@@ -39,6 +40,8 @@ export type InviteResult = {
   error?: string;
   email?: string;
   kind?: InviteKind;
+  /** True when the account was created but the email address still needs verification. */
+  needsEmailVerification?: boolean;
 };
 
 function fileExtension(type: string) {
@@ -155,12 +158,12 @@ export async function registerViaInvite(
       };
     }
 
+    const supabaseAuth = await createClient();
     const { data: authUser, error: authError } =
-      await admin.auth.admin.createUser({
+      await supabaseAuth.auth.signUp({
         email: values.email,
         password: values.password,
-        email_confirm: true,
-        user_metadata: { full_name: fullName },
+        options: { data: { full_name: fullName } },
       });
 
     if (authError || !authUser.user) {
@@ -334,6 +337,7 @@ export async function registerViaInvite(
       success: "Account created",
       email: values.email,
       kind,
+      needsEmailVerification: true,
     };
   } catch (error) {
     return {

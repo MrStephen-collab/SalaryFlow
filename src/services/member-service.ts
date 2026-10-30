@@ -282,7 +282,7 @@ export class MemberService {
         date_of_birth: values.dateOfBirth || null,
         nin,
         nin_document_url: values.ninDocumentUrl,
-        status: "ACTIVE",
+        status: "PENDING",
         kyc_status: "PENDING",
       })
       .select("id")
@@ -306,6 +306,33 @@ export class MemberService {
     });
 
     return { ok: true, memberId: member.id, tempPassword: password };
+  }
+
+  /** The signed-in member's own record. */
+  async getMyMember() {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const admin = createAdminClient();
+    const { data: member } = await admin
+      .from("members")
+      .select(
+        "id, organization_id, member_number, first_name, last_name, email, phone, status, kyc_status, joined_at, nin, nin_document_url, nin_status, address, date_of_birth"
+      )
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member) return null;
+
+    const { data: organization } = await admin
+      .from("organizations")
+      .select("name, address, state, lga")
+      .eq("id", member.organization_id)
+      .maybeSingle();
+
+    return { ...member, organizationName: organization?.name ?? null };
   }
 
   /** Savings view for a signed-in member. */
@@ -337,6 +364,62 @@ export class MemberService {
       .maybeSingle();
     if (!member) return null;
     return this.buildSummary(member);
+  }
+
+  /** Member analytics for the employer dashboard. */
+  async getMembersOverview() {
+    if (!this.organizationId) {
+      return null;
+    }
+
+    const admin = createAdminClient();
+
+    const { data: members, error: membersError } = await admin
+      .from("members")
+      .select("id, status, member_number, first_name, last_name, email, joined_at, nin, nin_status")
+      .eq("organization_id", this.organizationId);
+
+    if (membersError) {
+      return null;
+    }
+
+    const memberRows = members ?? [];
+    const activeCount = memberRows.filter((member) => member.status === "ACTIVE").length;
+    const pendingCount = memberRows.filter((member) => member.status === "PENDING").length;
+
+    const { data: savingsTransactions } = await admin
+      .from("savings_transactions")
+      .select("transaction_type, amount, member_id")
+      .eq("organization_id", this.organizationId);
+
+    let savingsDeposited = 0;
+    let savingsLent = 0;
+    for (const tx of savingsTransactions ?? []) {
+      const amount = Number(tx.amount) || 0;
+      if (tx.transaction_type === "DEPOSIT") savingsDeposited += amount;
+      if (tx.transaction_type === "LOAN_DISBURSEMENT") savingsLent += amount;
+    }
+
+    const { data: memberLoans } = await admin
+      .from("loan_applications")
+      .select("amount, status, member_id")
+      .eq("organization_id", this.organizationId)
+      .not("member_id", "is", null);
+
+    for (const loan of memberLoans ?? []) {
+      if (loan.status === "DISBURSED" || loan.status === "ACTIVE") {
+        savingsLent += Number(loan.amount) || 0;
+      }
+    }
+
+    return {
+      members: memberRows.length,
+      active: activeCount,
+      pending: pendingCount,
+      savingsDeposited: Math.round(savingsDeposited * 100) / 100,
+      savingsLent: Math.round(savingsLent * 100) / 100,
+      memberRows,
+    };
   }
 
   private async buildSummary(member: {
@@ -641,6 +724,46 @@ export class MemberService {
         joinedAt: member?.joined_at ?? null,
       };
     });
+  }
+
+  async approveMembership(
+    memberId: string
+  ): Promise<{ ok: boolean; already?: boolean; error?: string }> {
+    if (!this.organizationId || !this.userId) return { ok: false, error: "Unauthorized" };
+    if (!this.role || !MEMBER_APPROVER_ROLES.has(this.role)) {
+      return { ok: false, error: "You do not have permission to approve members" };
+    }
+
+    const admin = createAdminClient();
+    const { data: member } = await admin
+      .from("members")
+      .select("id, status")
+      .eq("id", memberId)
+      .eq("organization_id", this.organizationId)
+      .maybeSingle();
+
+    if (!member) return { ok: false, error: "Member not found" };
+    if (member.status === "ACTIVE") {
+      return { ok: true, already: true };
+    }
+
+    const { error } = await admin
+      .from("members")
+      .update({ status: "ACTIVE" })
+      .eq("id", memberId);
+
+    if (error) return { ok: false, error: error.message };
+
+    await recordAudit({
+      organizationId: this.organizationId,
+      userId: this.userId,
+      action: "member.approved",
+      entityType: "member",
+      entityId: memberId,
+      after: { status: "ACTIVE" },
+    });
+
+    return { ok: true };
   }
 
   async approveApplication(applicationId: string) {

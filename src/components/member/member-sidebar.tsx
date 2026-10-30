@@ -22,7 +22,12 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
-import { HandCoins, Home, PiggyBank } from "lucide-react";
+import {
+  HandCoins,
+  Home,
+  PiggyBank,
+  UserCircle2,
+} from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SignOutButton } from "@/components/employee/sign-out-button";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -34,6 +39,7 @@ const memberNav = [
   { title: "Overview", href: "/member", icon: Home },
   { title: "Savings", href: "/member/savings", icon: PiggyBank },
   { title: "Loans", href: "/member/loans", icon: HandCoins },
+  { title: "Profile", href: "/member/profile", icon: UserCircle2 },
 ];
 
 export function MemberSidebar({

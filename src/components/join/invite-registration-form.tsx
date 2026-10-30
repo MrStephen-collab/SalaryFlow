@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle2, Loader2, Upload } from "lucide-react";
+import { CheckCircle2, Loader2, MailCheck, Upload } from "lucide-react";
 import { NIGERIA_STATES, getLgasForState } from "@/config/nigeria";
 
 type FormState = {
@@ -66,6 +66,7 @@ export function InviteRegistrationForm({
   const [document, setDocument] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [awaitingVerification, setAwaitingVerification] = useState(false);
   const [isPending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -136,6 +137,13 @@ export function InviteRegistrationForm({
         return;
       }
 
+      if (result.needsEmailVerification) {
+        setAwaitingVerification(true);
+        setDone(true);
+        toast.success("Account created. Check your email to verify your account.");
+        return;
+      }
+
       setDone(true);
       toast.success("Account created. Signing you in…");
 
@@ -156,6 +164,32 @@ export function InviteRegistrationForm({
   }
 
   if (done) {
+    if (awaitingVerification) {
+      return (
+        <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <MailCheck className="size-10 text-green-600" />
+          <p className="font-medium">Check your email</p>
+          <p className="text-sm text-muted-foreground">
+            We sent a confirmation link to{" "}
+            <span className="font-medium text-foreground">{form.email}</span>. Verify
+            your email address to activate your account, then sign in.
+          </p>
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => {
+              setAwaitingVerification(false);
+              setDone(false);
+              setForm(emptyForm);
+              setDocument(null);
+            }}
+          >
+            Use a different email
+          </Button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center gap-3 py-6 text-center">
         <CheckCircle2 className="size-10 text-green-600" />

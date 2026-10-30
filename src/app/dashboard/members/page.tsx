@@ -3,6 +3,7 @@ import { MemberService } from "@/services/member-service";
 import { getProfile } from "@/lib/auth";
 import { AddMemberDialog } from "@/components/dashboard/members/add-member-dialog";
 import { InviteLinkButton } from "@/components/dashboard/invite-link-button";
+import { MemberApprovalActions } from "@/components/dashboard/members/member-approval-actions";
 import { MemberLoanActions } from "@/components/dashboard/members/member-loan-actions";
 import {
   Card,
@@ -181,9 +182,14 @@ export default async function MembersPage() {
                     {new Date(member.joined_at).toLocaleDateString("en-NG")}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={member.status === "ACTIVE" ? "default" : "secondary"}>
-                      {member.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={member.status === "ACTIVE" ? "default" : "secondary"}>
+                        {member.status}
+                      </Badge>
+                      {member.status === "PENDING" ? (
+                        <MemberApprovalActions memberId={member.id} />
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <NinVerification
