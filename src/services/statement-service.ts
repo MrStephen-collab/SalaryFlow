@@ -208,7 +208,7 @@ export class StatementService {
             reference,
             processed_at,
             created_at,
-            salary_periods:salary_period_id(name)
+            salary_periods:salary_period_id(name, payment_date, end_date)
           `
           )
           .eq("employee_id", this.employeeId)
@@ -374,6 +374,8 @@ export class StatementService {
         const period = unwrap(
           record.salary_periods as unknown as Embedded<{
             name: string | null;
+            payment_date: string | null;
+            end_date: string | null;
           }>
         );
 
@@ -384,7 +386,13 @@ export class StatementService {
           actualAmount: Number(record.actual_amount) || 0,
           shortfall: Number(record.shortfall) || 0,
           status: record.status,
-          date: dayOf(record.processed_at) || dayOf(record.created_at),
+          // Date the deduction belongs to the payroll period, not the day the
+          // backfill was posted, so period-filtered statements include it.
+          date:
+            dayOf(period?.end_date) ||
+            dayOf(period?.payment_date) ||
+            dayOf(record.processed_at) ||
+            dayOf(record.created_at),
           reference: record.reference ?? "",
         };
       })
