@@ -539,6 +539,14 @@ export class DisbursementService {
         .update({ status: "PAID" })
         .eq("id", periodId)
         .eq("organization_id", organizationId);
+
+      // Keep the individual payslips in sync with the paid period - the
+      // employee portal reads the record status, not the period status.
+      await admin
+        .from("salary_records")
+        .update({ status: "PAID" })
+        .eq("salary_period_id", periodId)
+        .eq("organization_id", organizationId);
     }
 
     await recordAudit({

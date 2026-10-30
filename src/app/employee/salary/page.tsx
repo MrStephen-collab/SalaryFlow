@@ -79,7 +79,13 @@ export default async function EmployeeSalaryPage({
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>{record.periodName}</span>
-                <Badge variant={record.status === "APPROVED" ? "default" : "secondary"}>
+                <Badge
+                  variant={
+                    record.status === "APPROVED" || record.status === "PAID"
+                      ? "default"
+                      : "secondary"
+                  }
+                >
                   {record.status}
                 </Badge>
               </CardTitle>
