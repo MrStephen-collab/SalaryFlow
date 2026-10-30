@@ -16,3 +16,13 @@ export async function releaseThriftToWallet(
   }
   return result;
 }
+
+export async function releaseAllThriftToWallets() {
+  const service = await ThriftService.create();
+  const result = await service.releaseAllToWallet();
+  if (result.ok) {
+    revalidatePath("/dashboard/employees");
+    revalidatePath("/dashboard");
+  }
+  return result;
+}

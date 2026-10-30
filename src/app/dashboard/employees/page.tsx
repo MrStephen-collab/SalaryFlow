@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { EmployeeService } from "@/services/employee-service";
 import { getProfile } from "@/lib/auth";
 import { InviteLinkButton } from "@/components/dashboard/invite-link-button";
+import { ThriftReleaseAllButton } from "@/components/dashboard/employees/thrift-release-all-button";
 import { SettingsService } from "@/services/settings-service";
 import {
   EmployeesTable,
@@ -49,11 +50,14 @@ export default async function EmployeesPage({
           </p>
         </div>
         {profile?.organization_id ? (
-          <InviteLinkButton
-            organizationId={profile.organization_id}
-            kind="employee"
-            enabled={settings?.employee_registration_enabled ?? true}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <ThriftReleaseAllButton />
+            <InviteLinkButton
+              organizationId={profile.organization_id}
+              kind="employee"
+              enabled={settings?.employee_registration_enabled ?? true}
+            />
+          </div>
         ) : null}
       </div>
 

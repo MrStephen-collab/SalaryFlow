@@ -99,8 +99,55 @@ export class ThriftService {
     };
   }
 
-  /** Chairman releases thrift savings into the employee's withdrawable wallet. */
-  async releaseToWallet(employeeId: string, amount?: number) {
+  /** Chairman releases every employee's thrift savings in one action. */
+  async releaseAllToWallet() {
+    const forbidden = await this.ensureOwner();
+    if (forbidden) return { ok: false, error: forbidden };
+    if (!this.organizationId) return { ok: false, error: "No organization found" };
+
+    const overview = await this.getOverview();
+    if (!overview) return { ok: false, error: "Could not load thrift balances" };
+
+    const ledger = LedgerService.createForOrganization(
+      this.organizationId,
+      this.userId
+    );
+
+    let released = 0;
+    let total = 0;
+    let failures = 0;
+
+    for (const row of overview.employees) {
+      if (!row.enabled || row.balance <= 0) continue;
+
+      const reference = `SLF-THRIFT-PAYOUT-${row.id.slice(0, 8)}-${Date.now()}-${released}`;
+      const posted = await ledger.postThriftPayout(row.id, reference, row.balance);
+      if (posted.error) {
+        failures += 1;
+        continue;
+      }
+      released += 1;
+      total += row.balance;
+    }
+
+    await recordAudit({
+      organizationId: this.organizationId,
+      userId: this.userId,
+      action: "thrift.released_all",
+      entityType: "organization",
+      entityId: this.organizationId,
+      after: { released, total, failures },
+    });
+
+    return {
+      ok: true,
+      released,
+      total: Math.round(total * 100) / 100,
+      failures,
+    };
+  }
+
+  /** Chairman releases thrift savings into the employee's withdrawable wallet. */  async releaseToWallet(employeeId: string, amount?: number) {
     const forbidden = await this.ensureOwner();
     if (forbidden) return { ok: false, error: forbidden };
     if (!this.organizationId) return { ok: false, error: "No organization found" };

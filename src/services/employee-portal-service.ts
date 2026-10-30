@@ -1,5 +1,6 @@
 import { cache as reactCache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 interface EmployeeRow {
   id: string;
@@ -60,7 +61,10 @@ export class EmployeePortalService {
     service.userId = user?.id ?? null;
 
     if (user) {
-      const { data: employee } = await supabase
+      // Resolve the employee record with the service role: the employees table
+      // is staff-readable only, so an employee session cannot see its own row.
+      const admin = createAdminClient();
+      const { data: employee } = await admin
         .from("employees")
         .select("id, organization_id")
         .eq("user_id", user.id)
@@ -79,7 +83,8 @@ export class EmployeePortalService {
   async getEmployee(): Promise<EmployeeRow | null> {
     if (!this.employeeId) return null;
 
-    const { data } = await this.supabase
+    const admin = createAdminClient();
+    const { data } = await admin
       .from("employees")
       .select("*")
       .eq("id", this.employeeId)
@@ -91,7 +96,8 @@ export class EmployeePortalService {
   async getSalaryHistory() {
     if (!this.employeeId) return [];
 
-    const { data } = await this.supabase
+    const admin = createAdminClient();
+    const { data } = await admin
       .from("salary_records")
       .select(
         `
@@ -137,7 +143,8 @@ export class EmployeePortalService {
   async listPeriods() {
     if (!this.orgId) return [];
 
-    const { data } = await this.supabase
+    const admin = createAdminClient();
+    const { data } = await admin
       .from("salary_periods")
       .select("id, name, start_date, status")
       .eq("organization_id", this.orgId)
@@ -149,7 +156,8 @@ export class EmployeePortalService {
   async getAvailableBalance(): Promise<number> {
     if (!this.employeeId || !this.orgId) return 0;
 
-    const { data: account } = await this.supabase
+    const admin = createAdminClient();
+    const { data: account } = await admin
       .from("financial_accounts")
       .select("id")
       .eq("employee_id", this.employeeId)
@@ -158,7 +166,8 @@ export class EmployeePortalService {
 
     if (!account) return 0;
 
-    const ledger = await (await import("./ledger-service")).LedgerService.create();
+    const { LedgerService } = await import("./ledger-service");
+    const ledger = LedgerService.createForOrganization(this.orgId);
     return ledger.getFinancialAccountBalance(account.id);
   }
 
@@ -173,7 +182,8 @@ export class EmployeePortalService {
   async getTransactions() {
     if (!this.employeeId) return [];
 
-    const { data: accounts } = await this.supabase
+    const admin = createAdminClient();
+    const { data: accounts } = await admin
       .from("financial_accounts")
       .select("id, account_type")
       .eq("employee_id", this.employeeId);
@@ -181,7 +191,7 @@ export class EmployeePortalService {
     const accountIds = (accounts ?? []).map((a) => a.id);
     if (accountIds.length === 0) return [];
 
-    const { data: entries } = await this.supabase
+    const { data: entries } = await admin
       .from("ledger_entries")
       .select(
         `
@@ -225,7 +235,8 @@ export class EmployeePortalService {
   async getLoans() {
     if (!this.employeeId) return [];
 
-    const { data } = await this.supabase
+    const admin = createAdminClient();
+    const { data } = await admin
       .from("loan_applications")
       .select(
         `
@@ -282,7 +293,8 @@ export class EmployeePortalService {
   async getLoanDetail(loanId: string) {
     if (!this.employeeId || !this.orgId) return null;
 
-    const { data } = await this.supabase
+    const admin = createAdminClient();
+    const { data } = await admin
       .from("loan_applications")
       .select(
         `
@@ -324,7 +336,8 @@ export class EmployeePortalService {
   }
 
   async getSchedule(applicationId: string) {
-    const { data } = await this.supabase
+    const admin = createAdminClient();
+    const { data } = await admin
       .from("loan_schedules")
       .select("*")
       .eq("loan_application_id", applicationId)
