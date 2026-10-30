@@ -648,7 +648,7 @@ export class MemberService {
         total_repayment: totalRepayment,
         monthly_deduction: monthlyDeduction,
         purpose: purpose?.trim() || "Member savings loan",
-        status: "PENDING",
+        status: "SUBMITTED",
         submitted_at: new Date().toISOString(),
       })
       .select("id")
@@ -846,7 +846,7 @@ export class MemberService {
       .maybeSingle();
 
     if (!application) return { error: "Loan application not found" };
-    if (application.status !== "PENDING") {
+    if (!["PENDING", "SUBMITTED", "UNDER_REVIEW"].includes(application.status)) {
       return { error: `Cannot approve an application in ${application.status} status` };
     }
     if (!application.member_id) {
@@ -898,7 +898,7 @@ export class MemberService {
         closing_balance: round2(
           Math.max(0, Number(application.amount) - principalPerMonth * (index + 1))
         ),
-        status: "PENDING",
+        status: "UPCOMING",
         due_date: due.toISOString().slice(0, 10),
         paid_amount: 0,
       };
@@ -953,7 +953,7 @@ export class MemberService {
       })
       .eq("id", applicationId)
       .eq("organization_id", this.organizationId)
-      .eq("status", "PENDING");
+      .in("status", ["PENDING", "SUBMITTED", "UNDER_REVIEW"]);
 
     if (error) return { error: error.message };
 

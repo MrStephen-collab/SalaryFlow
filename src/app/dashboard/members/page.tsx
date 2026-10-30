@@ -47,7 +47,9 @@ export default async function MembersPage() {
     settingsService.getSettings(),
   ]);
 
-  const pending = applications.filter((application) => application.status === "PENDING");
+  const pending = applications.filter((application) =>
+    ["PENDING", "SUBMITTED", "UNDER_REVIEW"].includes(application.status)
+  );
 
   return (
     <div className="flex flex-col gap-6">
