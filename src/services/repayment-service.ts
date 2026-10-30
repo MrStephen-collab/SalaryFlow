@@ -85,76 +85,76 @@ export class RepaymentService {
       for (const loan of loans ?? []) {
         if (remaining <= 0) break;
 
-        const { data: schedules } = await admin
+        // One instalment per loan per salary period: the earliest unpaid one.
+        const { data: schedule } = await admin
           .from("loan_schedules")
           .select("id, total_payment, paid_amount, interest_payment, status, month_number")
           .eq("loan_application_id", loan.id)
           .in("status", ["UPCOMING", "DUE", "LATE", "PARTIAL"])
-          .order("month_number", { ascending: true });
+          .order("month_number", { ascending: true })
+          .limit(1)
+          .maybeSingle();
 
-        for (const schedule of schedules ?? []) {
-          if (remaining <= 0) break;
+        if (!schedule) continue;
 
-          const due =
-            Number(schedule.total_payment) - Number(schedule.paid_amount);
-          if (due <= 0.005) continue;
+        const due = Number(schedule.total_payment) - Number(schedule.paid_amount);
+        if (due <= 0.005) continue;
 
-          const portion = round2(Math.min(remaining, due));
-          const newPaid = round2(Number(schedule.paid_amount) + portion);
-          const fullyPaid = newPaid >= Number(schedule.total_payment) - 0.005;
+        const portion = round2(Math.min(remaining, due));
+        const newPaid = round2(Number(schedule.paid_amount) + portion);
+        const fullyPaid = newPaid >= Number(schedule.total_payment) - 0.005;
 
-          await admin
-            .from("loan_schedules")
-            .update({
-              paid_amount: newPaid,
-              status: fullyPaid ? "PAID" : "LATE",
-              paid_at: new Date().toISOString(),
-            })
-            .eq("id", schedule.id);
+        await admin
+          .from("loan_schedules")
+          .update({
+            paid_amount: newPaid,
+            status: fullyPaid ? "PAID" : "LATE",
+            paid_at: new Date().toISOString(),
+          })
+          .eq("id", schedule.id);
 
-          const interestPortion = Math.min(
-            Number(schedule.interest_payment) || 0,
-            portion
-          );
-          const principalPortion = round2(portion - interestPortion);
+        const interestPortion = Math.min(
+          Number(schedule.interest_payment) || 0,
+          portion
+        );
+        const principalPortion = round2(portion - interestPortion);
 
-          await ledger.postLoanRepayment(
-            employeeId,
-            loan.id,
-            portion,
-            principalPortion,
-            interestPortion
-          );
+        await ledger.postLoanRepayment(
+          employeeId,
+          loan.id,
+          portion,
+          principalPortion,
+          interestPortion
+        );
 
-          // Mirror the movement on the deductions page and the statement.
-          await admin.from("deduction_records").upsert(
-            {
-              organization_id: organizationId,
-              salary_period_id: periodId,
-              employee_id: employeeId,
-              loan_application_id: loan.id,
-              schedule_id: schedule.id,
-              deduction_type: "LOAN",
-              expected_amount: round2(due),
-              actual_amount: portion,
-              shortfall: round2(due - portion),
-              remaining_balance: round2(
-                Number(schedule.total_payment) - newPaid
-              ),
-              reference: `SLF-DED-${periodId.slice(0, 8)}-${employeeId.slice(0, 8)}-${schedule.month_number}`,
-              status: fullyPaid ? "PROCESSED" : "PARTIAL",
-              processed_at: new Date().toISOString(),
-            },
-            {
-              onConflict: "salary_period_id,employee_id,loan_application_id",
-              ignoreDuplicates: false,
-            }
-          );
+        // Mirror the movement on the deductions page and the statement. One
+        // record per loan per period (unique on period + employee + loan).
+        await admin.from("deduction_records").upsert(
+          {
+            organization_id: organizationId,
+            salary_period_id: periodId,
+            employee_id: employeeId,
+            loan_application_id: loan.id,
+            schedule_id: schedule.id,
+            deduction_type: "LOAN",
+            expected_amount: round2(due),
+            actual_amount: portion,
+            shortfall: round2(Math.max(0, due - portion)),
+            remaining_balance: round2(Number(schedule.total_payment) - newPaid),
+            reference: `SLF-DED-${periodId.slice(0, 8)}-${employeeId.slice(0, 8)}-${schedule.month_number}`,
+            status: fullyPaid ? "PROCESSED" : "PARTIAL",
+            processed_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "salary_period_id,employee_id,loan_application_id",
+            ignoreDuplicates: false,
+          }
+        );
 
-          remaining = round2(remaining - portion);
-          applied += 1;
-          totalApplied = round2(totalApplied + portion);
-        }
+        remaining = round2(remaining - portion);
+        applied += 1;
+        totalApplied = round2(totalApplied + portion);
+      }
 
         // Complete the loan once every schedule is settled.
         const { data: allSchedules } = await admin
