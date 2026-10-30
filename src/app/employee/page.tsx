@@ -15,8 +15,8 @@ import { StatCard } from "@/components/ui/stat-card";
 import {
   HandCoins,
   Banknote,
+  PiggyBank,
   Wallet,
-  ArrowDownUp,
   ArrowRight,
 } from "lucide-react";
 
@@ -94,13 +94,26 @@ export default async function EmployeeHomePage() {
           delay={0}
         />
         <StatCard
-          title="Available Balance"
+          title="Wallet"
           value={naira(availableBalance)}
-          description="Ready to withdraw"
-          href="/employee/money"
+          description="Only withdrawable balance"
+          href="/employee/withdrawals"
           icon={Wallet}
           accent="emerald"
           delay={80}
+        />
+        <StatCard
+          title="Thrift Savings"
+          value={naira(thriftBalance)}
+          description={
+            employee.thrift_enabled
+              ? `${naira(employee.thrift_amount ?? 0)} per salary`
+              : "Not activated"
+          }
+          href="/employee/money"
+          icon={PiggyBank}
+          accent="amber"
+          delay={160}
         />
         <StatCard
           title="Active Loan"
@@ -109,54 +122,72 @@ export default async function EmployeeHomePage() {
           href="/employee/loans"
           icon={HandCoins}
           accent="violet"
-          delay={160}
-        />
-        <StatCard
-          title="Monthly Deduction"
-          value={naira(activeLoan?.monthlyDeduction ?? 0)}
-          description="Next loan payment"
-          href="/employee/withdrawals"
-          icon={ArrowDownUp}
-          accent="rose"
           delay={240}
         />
       </div>
 
-      <Card className="animate-fade-up" style={{ animationDelay: "280ms" }}>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Thrift Savings</CardTitle>
-            <CardDescription>
-              Voluntary savings taken from your salary after loan deductions
-            </CardDescription>
-          </div>
-          <Badge variant={employee.thrift_enabled ? "default" : "secondary"}>
-            {employee.thrift_enabled ? "Active" : "Not active"}
-          </Badge>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Thrift balance</p>
-            <p className="text-2xl font-bold text-primary">
-              {naira(thriftBalance)}
-            </p>
-          </div>
-          <div className="text-sm text-muted-foreground sm:text-right">
-            <p>
-              Agreed per salary:{" "}
-              <span className="font-medium text-foreground">
-                {employee.thrift_enabled
-                  ? naira(employee.thrift_amount ?? 0)
-                  : "—"}
-              </span>
-            </p>
-            <p className="text-xs">
-              Thrift savings are released by the chairman. Only your wallet
-              balance can be withdrawn.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card className="animate-fade-up" style={{ animationDelay: "280ms" }}>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Wallet</CardTitle>
+              <CardDescription>
+                Only money in the wallet can be withdrawn.
+              </CardDescription>
+            </div>
+            <Badge variant="default">Available</Badge>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Wallet balance</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {naira(availableBalance)}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" render={<Link href="/employee/money" />}>
+                View money
+              </Button>
+              <Button render={<Link href="/employee/withdrawals" />}>
+                Withdraw
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="animate-fade-up" style={{ animationDelay: "360ms" }}>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Thrift Savings</CardTitle>
+              <CardDescription>
+                Voluntary savings from your salary after loan deductions.
+              </CardDescription>
+            </div>
+            <Badge variant={employee.thrift_enabled ? "default" : "secondary"}>
+              {employee.thrift_enabled ? "Active" : "Not active"}
+            </Badge>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Thrift balance</p>
+              <p className="text-2xl font-bold text-amber-600">
+                {naira(thriftBalance)}
+              </p>
+            </div>
+            <div className="text-sm text-muted-foreground sm:text-right">
+              <p>
+                Agreed per salary:{" "}
+                <span className="font-medium text-foreground">
+                  {employee.thrift_enabled
+                    ? naira(employee.thrift_amount ?? 0)
+                    : "—"}
+                </span>
+              </p>
+              <p className="text-xs">Released by the chairman.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card className="animate-fade-up" style={{ animationDelay: "320ms" }}>

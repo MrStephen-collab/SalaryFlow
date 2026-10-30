@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { PayPeriodButton } from "@/components/dashboard/salary/pay-period-button";
+import { PayrollPreviewDialog } from "@/components/dashboard/salary/payroll-preview-dialog";
 import { Download, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -72,6 +73,7 @@ export default async function SalaryPeriodPage({
 
   const run = await DisbursementService.getRunForPeriod(periodId);
   const alreadyPaid = run?.status === "COMPLETED";
+  const preview = await DisbursementService.previewPeriod(periodId);
 
   const totals = records.reduce(
     (acc, r) => {
@@ -115,7 +117,7 @@ export default async function SalaryPeriodPage({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Gross Salary</CardDescription>
@@ -134,7 +136,15 @@ export default async function SalaryPeriodPage({
             <CardTitle className="text-xl">{naira(totals.other)}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="sm:col-span-2 lg:col-span-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Thrift Savings</CardDescription>
+            <CardTitle className="text-xl text-amber-600">
+              {naira(preview?.totals.thrift ?? 0)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="sm:col-span-2 lg:col-span-4">
           <CardHeader className="pb-2">
             <CardDescription>Net Payable</CardDescription>
             <CardTitle className="text-2xl text-primary">{naira(totals.net)}</CardTitle>
@@ -177,6 +187,13 @@ export default async function SalaryPeriodPage({
               poolBalance={poolBalance}
               alreadyPaid={alreadyPaid}
             />
+            {!alreadyPaid && preview && preview.rows.length > 0 ? (
+              <PayrollPreviewDialog
+                periodName={preview.periodName}
+                rows={preview.rows}
+                totals={preview.totals}
+              />
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-3">

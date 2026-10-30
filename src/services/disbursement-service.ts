@@ -105,8 +105,117 @@ export class DisbursementService {
     return data ?? [];
   }
 
-  /** Pay a salary period immediately (manual "Pay now" from the dashboard). */
-  static async payPeriodNow(periodId: string): Promise<DisbursementResult> {
+  /**
+   * Read-only preview of a payroll run: what each employee would receive after
+   * loan deductions and thrift savings. Nothing is posted to the ledger.
+   */
+  static async previewPeriod(periodId: string) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!profile?.organization_id) return null;
+
+    const admin = createAdminClient();
+
+    const { data: period } = await admin
+      .from("salary_periods")
+      .select("id, name")
+      .eq("id", periodId)
+      .eq("organization_id", profile.organization_id)
+      .maybeSingle();
+
+    if (!period) return null;
+
+    const { data: records } = await admin
+      .from("salary_records")
+      .select(
+        "employee_id, gross_salary, basic_salary, allowances, other_deductions, loan_deductions, net_salary"
+      )
+      .eq("salary_period_id", periodId)
+      .order("created_at", { ascending: true });
+
+    const seen = new Set<string>();
+    const unique = (records ?? []).filter((record) => {
+      if (seen.has(record.employee_id)) return false;
+      seen.add(record.employee_id);
+      return true;
+    });
+
+    if (unique.length === 0) {
+      return {
+        periodName: period.name,
+        rows: [],
+        totals: { net: 0, thrift: 0, walletCredit: 0 },
+      };
+    }
+
+    const { data: employees } = await admin
+      .from("employees")
+      .select(
+        "id, employee_number, first_name, last_name, thrift_enabled, thrift_amount"
+      )
+      .in(
+        "id",
+        unique.map((record) => record.employee_id)
+      );
+
+    const employeeById = new Map(
+      (employees ?? []).map((employee) => [employee.id as string, employee])
+    );
+
+    let totalNet = 0;
+    let totalThrift = 0;
+    let totalWallet = 0;
+
+    const rows = unique.map((record) => {
+      const employee = employeeById.get(record.employee_id);
+      const net = Number(record.net_salary) || 0;
+      const thrift = employee?.thrift_enabled
+        ? Math.min(Number(employee.thrift_amount) || 0, net)
+        : 0;
+
+      totalNet += net;
+      totalThrift += thrift;
+      totalWallet += net - thrift;
+
+      return {
+        employeeId: record.employee_id as string,
+        employeeName: employee
+          ? `${employee.first_name} ${employee.last_name}`
+          : "Unknown employee",
+        employeeNumber: (employee?.employee_number as string) ?? "",
+        gross: Number(record.gross_salary) || 0,
+        basic: Number(record.basic_salary) || 0,
+        allowances: Number(record.allowances) || 0,
+        loan: Number(record.loan_deductions) || 0,
+        other: Number(record.other_deductions) || 0,
+        net,
+        thrift,
+        walletCredit: net - thrift,
+      };
+    });
+
+    return {
+      periodName: period.name,
+      rows,
+      totals: {
+        net: round2(totalNet),
+        thrift: round2(totalThrift),
+        walletCredit: round2(totalWallet),
+      },
+    };
+  }
+
+  /** Pay a salary period immediately (manual "Pay now" from the dashboard). */  static async payPeriodNow(periodId: string): Promise<DisbursementResult> {
     const supabase = await createClient();
     const {
       data: { user },
