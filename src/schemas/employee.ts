@@ -59,6 +59,13 @@ export const createEmployeeSchema = z.object({
     "On Leave",
   ]),
   dateJoined: z.string().min(1, "Date joined is required"),
+  salary: z
+    .union([
+      z.number(),
+      z.string().regex(/^\d*(\.\d{0,2})?$/, "Enter a valid salary amount"),
+    ])
+    .optional()
+    .or(z.literal("")),
   branchId: z.string().optional().or(z.literal("")),
 });
 

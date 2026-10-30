@@ -150,6 +150,7 @@ export default async function EmployeeProfilePage({
               employment_type: employeeRow.employment_type,
               employment_status: employeeRow.employment_status,
               date_joined: employeeRow.date_joined,
+              salary: employeeRow.salary ?? 0,
               branch_id: employeeRow.branch_id,
             }}
             departments={departments}

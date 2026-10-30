@@ -63,6 +63,7 @@ interface EmployeeFormProps {
     employment_type: string;
     employment_status: string;
     date_joined: string;
+    salary: number;
     branch_id: string | null;
   };
   departments: { id: string; name: string }[];
@@ -125,6 +126,7 @@ export function EmployeeForm({
           (employee.employment_status as CreateEmployeeValues["employmentStatus"]) ??
           "Active",
         dateJoined: employee.date_joined,
+        salary: employee.salary ?? 0,
         branchId: employee.branch_id ?? "",
       }
     : {
@@ -146,6 +148,7 @@ export function EmployeeForm({
         employmentType: "Full-time",
         employmentStatus: "Active",
         dateJoined: new Date().toISOString().split("T")[0],
+        salary: 0,
         branchId: "",
       };
 
@@ -463,36 +466,50 @@ export function EmployeeForm({
               </div>
             </div>
 
-            <div>
-              <FormFieldLabel>Branch</FormFieldLabel>
-              <Controller
-                control={control}
-                name="branchId"
-                render={({ field }) => (
-                  <Select
-                    value={field.value || undefined}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue>
-                        {(value) => {
-                          const selected = branches.find(
-                            (b) => b.id === value
-                          );
-                          return selected ? selected.name : "Select";
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <FormFieldLabel>Branch</FormFieldLabel>
+                <Controller
+                  control={control}
+                  name="branchId"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue>
+                          {(value) => {
+                            const selected = branches.find(
+                              (b) => b.id === value
+                            );
+                            return selected ? selected.name : "Select";
+                          }}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              <div>
+                <FormFieldLabel>Monthly Salary (₦)</FormFieldLabel>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  inputMode="decimal"
+                  placeholder="e.g. 250000"
+                  {...register("salary")}
+                />
+                <FieldError errors={errors} name="salary" />
+              </div>
             </div>
           </div>
 

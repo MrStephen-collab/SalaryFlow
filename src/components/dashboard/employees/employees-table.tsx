@@ -46,6 +46,7 @@ export interface EmployeeRow {
   employment_status: string;
   employment_type: string;
   date_joined: string;
+  salary: number;
   date_of_birth: string | null;
   gender: string | null;
   address: string | null;
@@ -366,6 +367,7 @@ export function EmployeesTable({
                               employment_type: employee.employment_type,
                               employment_status: employee.employment_status,
                               date_joined: employee.date_joined,
+                              salary: employee.salary,
                               branch_id: employee.branch_id,
                             }}
                             departments={departments}

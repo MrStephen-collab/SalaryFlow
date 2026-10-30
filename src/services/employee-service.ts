@@ -357,6 +357,7 @@ export class EmployeeService {
         employment_type: data.employmentType,
         employment_status: data.employmentStatus,
         date_joined: data.dateJoined,
+        salary: Number(data.salary) || 0,
         branch_id: data.branchId || null,
       })
       .select()
@@ -423,6 +424,7 @@ export class EmployeeService {
       employmentType: "employment_type",
       employmentStatus: "employment_status",
       dateJoined: "date_joined",
+      salary: "salary",
       branchId: "branch_id",
     };
 
@@ -430,6 +432,10 @@ export class EmployeeService {
       const dbField = fieldMap[key];
       if (!dbField) continue;
       updateData[dbField] = value === "" ? null : value;
+    }
+
+    if (updateData.salary !== undefined && updateData.salary !== null) {
+      updateData.salary = Number(updateData.salary) || 0;
     }
 
     const { error } = await this.supabase
