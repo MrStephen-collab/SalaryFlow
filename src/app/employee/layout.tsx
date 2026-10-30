@@ -44,7 +44,7 @@ export default async function EmployeeLayout({
     <SidebarProvider>
       <EmployeeSidebar user={user} />
       <SidebarInset>
-        <header className="flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur lg:px-6 print:hidden">
+        <header className="relative z-40 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur lg:px-6 print:hidden">
           <SidebarTrigger className="-ml-1" />
           <div className="flex-1" />
           <div className="hidden items-center gap-3 sm:flex">
