@@ -11,6 +11,7 @@ import {
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SignOutButton } from "@/components/employee/sign-out-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { NotificationService } from "@/services/notification-service";
 
 export default async function MemberLayout({
   children,
@@ -33,9 +34,12 @@ export default async function MemberLayout({
     .slice(0, 2)
     .toUpperCase();
 
+  const notificationService = await NotificationService.create();
+  const notifications = await notificationService.list(12);
+
   return (
     <SidebarProvider>
-      <MemberSidebar user={user} />
+      <MemberSidebar user={user} notifications={notifications} />
       <SidebarInset>
         <header className="relative z-40 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur lg:px-6 print:hidden">
           <SidebarTrigger className="-ml-1" />

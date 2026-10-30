@@ -63,6 +63,7 @@ function daysFromNow(days: number) {
 export class NotificationService {
   private orgId: string | null = null;
   private employeeId: string | null = null;
+  private memberId: string | null = null;
   private role: string | null = null;
   private isSuperAdmin = false;
 
@@ -78,7 +79,7 @@ export class NotificationService {
     if (!user) return service;
 
     const admin = createAdminClient();
-    const [profileResult, employeeResult] = await Promise.all([
+    const [profileResult, employeeResult, memberResult] = await Promise.all([
       admin
         .from("user_profiles")
         .select("organization_id, role")
@@ -89,13 +90,20 @@ export class NotificationService {
         .select("id, organization_id")
         .eq("user_id", user.id)
         .maybeSingle(),
+      admin
+        .from("members")
+        .select("id, organization_id")
+        .eq("user_id", user.id)
+        .maybeSingle(),
     ]);
 
     service.role = profileResult.data?.role ?? null;
     service.isSuperAdmin = service.role === "SUPER_ADMIN";
     service.employeeId = employeeResult.data?.id ?? null;
+    service.memberId = memberResult.data?.id ?? null;
     service.orgId =
       employeeResult.data?.organization_id ??
+      memberResult.data?.organization_id ??
       profileResult.data?.organization_id ??
       null;
 
@@ -108,12 +116,197 @@ export class NotificationService {
 
   async list(limit = 12): Promise<NotificationItem[]> {
     if (this.isSuperAdmin) return this.platformNotifications(limit);
+    if (this.memberId) return this.memberNotifications(limit);
     if (this.employeeId && this.role === "EMPLOYEE") {
       return this.employeeNotifications(limit);
     }
     if (this.orgId) return this.staffNotifications(limit);
     return [];
   }
+
+  /** External member feed: savings activity, membership and loans. */
+  private async memberNotifications(limit: number) {
+    if (!this.orgId || !this.memberId) return [];
+    const admin = createAdminClient();
+    const items: NotificationItem[] = [];
+
+    const [loans, savings, schedules, member] = await Promise.all([
+      admin
+        .from("loan_applications")
+        .select("id, status, amount, created_at, submitted_at, approved_at, rejected_at, disbursed_at, rejection_reason")
+        .eq("member_id", this.memberId)
+        .order("updated_at", { ascending: false })
+        .limit(20),
+      admin
+        .from("savings_transactions")
+        .select("id, transaction_type, amount, direction, reference, description, created_at")
+        .eq("member_id", this.memberId)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      admin
+        .from("loan_schedules")
+        .select(
+          `
+          id, status, due_date, total_payment, paid_amount,
+          loan_applications!inner(id, member_id, status)
+        `
+        )
+        .eq("loan_applications.member_id", this.memberId)
+        .in("loan_applications.status", ["ACTIVE", "DEFAULTED"])
+        .in("status", ["DUE", "LATE", "UPCOMING"])
+        .lte("due_date", daysFromNow(7))
+        .order("due_date", { ascending: true })
+        .limit(10),
+      admin
+        .from("members")
+        .select("status, joined_at, created_at")
+        .eq("id", this.memberId)
+        .maybeSingle(),
+    ]);
+
+    for (const loan of loans.data ?? []) {
+      const amount = naira(Number(loan.amount) || 0);
+
+      if (loan.status === "SUBMITTED" || loan.status === "UNDER_REVIEW") {
+        items.push({
+          id: `member-loan-submitted-${loan.id}`,
+          title: "Loan request submitted",
+          description: `Your ${amount} loan request is awaiting approval.`,
+          href: "/member/loans",
+          createdAt: timestamp(loan.submitted_at, loan.created_at),
+          tone: "info",
+          category: "loan",
+          amount: Number(loan.amount) || 0,
+        });
+      } else if (loan.status === "APPROVED") {
+        items.push({
+          id: `member-loan-approved-${loan.id}`,
+          title: "Loan approved",
+          description: `Your ${amount} loan was approved and is awaiting disbursement.`,
+          href: "/member/loans",
+          createdAt: timestamp(loan.approved_at, loan.created_at),
+          tone: "success",
+          category: "loan",
+          amount: Number(loan.amount) || 0,
+        });
+      } else if (loan.status === "ACTIVE" || loan.status === "DISBURSED") {
+        items.push({
+          id: `member-loan-active-${loan.id}`,
+          title: "Loan disbursed",
+          description: `Your ${amount} loan has been credited to your savings wallet.`,
+          href: "/member/loans",
+          createdAt: timestamp(loan.disbursed_at, loan.approved_at, loan.created_at),
+          tone: "success",
+          category: "loan",
+          amount: Number(loan.amount) || 0,
+        });
+      } else if (loan.status === "REJECTED") {
+        items.push({
+          id: `member-loan-rejected-${loan.id}`,
+          title: "Loan request declined",
+          description: loan.rejection_reason || `Your ${amount} loan request was declined.`,
+          href: "/member/loans",
+          createdAt: timestamp(loan.rejected_at, loan.created_at),
+          tone: "danger",
+          category: "loan",
+          amount: Number(loan.amount) || 0,
+        });
+      } else if (loan.status === "COMPLETED") {
+        items.push({
+          id: `member-loan-completed-${loan.id}`,
+          title: "Loan completed",
+          description: `You have fully repaid your ${amount} loan.`,
+          href: "/member/loans",
+          createdAt: timestamp(loan.created_at),
+          tone: "success",
+          category: "loan",
+          amount: Number(loan.amount) || 0,
+        });
+      }
+    }
+
+    for (const tx of savings.data ?? []) {
+      const amount = naira(Number(tx.amount) || 0);
+      if (tx.transaction_type === "DEPOSIT") {
+        items.push({
+          id: `member-savings-deposit-${tx.id}`,
+          title: "Savings deposit received",
+          description: `${amount} was credited to your savings.`,
+          href: "/member/savings",
+          createdAt: timestamp(tx.created_at),
+          tone: "success",
+          category: "system",
+          amount: Number(tx.amount) || 0,
+          reference: tx.reference ?? undefined,
+        });
+      } else if (tx.transaction_type === "WITHDRAWAL") {
+        items.push({
+          id: `member-savings-withdrawal-${tx.id}`,
+          title: "Savings withdrawal",
+          description: `${amount} was paid out${tx.description ? ` · ${tx.description}` : ""}.`,
+          href: "/member/savings",
+          createdAt: timestamp(tx.created_at),
+          tone: "info",
+          category: "withdrawal",
+          amount: Number(tx.amount) || 0,
+          reference: tx.reference ?? undefined,
+        });
+      }
+    }
+
+    for (const schedule of schedules.data ?? []) {
+      const loan = unwrap(
+        schedule.loan_applications as unknown as Embedded<{
+          id: string;
+          status: string;
+        }>
+      );
+      const outstanding = Math.max(
+        0,
+        Number(schedule.total_payment) - Number(schedule.paid_amount ?? 0)
+      );
+      if (outstanding <= 0) continue;
+
+      const due = schedule.due_date
+        ? new Date(schedule.due_date).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
+        : "the due date";
+
+      items.push({
+        id: `member-schedule-${schedule.status.toLowerCase()}-${schedule.id}`,
+        title:
+          schedule.status === "LATE"
+            ? "Loan repayment overdue"
+            : schedule.status === "DUE"
+              ? "Loan repayment due"
+              : "Loan repayment due soon",
+        description: `${naira(outstanding)} is due on ${due}.`,
+        href: "/member/loans",
+        createdAt: timestamp(schedule.due_date),
+        tone: schedule.status === "DUE" || schedule.status === "LATE" ? "danger" : "info",
+        category: "loan",
+        amount: outstanding,
+      });
+    }
+
+    if (member.data?.status === "ACTIVE") {
+      items.push({
+        id: `member-membership-${this.memberId}`,
+        title: "Membership active",
+        description: "Your membership is active. Keep saving to grow your loan limit.",
+        href: "/member",
+        createdAt: timestamp(member.data.joined_at, member.data.created_at),
+        tone: "success",
+        category: "system",
+      });
+    }
+
+    return this.finish(items, limit);
+  }
+
 
   private async employeeNotifications(limit: number) {
     if (!this.orgId || !this.employeeId) return [];
