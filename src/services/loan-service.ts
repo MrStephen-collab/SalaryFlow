@@ -228,6 +228,7 @@ export class LoanService {
         `
         *,
         employees:employee_id(employee_number, first_name, last_name),
+        members:member_id(first_name, last_name, member_number),
         loan_products:loan_product_id(name, interest_method)
       `
       )
@@ -248,16 +249,31 @@ export class LoanService {
             last_name: string;
           }
         | null;
+      const member = row.members as unknown as
+        | {
+            first_name: string;
+            last_name: string;
+            member_number: string;
+          }
+        | null;
       const product = row.loan_products as unknown as
         | { name: string; interest_method: string }
         | null;
+      const isMember = Boolean(row.member_id);
 
       return {
         ...row,
-        employeeName: emp
-          ? `${emp.first_name} ${emp.last_name}`
-          : "Unknown",
-        employeeNumber: emp?.employee_number ?? "",
+        employeeName: isMember
+          ? member
+            ? `${member.first_name} ${member.last_name}`
+            : "Unknown member"
+          : emp
+            ? `${emp.first_name} ${emp.last_name}`
+            : "Unknown",
+        employeeNumber: isMember
+          ? member?.member_number ?? ""
+          : emp?.employee_number ?? "",
+        borrowerType: isMember ? ("MEMBER" as const) : ("EMPLOYEE" as const),
         productName: product?.name ?? "Unknown",
       };
     });
@@ -272,6 +288,7 @@ export class LoanService {
         `
         *,
         employees:employee_id(employee_number, first_name, last_name, department, salary, date_joined),
+        members:member_id(first_name, last_name, member_number),
         loan_products:loan_product_id(name, interest_method, interest_rate, duration_months, processing_fee, insurance_fee)
       `
       )
@@ -291,6 +308,13 @@ export class LoanService {
           date_joined: string;
         }
       | null;
+    const member = data.members as unknown as
+      | {
+          first_name: string;
+          last_name: string;
+          member_number: string;
+        }
+      | null;
     const product = data.loan_products as unknown as
       | {
           name: string;
@@ -304,10 +328,20 @@ export class LoanService {
 
     return {
       ...data,
-      employeeName: emp ? `${emp.first_name} ${emp.last_name}` : "Unknown",
-      employeeNumber: emp?.employee_number ?? "",
-      employeeDepartment: emp?.department ?? "",
-      employeeSalary: emp?.salary ?? 0,
+      employeeName: data.member_id
+        ? member
+          ? `${member.first_name} ${member.last_name}`
+          : "Unknown member"
+        : emp
+          ? `${emp.first_name} ${emp.last_name}`
+          : "Unknown",
+      employeeNumber: data.member_id
+        ? member?.member_number ?? ""
+        : emp?.employee_number ?? "",
+      employeeDepartment: data.member_id
+        ? "External member"
+        : emp?.department ?? "",
+      employeeSalary: data.member_id ? 0 : emp?.salary ?? 0,
       productName: product?.name ?? "Unknown",
     };
   }

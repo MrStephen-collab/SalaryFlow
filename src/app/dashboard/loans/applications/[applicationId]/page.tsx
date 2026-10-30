@@ -114,6 +114,21 @@ export default async function LoanApplicationDetailPage({
         </div>
       </div>
 
+      {application.member_id ? (
+        <div className="flex flex-col gap-2 rounded-lg border border-blue-300 bg-blue-50 p-4 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium">External member loan</p>
+            <p className="mt-1">
+              Member loans are approved and disbursed from the Members page so
+              the proceeds go to their savings wallet.
+            </p>
+          </div>
+          <Button render={<Link href="/dashboard/members" />}>
+            Review on Members page
+          </Button>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">

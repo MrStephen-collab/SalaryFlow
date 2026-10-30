@@ -281,7 +281,11 @@ export default async function DashboardPage() {
                 {applications.slice(0, 5).map((app) => (
                   <Link
                     key={app.id}
-                    href={`/dashboard/loans/applications/${app.id}`}
+                    href={
+                      app.borrowerType === "MEMBER"
+                        ? "/dashboard/members"
+                        : `/dashboard/loans/applications/${app.id}`
+                    }
                     className="flex items-center justify-between rounded-lg border p-3 transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:bg-muted/60 hover:shadow-sm"
                   >
                     <div>

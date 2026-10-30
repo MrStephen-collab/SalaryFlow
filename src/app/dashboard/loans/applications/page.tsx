@@ -62,7 +62,7 @@ export default async function LoanApplicationsPage({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Loan Applications</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Review and manage employee loan applications
+            Review and manage employee and external member loan applications
           </p>
         </div>
         <Button render={<Link href="/dashboard/loans/apply" />}>
@@ -124,7 +124,12 @@ export default async function LoanApplicationsPage({
                 <TableRow key={app.id}>
                   <TableCell>
                     <div>
-                      <p className="font-medium">{app.employeeName}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{app.employeeName}</p>
+                        {app.borrowerType === "MEMBER" ? (
+                          <Badge variant="outline">Member</Badge>
+                        ) : null}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {app.employeeNumber}
                       </p>
@@ -155,10 +160,16 @@ export default async function LoanApplicationsPage({
                       variant="ghost"
                       size="sm"
                       render={
-                        <Link href={`/dashboard/loans/applications/${app.id}`} />
+                        <Link
+                          href={
+                            app.borrowerType === "MEMBER"
+                              ? "/dashboard/members"
+                              : `/dashboard/loans/applications/${app.id}`
+                          }
+                        />
                       }
                     >
-                      View
+                      {app.borrowerType === "MEMBER" ? "Review" : "View"}
                     </Button>
                   </TableCell>
                 </TableRow>

@@ -66,6 +66,13 @@ export default async function EmployeeLoansPage() {
         )}
       </div>
 
+      {eligible && requiredMonths > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Eligible · {requiredMonths}-month employment requirement met
+          {eligibility ? ` (${eligibility.monthsWorked} months worked)` : ""}.
+        </p>
+      ) : null}
+
       {!eligible ? (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           <p className="font-medium">Loan eligibility</p>
