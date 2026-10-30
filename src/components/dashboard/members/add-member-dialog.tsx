@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Check, Copy, Plus, UserPlus } from "lucide-react";
+import { NinDocumentInput } from "@/components/nin/nin-document-input";
 
 const emptyForm = {
   firstName: "",
@@ -24,6 +25,8 @@ const emptyForm = {
   phone: "",
   address: "",
   dateOfBirth: "",
+  nin: "",
+  ninDocumentUrl: "",
 };
 
 export function AddMemberDialog() {
@@ -56,6 +59,14 @@ export function AddMemberDialog() {
       toast.error("Email address is required");
       return;
     }
+    if (!/^\d{11}$/.test(form.nin)) {
+      toast.error("Enter the member's 11-digit NIN");
+      return;
+    }
+    if (!form.ninDocumentUrl) {
+      toast.error("Upload the member's NIN document");
+      return;
+    }
 
     startTransition(async () => {
       const result = await addMember({
@@ -65,6 +76,8 @@ export function AddMemberDialog() {
         phone: form.phone.trim() || undefined,
         address: form.address.trim() || undefined,
         dateOfBirth: form.dateOfBirth || undefined,
+        nin: form.nin,
+        ninDocumentUrl: form.ninDocumentUrl,
       });
 
       if (!result.ok) {
@@ -213,6 +226,25 @@ export function AddMemberDialog() {
                   value={form.address}
                   onChange={(event) => set("address", event.target.value)}
                   placeholder="Street, city, state"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>NIN *</Label>
+                <Input
+                  value={form.nin}
+                  onChange={(event) =>
+                    set("nin", event.target.value.replace(/\D/g, "").slice(0, 11))
+                  }
+                  placeholder="11-digit NIN"
+                  inputMode="numeric"
+                  maxLength={11}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>NIN Document *</Label>
+                <NinDocumentInput
+                  value={form.ninDocumentUrl || null}
+                  onChange={(url) => set("ninDocumentUrl", url ?? "")}
                 />
               </div>
             </div>

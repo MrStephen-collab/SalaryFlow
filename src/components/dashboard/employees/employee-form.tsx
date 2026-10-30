@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { EMPLOYMENT_STATUSES, EMPLOYMENT_TYPES } from "@/config/constants";
 import { getLgasForState, NIGERIA_STATES } from "@/config/nigeria";
+import { NinDocumentInput } from "@/components/nin/nin-document-input";
 
 interface EmployeeFormProps {
   employee?: {
@@ -55,6 +56,8 @@ interface EmployeeFormProps {
     address: string | null;
     state: string | null;
     lga: string | null;
+    nin: string | null;
+    nin_document_url: string | null;
     department: string | null;
     position: string | null;
     employment_type: string;
@@ -111,6 +114,8 @@ export function EmployeeForm({
         address: employee.address ?? "",
         state: employee.state ?? "",
         lga: employee.lga ?? "",
+        nin: employee.nin ?? "",
+        ninDocumentUrl: employee.nin_document_url ?? "",
         department: employee.department ?? "",
         position: employee.position ?? "",
         employmentType:
@@ -134,6 +139,8 @@ export function EmployeeForm({
         address: "",
         state: "",
         lga: "",
+        nin: "",
+        ninDocumentUrl: "",
         department: "",
         position: "",
         employmentType: "Full-time",
@@ -158,6 +165,19 @@ export function EmployeeForm({
   const stateLgas = selectedState ? getLgasForState(selectedState) : [];
 
   const onSubmit = (values: CreateEmployeeValues) => {
+    if (!values.nin?.trim()) {
+      toast.error("NIN is required");
+      return;
+    }
+    if (!/^\d{11}$/.test(values.nin)) {
+      toast.error("NIN must be 11 digits");
+      return;
+    }
+    if (!values.ninDocumentUrl) {
+      toast.error("Please upload the NIN document");
+      return;
+    }
+
     startTransition(async () => {
       if (isEdit && employee) {
         const result = await updateEmployee(employee.id, values);
@@ -279,6 +299,32 @@ export function EmployeeForm({
                 rows={2}
                 {...register("address")}
               />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <FormFieldLabel required>NIN</FormFieldLabel>
+                <Input
+                  placeholder="11-digit NIN"
+                  inputMode="numeric"
+                  maxLength={11}
+                  {...register("nin")}
+                />
+                <FieldError errors={errors} name="nin" />
+              </div>
+              <div>
+                <FormFieldLabel required>NIN Document</FormFieldLabel>
+                <Controller
+                  control={control}
+                  name="ninDocumentUrl"
+                  render={({ field }) => (
+                    <NinDocumentInput
+                      value={field.value}
+                      onChange={(url) => field.onChange(url ?? "")}
+                    />
+                  )}
+                />
+              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">

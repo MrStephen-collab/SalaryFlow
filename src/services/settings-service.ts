@@ -100,6 +100,8 @@ export class SettingsService {
         address: values.address ?? "",
         state: values.state ?? "",
         lga: values.lga ?? "",
+        nin: values.nin || null,
+        nin_document_url: values.ninDocumentUrl || null,
         currency: values.currency,
       })
       .eq("id", this.orgId);

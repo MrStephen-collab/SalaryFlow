@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { organizationSchema, organizationSettingsSchema, CURRENCIES, SALARY_CYCLES, APPROVAL_WORKFLOWS } from "@/schemas/settings";
 import { INTEREST_METHODS } from "@/schemas/loan";
 import { ORGANIZATION_TYPES } from "@/config/constants";
+import { NinDocumentInput } from "@/components/nin/nin-document-input";
 
 const STEPS = ["Organization", "Loan Policies", "Review"] as const;
 
@@ -31,6 +32,8 @@ export function OnboardingForm() {
     address: "",
     state: "",
     lga: "",
+    nin: "",
+    ninDocumentUrl: "",
     currency: "NGN",
   });
 
@@ -78,6 +81,14 @@ export function OnboardingForm() {
         });
         if (!result.success) {
           setError(result.error.issues[0]?.message ?? "Invalid organization details");
+          return false;
+        }
+        if (!/^\d{11}$/.test(organization.nin)) {
+          setError("Enter your 11-digit NIN");
+          return false;
+        }
+        if (!organization.ninDocumentUrl) {
+          setError("Upload your NIN document");
           return false;
         }
       }
@@ -255,6 +266,25 @@ export function OnboardingForm() {
                 value={organization.address}
                 onChange={(e) => setOrg("address", e.target.value)}
                 placeholder="Street address"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>NIN *</Label>
+              <Input
+                value={organization.nin}
+                onChange={(e) => setOrg("nin", e.target.value.replace(/\D/g, ""))}
+                placeholder="11-digit NIN"
+                inputMode="numeric"
+                maxLength={11}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>NIN Document *</Label>
+              <NinDocumentInput
+                value={organization.ninDocumentUrl || null}
+                onChange={(url) => setOrg("ninDocumentUrl", url ?? "")}
               />
             </div>
           </div>

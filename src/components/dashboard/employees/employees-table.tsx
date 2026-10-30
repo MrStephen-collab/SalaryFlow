@@ -33,7 +33,7 @@ import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Search, UserX, X } f
 import { EMPLOYMENT_STATUSES } from "@/config/constants";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-interface EmployeeRow {
+export interface EmployeeRow {
   id: string;
   employee_number: string;
   first_name: string;
@@ -46,6 +46,13 @@ interface EmployeeRow {
   employment_status: string;
   employment_type: string;
   date_joined: string;
+  date_of_birth: string | null;
+  gender: string | null;
+  address: string | null;
+  state: string | null;
+  lga: string | null;
+  nin: string | null;
+  nin_document_url: string | null;
   branch_id: string | null;
   branch?: { name: string } | null;
   users?: { email: string | null; full_name: string | null } | null;
@@ -347,11 +354,13 @@ export function EmployeesTable({
                               other_names: employee.other_names,
                               email: employee.email,
                               phone: employee.phone,
-                              date_of_birth: null,
-                              gender: null,
-                              address: null,
-                              state: null,
-                              lga: null,
+                              date_of_birth: employee.date_of_birth,
+                              gender: employee.gender as "" | "Male" | "Female" | "Other" | null,
+                              address: employee.address,
+                              state: employee.state,
+                              lga: employee.lga,
+                              nin: employee.nin,
+                              nin_document_url: employee.nin_document_url,
                               department: employee.department,
                               position: employee.position,
                               employment_type: employee.employment_type,

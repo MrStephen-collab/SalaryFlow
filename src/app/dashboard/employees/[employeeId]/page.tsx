@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/avatar";
 import { ArrowLeft } from "lucide-react";
 import { EmployeeForm } from "@/components/dashboard/employees/employee-form";
+import { NinVerification } from "@/components/nin/nin-verification";
 
 export const metadata: Metadata = {
   title: "Employee Profile",
@@ -60,6 +61,9 @@ type EmployeeRow = {
   address: string | null;
   state: string | null;
   lga: string | null;
+  nin: string | null;
+  nin_document_url: string | null;
+  nin_status: string | null;
   department: string | null;
   position: string | null;
   employment_type: string;
@@ -139,6 +143,8 @@ export default async function EmployeeProfilePage({
               address: employeeRow.address,
               state: employeeRow.state,
               lga: employeeRow.lga,
+              nin: employeeRow.nin,
+              nin_document_url: employeeRow.nin_document_url,
               department: employeeRow.department,
               position: employeeRow.position,
               employment_type: employeeRow.employment_type,
@@ -222,6 +228,24 @@ export default async function EmployeeProfilePage({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">NIN Verification</CardTitle>
+          <CardDescription>
+            Review and verify the employee&apos;s National Identification Number.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <NinVerification
+            kind="employee"
+            id={employeeRow.id}
+            nin={employeeRow.nin}
+            documentUrl={employeeRow.nin_document_url}
+            status={employeeRow.nin_status}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

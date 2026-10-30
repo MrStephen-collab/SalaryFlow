@@ -15,6 +15,8 @@ export async function addMember(values: {
   phone?: string;
   address?: string;
   dateOfBirth?: string;
+  nin?: string;
+  ninDocumentUrl?: string;
 }) {
   const service = await MemberService.createForStaff();
   const result = await service.addMember(values);

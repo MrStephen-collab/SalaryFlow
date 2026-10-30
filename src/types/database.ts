@@ -254,6 +254,9 @@ export interface Database {
           job_title: string | null
           last_name: string
           lga: string | null
+          nin: string | null
+          nin_document_url: string | null
+          nin_status: string
           organization_id: string
           other_names: string | null
           phone: string
@@ -283,6 +286,9 @@ export interface Database {
           job_title?: string | null
           last_name: string
           lga?: string | null
+          nin?: string | null
+          nin_document_url?: string | null
+          nin_status?: string
           organization_id: string
           other_names?: string | null
           phone: string
@@ -312,6 +318,9 @@ export interface Database {
           job_title?: string | null
           last_name?: string
           lga?: string | null
+          nin?: string | null
+          nin_document_url?: string | null
+          nin_status?: string
           organization_id?: string
           other_names?: string | null
           phone?: string
@@ -855,6 +864,9 @@ export interface Database {
           lga: string
           logo_url: string | null
           name: string
+          nin: string | null
+          nin_document_url: string | null
+          nin_status: string
           phone: string
           primary_color: string | null
           registration_number: string | null
@@ -872,6 +884,9 @@ export interface Database {
           lga: string
           logo_url?: string | null
           name: string
+          nin?: string | null
+          nin_document_url?: string | null
+          nin_status?: string
           phone: string
           primary_color?: string | null
           registration_number?: string | null
@@ -889,6 +904,9 @@ export interface Database {
           lga?: string
           logo_url?: string | null
           name?: string
+          nin?: string | null
+          nin_document_url?: string | null
+          nin_status?: string
           phone?: string
           primary_color?: string | null
           registration_number?: string | null

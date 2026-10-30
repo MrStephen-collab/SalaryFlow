@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CURRENCIES } from "@/schemas/settings";
 import { ORGANIZATION_TYPES } from "@/config/constants";
+import { NinDocumentInput } from "@/components/nin/nin-document-input";
 import type { Organization } from "@/types/database";
 
 export function OrganizationForm({ organization }: { organization: Organization | null }) {
@@ -26,6 +27,8 @@ export function OrganizationForm({ organization }: { organization: Organization 
     address: organization?.address ?? "",
     state: organization?.state ?? "",
     lga: organization?.lga ?? "",
+    nin: organization?.nin ?? "",
+    ninDocumentUrl: organization?.nin_document_url ?? "",
     currency: organization?.currency ?? "NGN",
   });
 
@@ -41,6 +44,14 @@ export function OrganizationForm({ organization }: { organization: Organization 
   const onSubmit = () => {
     if (!form.name.trim()) {
       toast.error("Organization name is required");
+      return;
+    }
+    if (!/^\d{11}$/.test(form.nin)) {
+      toast.error("Enter the organization owner's 11-digit NIN");
+      return;
+    }
+    if (!form.ninDocumentUrl) {
+      toast.error("Upload the organization owner's NIN document");
       return;
     }
     startTransition(async () => {
@@ -163,6 +174,27 @@ export function OrganizationForm({ organization }: { organization: Organization 
               value={form.address}
               onChange={(e) => set("address", e.target.value)}
               placeholder="Street address"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>NIN *</Label>
+            <Input
+              value={form.nin}
+              onChange={(e) =>
+                set("nin", e.target.value.replace(/\D/g, "").slice(0, 11))
+              }
+              placeholder="11-digit NIN"
+              inputMode="numeric"
+              maxLength={11}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>NIN Document *</Label>
+            <NinDocumentInput
+              value={form.ninDocumentUrl || null}
+              onChange={(url) => set("ninDocumentUrl", url ?? "")}
             />
           </div>
         </div>

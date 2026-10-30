@@ -12,6 +12,7 @@ import {
 import { AvatarUpload } from "@/components/employee/profile/avatar-upload";
 import { ChangePasswordForm } from "@/components/employee/profile/change-password-form";
 import { PinSettings } from "@/components/employee/profile/pin-settings";
+import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, KeyRound, UserCircle2 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -145,6 +146,45 @@ export default async function EmployeeProfilePage() {
                 <dt className="text-muted-foreground">Monthly Salary</dt>
                 <dd className="font-medium text-primary">{naira(Number(employee.salary))}</dd>
               </div>
+              <div>
+                <dt className="text-muted-foreground">NIN</dt>
+                <dd className="font-mono font-medium">{employee.nin ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">NIN Status</dt>
+                <dd className="font-medium">
+                  <Badge
+                    variant={
+                      employee.nin_status === "VERIFIED"
+                        ? "default"
+                        : employee.nin_status === "REJECTED"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                  >
+                    {employee.nin_status === "VERIFIED"
+                      ? "Verified"
+                      : employee.nin_status === "REJECTED"
+                        ? "Rejected"
+                        : "Pending"}
+                  </Badge>
+                </dd>
+              </div>
+              {employee.nin_document_url ? (
+                <div className="sm:col-span-2">
+                  <dt className="text-muted-foreground">NIN Document</dt>
+                  <dd>
+                    <a
+                      href={employee.nin_document_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary underline underline-offset-2"
+                    >
+                      View uploaded document
+                    </a>
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </CardContent>
         </Card>

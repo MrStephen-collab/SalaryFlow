@@ -36,6 +36,12 @@ export const createEmployeeSchema = z.object({
   address: z.string().max(255, "Address is too long").optional().or(z.literal("")),
   state: z.string().max(100).optional().or(z.literal("")),
   lga: z.string().max(100).optional().or(z.literal("")),
+  nin: z
+    .string()
+    .regex(/^\d{11}$/, "NIN must be 11 digits")
+    .optional()
+    .or(z.literal("")),
+  ninDocumentUrl: z.string().optional().or(z.literal("")),
   department: z.string().max(100).optional().or(z.literal("")),
   position: z.string().max(100).optional().or(z.literal("")),
   employmentType: z.enum([

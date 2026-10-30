@@ -1,25 +1,12 @@
 import type { Metadata } from "next";
 import { EmployeeService } from "@/services/employee-service";
-import { EmployeesTable } from "@/components/dashboard/employees/employees-table";
+import {
+  EmployeesTable,
+  type EmployeeRow,
+} from "@/components/dashboard/employees/employees-table";
 
 export const metadata: Metadata = {
   title: "Employees",
-};
-
-type EmployeeRow = {
-  id: string;
-  employee_number: string;
-  first_name: string;
-  last_name: string;
-  other_names: string | null;
-  email: string | null;
-  phone: string | null;
-  department: string | null;
-  position: string | null;
-  employment_status: string;
-  employment_type: string;
-  date_joined: string;
-  branch_id: string | null;
 };
 
 export default async function EmployeesPage({

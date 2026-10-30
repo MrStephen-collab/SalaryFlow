@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Users } from "lucide-react";
+import { NinVerification } from "@/components/nin/nin-verification";
 
 export const metadata: Metadata = {
   title: "Members",
@@ -152,6 +153,7 @@ export default async function MembersPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>NIN</TableHead>
               </TableRow>
             </TableHeader>
             <tbody>
@@ -171,6 +173,15 @@ export default async function MembersPage() {
                     <Badge variant={member.status === "ACTIVE" ? "default" : "secondary"}>
                       {member.status}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <NinVerification
+                      kind="member"
+                      id={member.id}
+                      nin={member.nin}
+                      documentUrl={member.nin_document_url}
+                      status={member.nin_status}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

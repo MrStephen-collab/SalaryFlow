@@ -14,6 +14,12 @@ export const organizationSchema = z.object({
   address: z.string().max(500).optional(),
   state: z.string().max(100).optional(),
   lga: z.string().max(100).optional(),
+  nin: z
+    .string()
+    .regex(/^\d{11}$/, "NIN must be 11 digits")
+    .optional()
+    .or(z.literal("")),
+  ninDocumentUrl: z.string().optional().or(z.literal("")),
   currency: z.string().min(1, "Currency is required"),
 });
 

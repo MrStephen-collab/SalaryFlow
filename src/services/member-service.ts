@@ -144,9 +144,7 @@ export class MemberService {
 
     let query = this.supabase
       .from("members")
-      .select(
-        "id, member_number, first_name, last_name, email, phone, status, kyc_status, joined_at"
-      )
+      .select("*")
       .eq("organization_id", this.organizationId)
       .order("created_at", { ascending: false });
 
@@ -181,6 +179,8 @@ export class MemberService {
     phone?: string;
     address?: string;
     dateOfBirth?: string;
+    nin?: string;
+    ninDocumentUrl?: string;
   }): Promise<{ ok: boolean; error?: string; memberId?: string; tempPassword?: string }> {
     const forbidden = this.staffGuard();
     if (forbidden) return { ok: false, error: forbidden };
@@ -193,6 +193,13 @@ export class MemberService {
     if (!firstName || !lastName) return { ok: false, error: "First and last name are required" };
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return { ok: false, error: "Enter a valid email address" };
+    }
+    const nin = values.nin?.trim();
+    if (!nin || !/^\d{11}$/.test(nin)) {
+      return { ok: false, error: "NIN must be 11 digits" };
+    }
+    if (!values.ninDocumentUrl) {
+      return { ok: false, error: "Upload the member's NIN document" };
     }
 
     const admin = createAdminClient();
@@ -273,6 +280,8 @@ export class MemberService {
         phone: values.phone?.trim() || null,
         address: values.address?.trim() || null,
         date_of_birth: values.dateOfBirth || null,
+        nin,
+        nin_document_url: values.ninDocumentUrl,
         status: "ACTIVE",
         kyc_status: "PENDING",
       })

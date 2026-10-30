@@ -57,6 +57,8 @@ export async function completeOnboarding(
         address: parsed.data.organization.address ?? "",
         state: parsed.data.organization.state ?? "",
         lga: parsed.data.organization.lga ?? "",
+        nin: parsed.data.organization.nin || null,
+        nin_document_url: parsed.data.organization.ninDocumentUrl || null,
         currency: parsed.data.organization.currency,
       })
       .select("id")

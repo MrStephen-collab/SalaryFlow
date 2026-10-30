@@ -15,6 +15,9 @@ interface EmployeeRow {
   employment_status: string;
   date_joined: string | null;
   salary: number;
+  nin: string | null;
+  nin_document_url: string | null;
+  nin_status: string;
 }
 
 export interface PortalDashboard {
@@ -76,9 +79,7 @@ export class EmployeePortalService {
 
     const { data } = await this.supabase
       .from("employees")
-      .select(
-        "id, organization_id, employee_number, first_name, last_name, email, department, branch, job_title, employment_type, employment_status, date_joined, salary"
-      )
+      .select("*")
       .eq("id", this.employeeId)
       .maybeSingle();
 
