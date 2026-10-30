@@ -8,6 +8,9 @@ import {
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { UserMenu } from "@/components/dashboard/user-menu";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { requireUser, getProfile } from "@/lib/auth";
 import { NotificationService } from "@/services/notification-service";
 
@@ -30,9 +33,12 @@ export default async function DashboardLayout({
     <SidebarProvider>
       <DashboardSidebar user={user} role={profile?.role ?? null} notifications={notifications} />
       <SidebarInset>
-        <header className="flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur print:hidden">
+        <header className="flex h-14 items-center gap-1 border-b bg-background/95 px-4 backdrop-blur print:hidden">
           <SidebarTrigger className="-ml-1 md:hidden" />
           <div className="flex-1" />
+          <NotificationBell items={notifications} viewAllHref="/dashboard/notifications" />
+          <ThemeToggle />
+          <LogoutButton />
           <UserMenu
             name={user.user_metadata?.full_name ?? user.email ?? "User"}
             email={user.email ?? ""}
