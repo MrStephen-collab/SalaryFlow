@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { MemberService } from "@/services/member-service";
+import { getProfile } from "@/lib/auth";
 import { AddMemberDialog } from "@/components/dashboard/members/add-member-dialog";
+import { InviteLinkButton } from "@/components/dashboard/invite-link-button";
 import { MemberLoanActions } from "@/components/dashboard/members/member-loan-actions";
 import {
   Card,
@@ -34,6 +36,7 @@ function naira(amount: number) {
 
 export default async function MembersPage() {
   const service = await MemberService.createForStaff();
+  const profile = await getProfile();
   const [members, applications] = await Promise.all([
     service.listMembers(),
     service.listMemberApplications(),
@@ -51,7 +54,15 @@ export default async function MembersPage() {
             savings.
           </p>
         </div>
-        <AddMemberDialog />
+        <div className="flex flex-wrap items-center gap-2">
+          {profile?.organization_id ? (
+            <InviteLinkButton
+              organizationId={profile.organization_id}
+              kind="member"
+            />
+          ) : null}
+          <AddMemberDialog />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

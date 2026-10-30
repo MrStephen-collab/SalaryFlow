@@ -33,9 +33,10 @@ export async function middleware(request: NextRequest) {
 
   // Public routes that don't require auth
   const publicRoutes = ["/", "/auth/login", "/auth/register", "/auth/callback"];
-  const isPublicRoute = publicRoutes.some(
-    (route) => pathname === route || pathname.startsWith("/auth/")
-  );
+  const isPublicRoute =
+    publicRoutes.some((route) => pathname === route) ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/join/");
 
   // Protected routes that require auth
   const protectedPrefixes = [

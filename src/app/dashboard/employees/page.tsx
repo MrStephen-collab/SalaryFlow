@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { EmployeeService } from "@/services/employee-service";
+import { getProfile } from "@/lib/auth";
+import { InviteLinkButton } from "@/components/dashboard/invite-link-button";
 import {
   EmployeesTable,
   type EmployeeRow,
@@ -22,6 +24,7 @@ export default async function EmployeesPage({
   const params = await searchParams;
 
   const service = await EmployeeService.create();
+  const profile = await getProfile();
   const [result, departments, branches] = await Promise.all([
     service.list({
       search: params.search,
@@ -35,11 +38,19 @@ export default async function EmployeesPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your organization&apos;s employees
-        </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage your organization&apos;s employees
+          </p>
+        </div>
+        {profile?.organization_id ? (
+          <InviteLinkButton
+            organizationId={profile.organization_id}
+            kind="employee"
+          />
+        ) : null}
       </div>
 
       <EmployeesTable
