@@ -426,6 +426,99 @@ export class LedgerService {
     );
   }
 
+  /** Ensure the voluntary THRIFT savings account exists for an employee. */
+  async ensureThriftAccount(employeeId: string) {
+    return this.ensureFinancialAccount(employeeId, "THRIFT");
+  }
+
+  /** Live thrift savings balance for an employee. */
+  async getThriftBalance(employeeId: string) {
+    if (!this.orgId) return 0;
+    const account = await this.ensureThriftAccount(employeeId);
+    if (!account?.id) return 0;
+    return this.getFinancialAccountBalance(account.id);
+  }
+
+  /**
+   * Move the agreed voluntary saving out of the salary wallet into the
+   * employee's thrift savings account.
+   * Debit: Employee wallet   Credit: Employee thrift savings
+   */
+  async postThriftContribution(
+    employeeId: string,
+    runId: string,
+    amount: number
+  ) {
+    const wallet = await this.ensureFinancialAccount(employeeId);
+    const thrift = await this.ensureThriftAccount(employeeId);
+
+    if (!wallet?.id || !thrift?.id) {
+      return { error: "Could not open a thrift savings account for this employee" };
+    }
+
+    return this.postTransaction(
+      {
+        description: "Thrift savings set aside from salary",
+        transactionType: "THRIFT_CONTRIBUTION",
+        entries: [
+          {
+            financialAccountId: wallet.id,
+            debit: amount,
+            credit: 0,
+            description: "Thrift savings - from salary wallet",
+          },
+          {
+            financialAccountId: thrift.id,
+            debit: 0,
+            credit: amount,
+            description: "Thrift savings - employee savings",
+          },
+        ],
+      },
+      `SLF-THRIFT-${runId.slice(0, 8)}-${employeeId.slice(0, 8)}`
+    );
+  }
+
+  /**
+   * Chairman-approved release of thrift savings back into the withdrawable
+   * wallet. Debit: Employee thrift savings   Credit: Employee wallet
+   */
+  async postThriftPayout(
+    employeeId: string,
+    reference: string,
+    amount: number,
+    description = "Thrift savings released to wallet"
+  ) {
+    const wallet = await this.ensureFinancialAccount(employeeId);
+    const thrift = await this.ensureThriftAccount(employeeId);
+
+    if (!wallet?.id || !thrift?.id) {
+      return { error: "Thrift account not found" };
+    }
+
+    return this.postTransaction(
+      {
+        description,
+        transactionType: "THRIFT_PAYOUT",
+        entries: [
+          {
+            financialAccountId: thrift.id,
+            debit: amount,
+            credit: 0,
+            description: `${description} - thrift savings`,
+          },
+          {
+            financialAccountId: wallet.id,
+            debit: 0,
+            credit: amount,
+            description: `${description} - employee wallet`,
+          },
+        ],
+      },
+      reference
+    );
+  }
+
   /**
    * Salary run credit: the org's salary expense becomes spendable employee
    * balance. Cash has not left the organization yet - it leaves on withdrawal.

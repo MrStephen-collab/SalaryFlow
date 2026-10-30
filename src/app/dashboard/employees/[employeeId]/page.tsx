@@ -19,6 +19,8 @@ import {
 import { ArrowLeft } from "lucide-react";
 import { EmployeeForm } from "@/components/dashboard/employees/employee-form";
 import { NinVerification } from "@/components/nin/nin-verification";
+import { ThriftReleaseButton } from "@/components/dashboard/employees/thrift-release-button";
+import { LedgerService } from "@/services/ledger-service";
 
 export const metadata: Metadata = {
   title: "Employee Profile",
@@ -73,6 +75,9 @@ type EmployeeRow = {
   termination_date: string | null;
   branch_id: string | null;
   salary: number | null;
+  thrift_enabled: boolean | null;
+  thrift_amount: number | null;
+  organization_id: string;
   job_title: string | null;
   branch?: string | null;
 };
@@ -107,6 +112,12 @@ export default async function EmployeeProfilePage({
   const initials = `${employeeRow.first_name?.[0] ?? ""}${
     employeeRow.last_name?.[0] ?? ""
   }`.toUpperCase();
+
+  const thriftBalance = employeeRow.organization_id
+    ? await LedgerService.createForOrganization(
+        employeeRow.organization_id
+      ).getThriftBalance(employeeRow.id)
+    : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -151,6 +162,8 @@ export default async function EmployeeProfilePage({
               employment_status: employeeRow.employment_status,
               date_joined: employeeRow.date_joined,
               salary: employeeRow.salary ?? 0,
+              thrift_enabled: employeeRow.thrift_enabled ?? false,
+              thrift_amount: employeeRow.thrift_amount ?? 0,
               branch_id: employeeRow.branch_id,
             }}
             departments={departments}
@@ -244,6 +257,38 @@ export default async function EmployeeProfilePage({
             nin={employeeRow.nin}
             documentUrl={employeeRow.nin_document_url}
             status={employeeRow.nin_status}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Thrift Savings</CardTitle>
+          <CardDescription>
+            Voluntary savings set aside from salary after loan deductions. Only
+            the chairman can release it into the withdrawable wallet.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs text-muted-foreground">Thrift Balance</p>
+              <p className="text-lg font-semibold text-primary">
+                {naira(thriftBalance)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Agreed per Salary</p>
+              <p className="text-sm font-medium">
+                {employeeRow.thrift_enabled
+                  ? naira(employeeRow.thrift_amount ?? 0)
+                  : "Not activated"}
+              </p>
+            </div>
+          </div>
+          <ThriftReleaseButton
+            employeeId={employeeRow.id}
+            disabled={!employeeRow.thrift_enabled || thriftBalance <= 0}
           />
         </CardContent>
       </Card>

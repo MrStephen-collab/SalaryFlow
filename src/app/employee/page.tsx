@@ -48,12 +48,14 @@ export default async function EmployeeHomePage() {
     redirect("/employee/profile");
   }
 
-  const [employee, history, availableBalance, activeLoan] = await Promise.all([
-    service.getEmployee(),
-    service.getSalaryHistory(),
-    service.getAvailableBalance(),
-    service.getActiveLoan(),
-  ]);
+  const [employee, history, availableBalance, activeLoan, thriftBalance] =
+    await Promise.all([
+      service.getEmployee(),
+      service.getSalaryHistory(),
+      service.getAvailableBalance(),
+      service.getActiveLoan(),
+      service.getThriftBalance(),
+    ]);
 
   if (!employee) {
     return (
@@ -119,6 +121,42 @@ export default async function EmployeeHomePage() {
           delay={240}
         />
       </div>
+
+      <Card className="animate-fade-up" style={{ animationDelay: "280ms" }}>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Thrift Savings</CardTitle>
+            <CardDescription>
+              Voluntary savings taken from your salary after loan deductions
+            </CardDescription>
+          </div>
+          <Badge variant={employee.thrift_enabled ? "default" : "secondary"}>
+            {employee.thrift_enabled ? "Active" : "Not active"}
+          </Badge>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Thrift balance</p>
+            <p className="text-2xl font-bold text-primary">
+              {naira(thriftBalance)}
+            </p>
+          </div>
+          <div className="text-sm text-muted-foreground sm:text-right">
+            <p>
+              Agreed per salary:{" "}
+              <span className="font-medium text-foreground">
+                {employee.thrift_enabled
+                  ? naira(employee.thrift_amount ?? 0)
+                  : "—"}
+              </span>
+            </p>
+            <p className="text-xs">
+              Thrift savings are released by the chairman. Only your wallet
+              balance can be withdrawn.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card className="animate-fade-up" style={{ animationDelay: "320ms" }}>

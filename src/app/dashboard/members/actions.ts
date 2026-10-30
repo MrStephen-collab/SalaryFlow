@@ -37,7 +37,6 @@ export async function approveMemberLoan(applicationId: string) {
   revalidatePath("/dashboard/members");
   return result;
 }
-
 export async function approveMemberMembership(memberId: string) {
   const service = await MemberService.createForStaff();
   const result = await service.approveMembership(memberId);

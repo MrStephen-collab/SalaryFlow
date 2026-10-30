@@ -66,6 +66,14 @@ export const createEmployeeSchema = z.object({
     ])
     .optional()
     .or(z.literal("")),
+  thriftEnabled: z.boolean().optional(),
+  thriftAmount: z
+    .union([
+      z.number(),
+      z.string().regex(/^\d*(\.\d{0,2})?$/, "Enter a valid thrift amount"),
+    ])
+    .optional()
+    .or(z.literal("")),
   branchId: z.string().optional().or(z.literal("")),
 });
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { EmployeeService } from "@/services/employee-service";
 import { getProfile } from "@/lib/auth";
 import { InviteLinkButton } from "@/components/dashboard/invite-link-button";
+import { SettingsService } from "@/services/settings-service";
 import {
   EmployeesTable,
   type EmployeeRow,
@@ -25,7 +26,8 @@ export default async function EmployeesPage({
 
   const service = await EmployeeService.create();
   const profile = await getProfile();
-  const [result, departments, branches] = await Promise.all([
+  const settingsService = await SettingsService.create();
+  const [result, departments, branches, settings] = await Promise.all([
     service.list({
       search: params.search,
       status: params.status,
@@ -34,6 +36,7 @@ export default async function EmployeesPage({
     }),
     service.listDepartments(),
     service.listBranches(),
+    settingsService.getSettings(),
   ]);
 
   return (
@@ -49,6 +52,7 @@ export default async function EmployeesPage({
           <InviteLinkButton
             organizationId={profile.organization_id}
             kind="employee"
+            enabled={settings?.employee_registration_enabled ?? true}
           />
         ) : null}
       </div>

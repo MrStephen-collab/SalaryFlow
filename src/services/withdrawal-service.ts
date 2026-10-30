@@ -461,6 +461,15 @@ export class WithdrawalService {
     const forbidden = await this.assertCanManage();
     if (forbidden) return forbidden;
 
+    const { data: profile } = await this.supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("user_id", this.userId)
+      .maybeSingle();
+    if (profile?.role !== "ORGANIZATION_OWNER") {
+      return { error: "Only the chairman can approve withdrawals" };
+    }
+
     const { data: existing } = await this.getOwned(withdrawalId);
     if (!existing) return { error: "Withdrawal not found" };
     if (!["PENDING", "REVIEW"].includes(existing.status)) {

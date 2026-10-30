@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { setRegistrationLinkEnabled } from "@/app/dashboard/settings/actions";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -22,13 +24,21 @@ import { Check, Copy, Link2 } from "lucide-react";
 export function InviteLinkButton({
   organizationId,
   kind,
+  enabled = true,
 }: {
   organizationId: string;
   kind: "employee" | "member";
+  enabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [copied, setCopied] = useState(false);
+  const [active, setActive] = useState(enabled);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setActive(enabled);
+  }, [enabled]);
 
   useEffect(() => {
     if (!open) return;
@@ -36,6 +46,19 @@ export function InviteLinkButton({
     setUrl(`${window.location.origin}${path}`);
     setCopied(false);
   }, [open, organizationId, kind]);
+
+  async function toggle(next: boolean) {
+    setSaving(true);
+    setActive(next);
+    const result = await setRegistrationLinkEnabled(kind, next);
+    setSaving(false);
+    if (result.error) {
+      setActive(!next);
+      toast.error(result.error);
+      return;
+    }
+    toast.success(next ? "Registration link is live" : "Registration link is off");
+  }
 
   async function copyLink() {
     if (!url) return;
@@ -78,16 +101,35 @@ export function InviteLinkButton({
               readOnly
               value={url}
               onFocus={(event) => event.currentTarget.select()}
+              disabled={!active}
             />
-            <Button type="button" onClick={copyLink}>
+            <Button type="button" onClick={copyLink} disabled={!active}>
               {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
               {copied ? "Copied" : "Copy"}
             </Button>
           </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">
+                {active ? "Link is active" : "Link is switched off"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {active
+                  ? "Anyone with this link can register."
+                  : "The registration page is closed for new sign-ups."}
+              </p>
+            </div>
+            <Switch
+              checked={active}
+              disabled={saving}
+              onCheckedChange={toggle}
+              aria-label="Toggle registration link"
+            />
+          </div>
+
           <p className="text-xs text-muted-foreground">
-            Anyone with this link can register under this organization. Only
-            share it with the intended {kind}. Self-registered accounts require
-            NIN verification before they are fully verified.
+            Self-registered accounts require NIN and document verification.
           </p>
         </div>
       </DialogContent>

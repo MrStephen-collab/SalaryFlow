@@ -21,6 +21,8 @@ export interface OrganizationSettingsRecord {
   savings_min_membership_months?: number;
   member_loan_multiplier?: number;
   member_savings_withdrawals_enabled?: boolean;
+  employee_registration_enabled?: boolean;
+  member_registration_enabled?: boolean;
 }
 
 export class SettingsService {
@@ -78,6 +80,52 @@ export class SettingsService {
       .maybeSingle();
 
     return data ?? null;
+  }
+
+  /** Switch the public employee/member registration link on or off. */
+  async setRegistrationLinkEnabled(
+    kind: "employee" | "member",
+    enabled: boolean
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!this.orgId || !this.userId) {
+      return { ok: false, error: "Unauthorized" };
+    }
+
+    const { data: profile } = await this.supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("user_id", this.userId)
+      .maybeSingle();
+
+    if (
+      !profile ||
+      !["ORGANIZATION_OWNER", "ORGANIZATION_ADMIN"].includes(profile.role)
+    ) {
+      return { ok: false, error: "You do not have permission to change this" };
+    }
+
+    const column =
+      kind === "employee"
+        ? "employee_registration_enabled"
+        : "member_registration_enabled";
+
+    const { error } = await this.supabase
+      .from("organization_settings")
+      .update({ [column]: enabled })
+      .eq("organization_id", this.orgId);
+
+    if (error) return { ok: false, error: error.message };
+
+    await recordAudit({
+      organizationId: this.orgId,
+      userId: this.userId,
+      action: "settings.registration_link_toggled",
+      entityType: "organization_settings",
+      entityId: this.orgId,
+      after: { kind, enabled },
+    });
+
+    return { ok: true };
   }
 
   async updateOrganization(values: OrganizationValues) {

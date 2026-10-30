@@ -358,6 +358,8 @@ export class EmployeeService {
         employment_status: data.employmentStatus,
         date_joined: data.dateJoined,
         salary: Number(data.salary) || 0,
+        thrift_enabled: Boolean(data.thriftEnabled),
+        thrift_amount: Number(data.thriftAmount) || 0,
         branch_id: data.branchId || null,
       })
       .select()
@@ -425,6 +427,8 @@ export class EmployeeService {
       employmentStatus: "employment_status",
       dateJoined: "date_joined",
       salary: "salary",
+      thriftEnabled: "thrift_enabled",
+      thriftAmount: "thrift_amount",
       branchId: "branch_id",
     };
 
@@ -436,6 +440,14 @@ export class EmployeeService {
 
     if (updateData.salary !== undefined && updateData.salary !== null) {
       updateData.salary = Number(updateData.salary) || 0;
+    }
+
+    if (updateData.thrift_amount !== undefined && updateData.thrift_amount !== null) {
+      updateData.thrift_amount = Number(updateData.thrift_amount) || 0;
+    }
+
+    if (updateData.thrift_enabled !== undefined) {
+      updateData.thrift_enabled = Boolean(updateData.thrift_enabled);
     }
 
     const { error } = await this.supabase

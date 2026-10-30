@@ -24,3 +24,11 @@ export async function updateOrganizationSettings(
   const service = await SettingsService.create();
   return service.updateSettings(values);
 }
+
+export async function setRegistrationLinkEnabled(
+  kind: "employee" | "member",
+  enabled: boolean
+) {
+  const service = await SettingsService.create();
+  return service.setRegistrationLinkEnabled(kind, enabled);
+}

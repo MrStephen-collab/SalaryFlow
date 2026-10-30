@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Wallet, ArrowUpRight, ArrowDownLeft, PiggyBank } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Money",
@@ -23,9 +23,10 @@ function naira(amount: number) {
 
 export default async function EmployeeMoneyPage() {
   const service = await EmployeePortalService.create();
-  const [balance, transactions] = await Promise.all([
+  const [balance, transactions, thriftBalance] = await Promise.all([
     service.getAvailableBalance(),
     service.getTransactions(),
+    service.getThriftBalance(),
   ]);
 
   const credits = transactions.reduce((s, t) => s + t.credit, 0);
@@ -40,7 +41,7 @@ export default async function EmployeeMoneyPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -68,6 +69,20 @@ export default async function EmployeeMoneyPage() {
               <ArrowUpRight className="size-4 text-red-600" />
             </div>
             <p className="mt-2 text-2xl font-bold text-red-600">{naira(debits)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Thrift Savings</p>
+              <PiggyBank className="size-4 text-amber-600" />
+            </div>
+            <p className="mt-2 text-2xl font-bold text-amber-600">
+              {naira(thriftBalance)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Released by the chairman
+            </p>
           </CardContent>
         </Card>
       </div>

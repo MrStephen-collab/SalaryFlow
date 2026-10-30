@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Plus } from "lucide-react";
 import { EMPLOYMENT_STATUSES, EMPLOYMENT_TYPES } from "@/config/constants";
 import { getLgasForState, NIGERIA_STATES } from "@/config/nigeria";
@@ -64,6 +65,8 @@ interface EmployeeFormProps {
     employment_status: string;
     date_joined: string;
     salary: number;
+    thrift_enabled: boolean;
+    thrift_amount: number;
     branch_id: string | null;
   };
   departments: { id: string; name: string }[];
@@ -127,6 +130,8 @@ export function EmployeeForm({
           "Active",
         dateJoined: employee.date_joined,
         salary: employee.salary ?? 0,
+        thriftEnabled: employee.thrift_enabled ?? false,
+        thriftAmount: employee.thrift_amount ?? 0,
         branchId: employee.branch_id ?? "",
       }
     : {
@@ -149,6 +154,8 @@ export function EmployeeForm({
         employmentStatus: "Active",
         dateJoined: new Date().toISOString().split("T")[0],
         salary: 0,
+        thriftEnabled: false,
+        thriftAmount: 0,
         branchId: "",
       };
 
@@ -166,6 +173,7 @@ export function EmployeeForm({
 
   const selectedState = useWatch({ control, name: "state" });
   const stateLgas = selectedState ? getLgasForState(selectedState) : [];
+  const thriftEnabled = useWatch({ control, name: "thriftEnabled" });
 
   const onSubmit = (values: CreateEmployeeValues) => {
     if (!values.nin?.trim()) {
@@ -510,6 +518,46 @@ export function EmployeeForm({
                 />
                 <FieldError errors={errors} name="salary" />
               </div>
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <FormFieldLabel>Thrift Savings</FormFieldLabel>
+                  <p className="text-xs text-muted-foreground">
+                    Voluntary savings taken from salary after loan deductions.
+                    Activate it when the employee asks for it.
+                  </p>
+                </div>
+                <Controller
+                  control={control}
+                  name="thriftEnabled"
+                  render={({ field }) => (
+                    <Switch
+                      checked={Boolean(field.value)}
+                      onCheckedChange={(value) => field.onChange(Boolean(value))}
+                    />
+                  )}
+                />
+              </div>
+              {thriftEnabled ? (
+                <div>
+                  <FormFieldLabel>Amount per Salary (₦)</FormFieldLabel>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="e.g. 20000"
+                    {...register("thriftAmount")}
+                  />
+                  <FieldError errors={errors} name="thriftAmount" />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    This amount is set aside after loan deductions on every
+                    salary run. Only the chairman can release it to the wallet.
+                  </p>
+                </div>
+              ) : null}
             </div>
           </div>
 

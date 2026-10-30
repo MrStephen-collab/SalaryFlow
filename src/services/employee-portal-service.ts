@@ -18,6 +18,8 @@ interface EmployeeRow {
   nin: string | null;
   nin_document_url: string | null;
   nin_status: string;
+  thrift_enabled: boolean;
+  thrift_amount: number;
 }
 
 export interface PortalDashboard {
@@ -158,6 +160,14 @@ export class EmployeePortalService {
 
     const ledger = await (await import("./ledger-service")).LedgerService.create();
     return ledger.getFinancialAccountBalance(account.id);
+  }
+
+  async getThriftBalance(): Promise<number> {
+    if (!this.employeeId || !this.orgId) return 0;
+
+    const { LedgerService } = await import("./ledger-service");
+    const ledger = LedgerService.createForOrganization(this.orgId);
+    return ledger.getThriftBalance(this.employeeId);
   }
 
   async getTransactions() {

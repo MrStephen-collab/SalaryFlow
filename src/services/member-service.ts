@@ -833,6 +833,9 @@ export class MemberService {
     if (!this.role || !MEMBER_APPROVER_ROLES.has(this.role)) {
       return { error: "You do not have permission to approve member loans" };
     }
+    if (this.role !== "ORGANIZATION_OWNER") {
+      return { error: "Only the chairman can approve and disburse member loans" };
+    }
 
     const admin = createAdminClient();
     const { data: application } = await admin

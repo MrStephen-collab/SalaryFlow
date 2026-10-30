@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { MemberService } from "@/services/member-service";
 import { getProfile } from "@/lib/auth";
+import { SettingsService } from "@/services/settings-service";
 import { AddMemberDialog } from "@/components/dashboard/members/add-member-dialog";
 import { InviteLinkButton } from "@/components/dashboard/invite-link-button";
 import { MemberApprovalActions } from "@/components/dashboard/members/member-approval-actions";
@@ -39,9 +40,11 @@ function naira(amount: number) {
 export default async function MembersPage() {
   const service = await MemberService.createForStaff();
   const profile = await getProfile();
-  const [members, applications] = await Promise.all([
+  const settingsService = await SettingsService.create();
+  const [members, applications, settings] = await Promise.all([
     service.listMembers(),
     service.listMemberApplications(),
+    settingsService.getSettings(),
   ]);
 
   const pending = applications.filter((application) => application.status === "PENDING");
@@ -61,6 +64,7 @@ export default async function MembersPage() {
             <InviteLinkButton
               organizationId={profile.organization_id}
               kind="member"
+              enabled={settings?.member_registration_enabled ?? true}
             />
           ) : null}
           <AddMemberDialog />

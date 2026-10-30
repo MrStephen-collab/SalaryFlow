@@ -40,6 +40,45 @@ export default async function JoinPage({
 
   const kind = role === "member" ? "member" : "employee";
 
+  const { data: settings } = await admin
+    .from("organization_settings")
+    .select("employee_registration_enabled, member_registration_enabled")
+    .eq("organization_id", orgId)
+    .maybeSingle();
+
+  const registrationOpen =
+    kind === "member"
+      ? settings?.member_registration_enabled ?? true
+      : settings?.employee_registration_enabled ?? true;
+
+  if (!registrationOpen) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <h1>
+            <SalaryFlowLogo size="md" animated />
+          </h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {organization.name}
+          </p>
+        </div>
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-lg">Registration is closed</CardTitle>
+            <CardDescription>
+              This organization is not accepting new{" "}
+              {kind === "member" ? "member" : "employee"} registrations through
+              this link right now. Please contact your organization.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-end">
+            <Button render={<Link href="/auth/login" />}>Go to sign in</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
       <div className="mb-6 flex flex-col items-center text-center">

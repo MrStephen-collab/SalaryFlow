@@ -47,6 +47,8 @@ export interface EmployeeRow {
   employment_type: string;
   date_joined: string;
   salary: number;
+  thrift_enabled: boolean | null;
+  thrift_amount: number | null;
   date_of_birth: string | null;
   gender: string | null;
   address: string | null;
@@ -368,6 +370,8 @@ export function EmployeesTable({
                               employment_status: employee.employment_status,
                               date_joined: employee.date_joined,
                               salary: employee.salary,
+                              thrift_enabled: employee.thrift_enabled ?? false,
+                              thrift_amount: employee.thrift_amount ?? 0,
                               branch_id: employee.branch_id,
                             }}
                             departments={departments}

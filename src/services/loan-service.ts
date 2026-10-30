@@ -376,6 +376,15 @@ export class LoanService {
   async approveApplication(applicationId: string, notes?: string) {
     if (!this.orgId || !this.userId) return { error: "Unauthorized" };
 
+    const { data: profile } = await this.supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("user_id", this.userId)
+      .maybeSingle();
+    if (profile?.role !== "ORGANIZATION_OWNER") {
+      return { error: "Only the chairman can approve loans" };
+    }
+
     const { data: existing } = await this.supabase
       .from("loan_applications")
       .select("status")
@@ -455,6 +464,15 @@ export class LoanService {
 
   async disburseLoan(applicationId: string) {
     if (!this.orgId || !this.userId) return { error: "Unauthorized" };
+
+    const { data: approver } = await this.supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("user_id", this.userId)
+      .maybeSingle();
+    if (approver?.role !== "ORGANIZATION_OWNER") {
+      return { error: "Only the chairman can disburse loans" };
+    }
 
     const { data: existing } = await this.supabase
       .from("loan_applications")

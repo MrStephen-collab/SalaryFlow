@@ -125,6 +125,12 @@ export class DisbursementService {
     if (!DISBURSEMENT_ROLES.has(profile.role)) {
       return { ok: false, error: "You do not have permission to run payroll" };
     }
+    if (profile.role !== "ORGANIZATION_OWNER") {
+      return {
+        ok: false,
+        error: "Only the chairman can approve and disburse salaries",
+      };
+    }
 
     const { data: period } = await supabase
       .from("salary_periods")
@@ -291,6 +297,19 @@ export class DisbursementService {
 
     const ledger = LedgerService.createForOrganization(organizationId, actorUserId);
 
+    // Voluntary thrift savings agreed with each employee. Applied after the
+    // salary is credited so the wallet always has the funds to cover it.
+    const { data: thriftRows } = await admin
+      .from("employees")
+      .select("id, thrift_enabled, thrift_amount")
+      .eq("organization_id", organizationId)
+      .eq("thrift_enabled", true)
+      .gt("thrift_amount", 0);
+
+    const thriftByEmployee = new Map(
+      (thriftRows ?? []).map((row) => [row.id as string, Number(row.thrift_amount) || 0])
+    );
+
     let processed = 0;
     let failed = 0;
 
@@ -350,6 +369,44 @@ export class DisbursementService {
         },
         { onConflict: "run_id,employee_id" }
       );
+
+      // Set aside the agreed thrift saving.
+      const thriftAmount = Math.min(
+        thriftByEmployee.get(payable.employeeId) ?? 0,
+        payable.amount
+      );
+
+      if (thriftAmount > 0) {
+        const thriftReference = `SLF-THRIFT-${run.id.slice(0, 8)}-${payable.employeeId.slice(0, 8)}`;
+        const { data: thriftPosted } = await admin
+          .from("ledger_transactions")
+          .select("id")
+          .eq("organization_id", organizationId)
+          .eq("reference", thriftReference)
+          .maybeSingle();
+
+        if (!thriftPosted) {
+          const thriftResult = await ledger.postThriftContribution(
+            payable.employeeId,
+            run.id,
+            thriftAmount
+          );
+          if (thriftResult.error) {
+            await recordAudit({
+              organizationId,
+              userId: actorUserId,
+              action: "thrift.contribution_failed",
+              entityType: "salary_disbursement_run",
+              entityId: run.id,
+              after: {
+                employeeId: payable.employeeId,
+                amount: thriftAmount,
+                error: thriftResult.error,
+              },
+            });
+          }
+        }
+      }
     }
 
     const status =
