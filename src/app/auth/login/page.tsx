@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -47,13 +46,7 @@ export default async function LoginPage({
       </Card>
 
       <p className="mt-6 text-sm text-muted-foreground">
-        Don&apos;t have an account?{" "}
-        <Link
-          href="/auth/register"
-          className="font-medium text-primary hover:underline"
-        >
-          Register
-        </Link>
+        Don&apos;t have an account? Contact your organization administrator.
       </p>
     </div>
   );
