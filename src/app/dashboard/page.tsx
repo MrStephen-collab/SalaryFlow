@@ -87,7 +87,10 @@ export default async function DashboardPage() {
     .reduce((s, d) => s + (Number(d.expected_amount) || 0), 0);
 
   const pendingApplications = applications.filter(
-    (app) => app.status === "SUBMITTED" || app.status === "UNDER_REVIEW"
+    (app) =>
+      app.status === "PENDING" ||
+      app.status === "SUBMITTED" ||
+      app.status === "UNDER_REVIEW"
   );
   const pendingWithdrawals = withdrawals.filter(
     (w) => w.status === "PENDING" || w.status === "REVIEW"

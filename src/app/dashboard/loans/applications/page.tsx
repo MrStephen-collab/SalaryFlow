@@ -78,6 +78,9 @@ export default async function LoanApplicationsPage({
           <TabsTrigger value="SUBMITTED" render={<Link href="/dashboard/loans/applications?status=SUBMITTED" />}>
             Submitted
           </TabsTrigger>
+          <TabsTrigger value="PENDING" render={<Link href="/dashboard/loans/applications?status=PENDING" />}>
+            Member pending
+          </TabsTrigger>
           <TabsTrigger value="APPROVED" render={<Link href="/dashboard/loans/applications?status=APPROVED" />}>
             Approved
           </TabsTrigger>
