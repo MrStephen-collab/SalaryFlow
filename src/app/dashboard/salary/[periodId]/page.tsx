@@ -13,34 +13,14 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { PayPeriodButton } from "@/components/dashboard/salary/pay-period-button";
 import { PayrollPreviewDialog } from "@/components/dashboard/salary/payroll-preview-dialog";
+import { SalaryRecordsTable } from "@/components/dashboard/salary/salary-records-table";
 import { Download, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Salary Records",
 };
-
-function statusVariant(status: string) {
-  switch (status) {
-    case "PAID":
-      return "default" as const;
-    case "APPROVED":
-      return "default" as const;
-    case "PROCESSING":
-      return "secondary" as const;
-    default:
-      return "secondary" as const;
-  }
-}
 
 function naira(amount: number) {
   return new Intl.NumberFormat("en-NG", {
@@ -222,57 +202,7 @@ export default async function SalaryPeriodPage({
         </CardContent>
       </Card>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>No.</TableHead>
-              <TableHead>Basic</TableHead>
-              <TableHead>Allowances</TableHead>
-              <TableHead>Loan Ded.</TableHead>
-              <TableHead>Other Ded.</TableHead>
-              <TableHead>Net</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <CollapsibleTableBody columns={8} itemLabel="salary records">
-            {records.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center">
-                  <p className="text-sm font-medium">No salary records yet</p>
-                  <p className="text-sm text-muted-foreground">
-                    Import salaries for this period to get started.
-                  </p>
-                </TableCell>
-              </TableRow>
-            ) : (
-              records.map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell className="font-medium">
-                    {record.employee_name}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {record.employee_number}
-                  </TableCell>
-                  <TableCell>{naira(record.basic_salary)}</TableCell>
-                  <TableCell>{naira(record.allowances)}</TableCell>
-                  <TableCell>{naira(record.loan_deductions)}</TableCell>
-                  <TableCell>{naira(record.other_deductions)}</TableCell>
-                  <TableCell className="font-medium">
-                    {naira(record.net_salary)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(record.status)}>
-                      {record.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </CollapsibleTableBody>
-        </Table>
-      </div>
+      <SalaryRecordsTable records={records} />
     </div>
   );
 }
