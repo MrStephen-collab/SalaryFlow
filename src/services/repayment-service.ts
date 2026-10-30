@@ -154,7 +154,6 @@ export class RepaymentService {
         remaining = round2(remaining - portion);
         applied += 1;
         totalApplied = round2(totalApplied + portion);
-      }
 
         // Complete the loan once every schedule is settled.
         const { data: allSchedules } = await admin
