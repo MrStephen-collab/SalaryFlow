@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -46,16 +47,18 @@ export function UserMenu({
         }
       />
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <div className="flex flex-col gap-0.5">
-            <span className="truncate text-sm font-medium text-foreground">
-              {name}
-            </span>
-            <span className="truncate text-xs font-normal text-muted-foreground">
-              {email}
-            </span>
-          </div>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>
+            <div className="flex flex-col gap-0.5">
+              <span className="truncate text-sm font-medium text-foreground">
+                {name}
+              </span>
+              <span className="truncate text-xs font-normal text-muted-foreground">
+                {email}
+              </span>
+            </div>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => router.push("/dashboard/profile")}>
           <UserCircle2 className="size-4" />
