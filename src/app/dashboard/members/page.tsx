@@ -4,6 +4,7 @@ import { getProfile } from "@/lib/auth";
 import { AddMemberDialog } from "@/components/dashboard/members/add-member-dialog";
 import { InviteLinkButton } from "@/components/dashboard/invite-link-button";
 import { MemberApprovalActions } from "@/components/dashboard/members/member-approval-actions";
+import { EditMemberDialog } from "@/components/dashboard/members/edit-member-dialog";
 import { MemberLoanActions } from "@/components/dashboard/members/member-loan-actions";
 import {
   Card,
@@ -166,6 +167,7 @@ export default async function MembersPage() {
                 <TableHead>Joined</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>NIN</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <tbody>
@@ -199,6 +201,9 @@ export default async function MembersPage() {
                       documentUrl={member.nin_document_url}
                       status={member.nin_status}
                     />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <EditMemberDialog member={member} />
                   </TableCell>
                 </TableRow>
               ))}

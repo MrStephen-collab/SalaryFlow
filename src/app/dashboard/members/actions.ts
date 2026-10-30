@@ -45,6 +45,27 @@ export async function approveMemberMembership(memberId: string) {
   return result;
 }
 
+export async function updateMember(
+  memberId: string,
+  values: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    address?: string;
+    dateOfBirth?: string;
+    nin?: string;
+    ninDocumentUrl?: string;
+  }
+) {
+  const service = await MemberService.createForStaff();
+  const result = await service.updateMember(memberId, values);
+  if (result.ok) {
+    revalidatePath("/dashboard/members");
+  }
+  return result;
+}
+
 export async function rejectMemberLoan(applicationId: string, reason: string) {
   const service = await MemberService.createForStaff();
   const result = await service.rejectApplication(applicationId, reason);

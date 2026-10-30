@@ -726,6 +726,68 @@ export class MemberService {
     });
   }
 
+  async updateMember(
+    memberId: string,
+    values: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone?: string;
+      address?: string;
+      dateOfBirth?: string;
+      nin?: string;
+      ninDocumentUrl?: string;
+    }
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!this.organizationId || !this.userId) {
+      return { ok: false, error: "Unauthorized" };
+    }
+    if (!this.role || !MEMBER_STAFF_ROLES.has(this.role)) {
+      return { ok: false, error: "You do not have permission to manage members" };
+    }
+
+    const admin = createAdminClient();
+    const { data: member } = await admin
+      .from("members")
+      .select("id")
+      .eq("id", memberId)
+      .eq("organization_id", this.organizationId)
+      .maybeSingle();
+
+    if (!member) return { ok: false, error: "Member not found" };
+
+    const { error } = await admin
+      .from("members")
+      .update({
+        first_name: values.firstName,
+        last_name: values.lastName,
+        email: values.email,
+        phone: values.phone || null,
+        address: values.address || null,
+        date_of_birth: values.dateOfBirth || null,
+        nin: values.nin || null,
+        nin_document_url: values.ninDocumentUrl || null,
+      })
+      .eq("id", memberId);
+
+    if (error) return { ok: false, error: error.message };
+
+    await recordAudit({
+      organizationId: this.organizationId,
+      userId: this.userId,
+      action: "member.updated",
+      entityType: "member",
+      entityId: memberId,
+      after: {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        email: values.email,
+      },
+    });
+
+    return { ok: true };
+  }
+
   async approveMembership(
     memberId: string
   ): Promise<{ ok: boolean; already?: boolean; error?: string }> {
