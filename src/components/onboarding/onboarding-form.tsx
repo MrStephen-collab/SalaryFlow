@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { organizationSchema, organizationSettingsSchema, CURRENCIES, SALARY_CYCLES, APPROVAL_WORKFLOWS } from "@/schemas/settings";
 import { INTEREST_METHODS } from "@/schemas/loan";
 import { ORGANIZATION_TYPES } from "@/config/constants";
+import { NIGERIA_STATES, getLgasForState } from "@/config/nigeria";
 import { NinDocumentInput } from "@/components/nin/nin-document-input";
 
 const STEPS = ["Organization", "Loan Policies", "Review"] as const;
@@ -253,11 +254,50 @@ export function OnboardingForm() {
 
             <div className="space-y-2">
               <Label>State</Label>
-              <Input
-                value={organization.state}
-                onChange={(e) => setOrg("state", e.target.value)}
-                placeholder="Lagos"
-              />
+              <Select
+                value={organization.state || undefined}
+                onValueChange={(value) => {
+                  setOrg("state", value ?? "");
+                  setOrg("lga", "");
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {NIGERIA_STATES.map((state) => (
+                    <SelectItem key={state.name} value={state.name}>
+                      {state.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>LGA</Label>
+              <Select
+                value={organization.lga || undefined}
+                onValueChange={(value) => setOrg("lga", value ?? "")}
+                disabled={
+                  !organization.state || getLgasForState(organization.state).length === 0
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={
+                      organization.state ? "Select LGA" : "Select state first"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {getLgasForState(organization.state).map((lga) => (
+                    <SelectItem key={lga} value={lga}>
+                      {lga}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2 sm:col-span-2">

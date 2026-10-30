@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CURRENCIES } from "@/schemas/settings";
 import { ORGANIZATION_TYPES } from "@/config/constants";
+import { NIGERIA_STATES, getLgasForState } from "@/config/nigeria";
 import { NinDocumentInput } from "@/components/nin/nin-document-input";
 import type { Organization } from "@/types/database";
 
@@ -152,20 +153,44 @@ export function OrganizationForm({ organization }: { organization: Organization 
 
           <div className="space-y-2">
             <Label>State</Label>
-            <Input
-              value={form.state}
-              onChange={(e) => set("state", e.target.value)}
-              placeholder="Lagos"
-            />
+            <Select
+              value={form.state || undefined}
+              onValueChange={(value) => {
+                set("state", value ?? "");
+                set("lga", "");
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select state" />
+              </SelectTrigger>
+              <SelectContent>
+                {NIGERIA_STATES.map((state) => (
+                  <SelectItem key={state.name} value={state.name}>
+                    {state.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
             <Label>LGA</Label>
-            <Input
-              value={form.lga}
-              onChange={(e) => set("lga", e.target.value)}
-              placeholder="Ikeja"
-            />
+            <Select
+              value={form.lga || undefined}
+              onValueChange={(value) => set("lga", value ?? "")}
+              disabled={!form.state || getLgasForState(form.state).length === 0}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={form.state ? "Select LGA" : "Select state first"} />
+              </SelectTrigger>
+              <SelectContent>
+                {getLgasForState(form.state).map((lga) => (
+                  <SelectItem key={lga} value={lga}>
+                    {lga}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2 sm:col-span-2">

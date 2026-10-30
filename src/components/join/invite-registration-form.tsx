@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CheckCircle2, Loader2, Upload } from "lucide-react";
+import { NIGERIA_STATES, getLgasForState } from "@/config/nigeria";
 
 type FormState = {
   firstName: string;
@@ -279,21 +280,47 @@ export function InviteRegistrationForm({
 
         <div className="space-y-2">
           <Label htmlFor="state">State</Label>
-          <Input
-            id="state"
-            value={form.state}
-            onChange={(event) => set("state", event.target.value)}
-            placeholder="Lagos"
-          />
+          <Select
+            value={form.state || undefined}
+            onValueChange={(value) => {
+              set("state", value ?? "");
+              set("lga", "");
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select state" />
+            </SelectTrigger>
+            <SelectContent>
+              {NIGERIA_STATES.map((state) => (
+                <SelectItem key={state.name} value={state.name}>
+                  {state.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="lga">LGA</Label>
-          <Input
-            id="lga"
-            value={form.lga}
-            onChange={(event) => set("lga", event.target.value)}
-            placeholder="Ikeja"
-          />
+          <Label htmlFor="lga">Local Government Area</Label>
+          <Select
+            value={form.lga || undefined}
+            onValueChange={(value) => set("lga", value ?? "")}
+            disabled={!form.state || getLgasForState(form.state).length === 0}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue
+                placeholder={
+                  form.state ? "Select LGA" : "Select state first"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {getLgasForState(form.state).map((lga) => (
+                <SelectItem key={lga} value={lga}>
+                  {lga}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">
