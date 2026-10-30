@@ -36,7 +36,7 @@ import { APP_NAME } from "@/config/constants";
 import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 
 const memberNav = [
-  { title: "Overview", href: "/member", icon: Home },
+  { title: "Dashboard", href: "/member", icon: Home },
   { title: "Savings", href: "/member/savings", icon: PiggyBank },
   { title: "Loans", href: "/member/loans", icon: HandCoins },
   { title: "Profile", href: "/member/profile", icon: UserCircle2 },

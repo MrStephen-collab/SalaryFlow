@@ -24,7 +24,7 @@ import {
 import { CalendarClock, HandCoins, PiggyBank, Wallet } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "My Savings",
+  title: "Dashboard",
 };
 
 function naira(amount: number) {
