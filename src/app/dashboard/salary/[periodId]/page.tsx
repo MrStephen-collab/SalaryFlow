@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { PayPeriodButton } from "@/components/dashboard/salary/pay-period-button";
 import { PayrollPreviewDialog } from "@/components/dashboard/salary/payroll-preview-dialog";
 import { SalaryRecordsTable } from "@/components/dashboard/salary/salary-records-table";
+import { ApplyLoanDeductionsButton } from "@/components/dashboard/salary/apply-loan-deductions-button";
 import { Download, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -173,6 +174,9 @@ export default async function SalaryPeriodPage({
                 rows={preview.rows}
                 totals={preview.totals}
               />
+            ) : null}
+            {alreadyPaid ? (
+              <ApplyLoanDeductionsButton periodId={periodId} />
             ) : null}
           </div>
         </CardHeader>

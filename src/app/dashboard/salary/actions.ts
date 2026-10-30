@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { SalaryService } from "@/services/salary-service";
 import { DisbursementService } from "@/services/disbursement-service";
+import { RepaymentService } from "@/services/repayment-service";
+import { createClient } from "@/lib/supabase/server";
 import {
   createSalaryPeriodSchema,
   salaryImportSchema,
@@ -108,6 +110,61 @@ export async function paySalaryPeriod(periodId: string) {
 
 export async function getDisbursementRun(periodId: string) {
   return DisbursementService.getRunForPeriod(periodId);
+}
+
+/**
+ * Apply the loan portion of an already-paid period to employee loans. Used to
+ * backfill periods that were paid before automatic loan deductions ran.
+ */
+export async function applyPeriodLoanDeductions(
+  periodId: string
+): Promise<{
+  ok: boolean;
+  applied?: number;
+  total?: number;
+  skipped?: number;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Sign in to continue" };
+
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("organization_id, role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!profile?.organization_id) {
+      return { ok: false, error: "No organization found" };
+    }
+    if (!["ORGANIZATION_OWNER", "ORGANIZATION_ADMIN"].includes(profile.role)) {
+      return {
+        ok: false,
+        error: "Only the chairman or an admin can post loan deductions",
+      };
+    }
+
+    const result = await RepaymentService.applyPeriodLoanDeductions(
+      profile.organization_id,
+      periodId,
+      user.id
+    );
+
+    revalidatePath(`/dashboard/salary/${periodId}`);
+    revalidatePath("/dashboard/loans");
+    revalidatePath("/dashboard/employees");
+    return result;
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Unable to post deductions",
+    };
+  }
 }
 
 export async function getDisbursementRunItems(runId: string) {

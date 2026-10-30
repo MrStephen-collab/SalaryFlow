@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LedgerService } from "./ledger-service";
+import { RepaymentService } from "./repayment-service";
 import { recordAudit } from "./audit-service";
 
 /**
@@ -547,6 +548,14 @@ export class DisbursementService {
         .update({ status: "PAID" })
         .eq("salary_period_id", periodId)
         .eq("organization_id", organizationId);
+
+      // Apply the loan deduction portion to the employees' loans so the
+      // repayment shows on their statements and reduces the outstanding.
+      await RepaymentService.applyPeriodLoanDeductions(
+        organizationId,
+        periodId,
+        actorUserId
+      );
     }
 
     await recordAudit({
