@@ -594,35 +594,13 @@ export class MemberService {
       .eq("organization_id", member.organization_id)
       .maybeSingle();
 
-    const interestRate = Number(
-      member.loan_interest_rate ?? settings?.member_loan_interest_rate ?? 1
-    );
-    const interestMethod = settings?.default_interest_method ?? "FLAT";
-    const durationMonths = Number(settings?.member_loan_duration_months ?? 6);
-    const feePercentage = Number(
-      settings?.member_loan_processing_fee_percentage ?? 0
-    );
-    const collateralRequired = Boolean(
-      settings?.member_loan_collateral_required
-    );
-
-    if (collateralRequired) {
-      if (!collateral?.description?.trim()) {
-        return { ok: false, error: "Collateral description is required" };
-      }
-      if (!collateral?.documentUrl) {
-        return { ok: false, error: "Collateral document is required" };
-      }
-    }
-
-    const totalInterest = round2((requested * interestRate) / 100);
-    const processingFee = round2((requested * feePercentage) / 100);
-    const totalRepayment = round2(requested + totalInterest + processingFee);
-    const monthlyDeduction = round2(totalRepayment / durationMonths);
-
+    // Loan terms come from the Member Savings Loan product (editable on the
+    // Loans page). Organization settings are only used to seed the product.
     let { data: product } = await admin
       .from("loan_products")
-      .select("id")
+      .select(
+        "id, interest_rate, interest_method, duration_months, processing_fee, collateral_required, minimum_amount, maximum_amount, active"
+      )
       .eq("organization_id", member.organization_id)
       .eq("name", MEMBER_LOAN_PRODUCT)
       .maybeSingle();
@@ -636,9 +614,11 @@ export class MemberService {
           description: "Loan for external members, secured by their savings",
           minimum_amount: 1000,
           maximum_amount: 10000000,
-          interest_rate: interestRate,
-          interest_method: interestMethod,
-          duration_months: durationMonths,
+          interest_rate: Number(
+            settings?.member_loan_interest_rate ?? 1
+          ),
+          interest_method: settings?.default_interest_method ?? "FLAT",
+          duration_months: Number(settings?.member_loan_duration_months ?? 6),
           repayment_frequency: "MONTHLY",
           processing_fee: 0,
           insurance_fee: 0,
@@ -646,14 +626,39 @@ export class MemberService {
           minimum_salary: 0,
           minimum_employment_period_months: 0,
           guarantor_required: false,
-          collateral_required: false,
+          collateral_required: Boolean(
+            settings?.member_loan_collateral_required
+          ),
           active: true,
         })
-        .select("id")
+        .select(
+          "id, interest_rate, interest_method, duration_months, processing_fee, collateral_required, minimum_amount, maximum_amount, active"
+        )
         .single();
       if (error) return { ok: false, error: error.message };
       product = created;
     }
+
+    const interestRate = Number(
+      member.loan_interest_rate ?? product.interest_rate ?? 1
+    );
+    const interestMethod = product.interest_method ?? "FLAT";
+    const durationMonths = Number(product.duration_months ?? 6);
+    const processingFee = round2(Number(product.processing_fee) || 0);
+    const collateralRequired = Boolean(product.collateral_required);
+
+    if (collateralRequired) {
+      if (!collateral?.description?.trim()) {
+        return { ok: false, error: "Collateral description is required" };
+      }
+      if (!collateral?.documentUrl) {
+        return { ok: false, error: "Collateral document is required" };
+      }
+    }
+
+    const totalInterest = round2((requested * interestRate) / 100);
+    const totalRepayment = round2(requested + totalInterest + processingFee);
+    const monthlyDeduction = round2(totalRepayment / durationMonths);
 
     const { data: application, error } = await admin
       .from("loan_applications")
@@ -902,23 +907,18 @@ export class MemberService {
       .maybeSingle();
     if (!member) return null;
 
-    const { data: settings } = await admin
-      .from("organization_settings")
-      .select(
-        "member_loan_interest_rate, member_loan_collateral_required, member_loan_processing_fee_percentage, member_loan_duration_months"
-      )
+    const { data: product } = await admin
+      .from("loan_products")
+      .select("interest_rate, processing_fee, duration_months, collateral_required")
       .eq("organization_id", member.organization_id)
+      .eq("name", MEMBER_LOAN_PRODUCT)
       .maybeSingle();
 
     return {
-      interestRate: Number(
-        member.loan_interest_rate ?? settings?.member_loan_interest_rate ?? 1
-      ),
-      feePercentage: Number(
-        settings?.member_loan_processing_fee_percentage ?? 0
-      ),
-      durationMonths: Number(settings?.member_loan_duration_months ?? 6),
-      collateralRequired: Boolean(settings?.member_loan_collateral_required),
+      interestRate: Number(member.loan_interest_rate ?? product?.interest_rate ?? 1),
+      processingFee: Number(product?.processing_fee ?? 0),
+      durationMonths: Number(product?.duration_months ?? 6),
+      collateralRequired: Boolean(product?.collateral_required),
     };
   }
 
@@ -1516,13 +1516,13 @@ export class MemberService {
     }
 
     const { data: loanTerms } = await admin
-      .from("organization_settings")
-      .select("member_loan_collateral_required")
-      .eq("organization_id", this.organizationId)
+      .from("loan_products")
+      .select("collateral_required")
+      .eq("id", application.loan_product_id)
       .maybeSingle();
 
     if (
-      loanTerms?.member_loan_collateral_required &&
+      loanTerms?.collateral_required &&
       !application.collateral_document_url
     ) {
       return {

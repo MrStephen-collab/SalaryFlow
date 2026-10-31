@@ -200,59 +200,63 @@ export class SettingsService {
       };
     }
 
-    const settingsData: Partial<OrganizationSettingsRecord> = {
+    const settingsData: Record<string, unknown> = {
       organization_id: this.orgId,
-      salary_cycle: values.salary_cycle as string,
-      max_salary_deduction_percentage: Number(
-        values.max_salary_deduction_percentage ?? 30
-      ),
-      min_salary: Number(values.min_salary ?? 0),
-      min_employment_period_months: Number(
-        values.min_employment_period_months ?? 0
-      ),
-      max_loan_amount:
-        values.max_loan_amount === undefined ||
-        values.max_loan_amount === null ||
-        values.max_loan_amount === ""
-          ? null
-          : Number(values.max_loan_amount),
-      default_interest_rate:
-        values.default_interest_rate === undefined ||
-        values.default_interest_rate === null ||
-        values.default_interest_rate === ""
-          ? null
-          : Number(values.default_interest_rate),
-      default_interest_method: values.default_interest_method as string,
-      max_tenure: Number(values.max_tenure ?? 12),
-      guarantor_required: Boolean(values.guarantor_required),
-      approval_workflow: values.approval_workflow as string,
-      withdrawals_enabled: Boolean(values.withdrawals_enabled),
-      salary_payment_day:
-        values.salary_payment_day === undefined ||
-        values.salary_payment_day === null ||
-        values.salary_payment_day === ""
-          ? null
-          : Number(values.salary_payment_day),
-      auto_disburse_salaries: Boolean(values.auto_disburse_salaries),
-      savings_min_membership_months: Number(
-        values.savings_min_membership_months ?? 6
-      ),
-      member_loan_multiplier: Number(values.member_loan_multiplier ?? 2),
-      member_loan_interest_rate: Number(values.member_loan_interest_rate ?? 1),
-      member_loan_collateral_required: Boolean(
-        values.member_loan_collateral_required
-      ),
-      member_loan_processing_fee_percentage: Number(
-        values.member_loan_processing_fee_percentage ?? 0
-      ),
-      member_loan_duration_months: Number(
-        values.member_loan_duration_months ?? 6
-      ),
-      member_savings_withdrawals_enabled:
-        values.member_savings_withdrawals_enabled === undefined
-          ? true
-          : Boolean(values.member_savings_withdrawals_enabled),
     };
+
+    const stringKeys = [
+      "salary_cycle",
+      "default_interest_method",
+      "approval_workflow",
+    ];
+    for (const key of stringKeys) {
+      if (key in values) settingsData[key] = values[key];
+    }
+
+    const numericKeys = [
+      "max_salary_deduction_percentage",
+      "min_salary",
+      "min_employment_period_months",
+      "max_tenure",
+      "salary_payment_day",
+      "savings_min_membership_months",
+      "member_loan_multiplier",
+      "member_loan_interest_rate",
+      "member_loan_processing_fee_percentage",
+      "member_loan_duration_months",
+    ];
+    for (const key of numericKeys) {
+      if (!(key in values)) continue;
+      const value = values[key];
+      settingsData[key] =
+        value === "" || value === null || value === undefined
+          ? null
+          : Number(value);
+    }
+
+    const nullableNumericKeys = ["max_loan_amount", "default_interest_rate"];
+    for (const key of nullableNumericKeys) {
+      if (!(key in values)) continue;
+      const value = values[key];
+      settingsData[key] =
+        value === "" || value === null || value === undefined
+          ? null
+          : Number(value);
+    }
+
+    const booleanKeys = [
+      "guarantor_required",
+      "withdrawals_enabled",
+      "auto_disburse_salaries",
+      "member_savings_withdrawals_enabled",
+      "member_loan_collateral_required",
+    ];
+    for (const key of booleanKeys) {
+      if (key in values) settingsData[key] = Boolean(values[key]);
+    }
+
+    // Only the provided keys are written, so removing a field from the settings
+    // form can never overwrite its stored value.
 
     // The money-platform columns only exist after the companion migration has
     // been applied. Fall back to the legacy column set so settings keep saving

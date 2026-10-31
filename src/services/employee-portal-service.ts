@@ -297,16 +297,23 @@ export class EmployeePortalService {
     if (!this.employeeId || !this.orgId) return null;
 
     const admin = createAdminClient();
-    const [{ data: employee }, { data: settings }] = await Promise.all([
+    const [{ data: employee }, { data: products }] = await Promise.all([
       admin.from("employees").select("date_joined").eq("id", this.employeeId).maybeSingle(),
       admin
-        .from("organization_settings")
-        .select("min_employment_period_months")
+        .from("loan_products")
+        .select("minimum_employment_period_months")
         .eq("organization_id", this.orgId)
-        .maybeSingle(),
+        .eq("active", true),
     ]);
 
-    const requiredMonths = Number(settings?.min_employment_period_months ?? 0);
+    // Eligibility comes from the loan products; the least demanding active
+    // product is what the portal page uses as the general gate.
+    const requiredMonths =
+      products && products.length > 0
+        ? Math.min(
+            ...products.map((p) => Number(p.minimum_employment_period_months) || 0)
+          )
+        : 0;
     const dateJoined = (employee?.date_joined as string | null) ?? null;
 
     let monthsWorked = 0;

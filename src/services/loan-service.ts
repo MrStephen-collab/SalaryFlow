@@ -365,27 +365,16 @@ export class LoanService {
     if (!product) return { error: "Loan product not found" };
     if (!product.active) return { error: "Loan product is not active" };
 
-    // Employment-period eligibility. The organization policy and the product
-    // can each require a minimum number of months worked.
+    // Employment-period eligibility is defined on the loan product.
     const admin = createAdminClient();
-    const [{ data: employee }, { data: settings }] = await Promise.all([
-      admin
-        .from("employees")
-        .select("date_joined")
-        .eq("id", employeeId)
-        .eq("organization_id", this.orgId)
-        .maybeSingle(),
-      admin
-        .from("organization_settings")
-        .select("min_employment_period_months")
-        .eq("organization_id", this.orgId)
-        .maybeSingle(),
-    ]);
+    const { data: employee } = await admin
+      .from("employees")
+      .select("date_joined")
+      .eq("id", employeeId)
+      .eq("organization_id", this.orgId)
+      .maybeSingle();
 
-    const requiredMonths = Math.max(
-      Number(settings?.min_employment_period_months ?? 0),
-      Number(product.minimum_employment_period_months ?? 0)
-    );
+    const requiredMonths = Number(product.minimum_employment_period_months ?? 0);
 
     if (requiredMonths > 0 && employee?.date_joined) {
       const start = new Date(employee.date_joined);

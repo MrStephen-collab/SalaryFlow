@@ -33,7 +33,7 @@ export function ApplyLoanDialog({
   hasActiveLoan,
   collateralRequired = false,
   interestRate = 1,
-  feePercentage = 0,
+  processingFee = 0,
   durationMonths = 6,
 }: {
   maxLoan: number;
@@ -42,7 +42,7 @@ export function ApplyLoanDialog({
   hasActiveLoan: boolean;
   collateralRequired?: boolean;
   interestRate?: number;
-  feePercentage?: number;
+  processingFee?: number;
   durationMonths?: number;
 }) {
   const router = useRouter();
@@ -163,8 +163,8 @@ export function ApplyLoanDialog({
 
             <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
               Interest: <span className="font-medium text-foreground">{interestRate}%</span>
-              {feePercentage > 0 ? (
-                <> · Processing fee: <span className="font-medium text-foreground">{feePercentage}%</span></>
+              {processingFee > 0 ? (
+                <> · Processing fee: <span className="font-medium text-foreground">{naira(processingFee)}</span></>
               ) : null}
               {" "}· Duration: <span className="font-medium text-foreground">{durationMonths} months</span>
             </div>

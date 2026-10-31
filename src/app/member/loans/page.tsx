@@ -73,7 +73,7 @@ export default async function MemberLoansPage() {
           hasActiveLoan={Boolean(summary.activeLoan)}
           collateralRequired={terms?.collateralRequired ?? false}
           interestRate={terms?.interestRate ?? 1}
-          feePercentage={terms?.feePercentage ?? 0}
+          processingFee={terms?.processingFee ?? 0}
           durationMonths={terms?.durationMonths ?? 6}
         />
       </div>

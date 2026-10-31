@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { updateOrganizationSettings } from "@/app/dashboard/settings/actions";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { APPROVAL_WORKFLOWS, SALARY_CYCLES } from "@/schemas/settings";
-import { INTEREST_METHODS } from "@/schemas/loan";
+import { SALARY_CYCLES } from "@/schemas/settings";
 import type { OrganizationSettings } from "@/types/database";
 
 export function PolicyForm({ settings }: { settings: OrganizationSettings | null }) {
@@ -20,29 +20,12 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
 
   const [form, setForm] = useState({
     salary_cycle: settings?.salary_cycle ?? "monthly",
-    max_salary_deduction_percentage:
-      settings?.max_salary_deduction_percentage ?? 30,
-    min_salary: settings?.min_salary ?? 0,
-    min_employment_period_months:
-      settings?.min_employment_period_months ?? 0,
-    max_loan_amount: settings?.max_loan_amount ?? "",
-    default_interest_rate: settings?.default_interest_rate ?? "",
-    default_interest_method: settings?.default_interest_method ?? "FLAT",
-    max_tenure: settings?.max_tenure ?? 12,
-    guarantor_required: settings?.guarantor_required ?? false,
-    approval_workflow: settings?.approval_workflow ?? "two_level",
     withdrawals_enabled: settings?.withdrawals_enabled ?? false,
     salary_payment_day: settings?.salary_payment_day ?? 25,
     auto_disburse_salaries: settings?.auto_disburse_salaries ?? false,
     savings_min_membership_months:
       settings?.savings_min_membership_months ?? 6,
     member_loan_multiplier: settings?.member_loan_multiplier ?? 2,
-    member_loan_interest_rate: settings?.member_loan_interest_rate ?? 1,
-    member_loan_collateral_required:
-      settings?.member_loan_collateral_required ?? false,
-    member_loan_processing_fee_percentage:
-      settings?.member_loan_processing_fee_percentage ?? 0,
-    member_loan_duration_months: settings?.member_loan_duration_months ?? 6,
     member_savings_withdrawals_enabled:
       settings?.member_savings_withdrawals_enabled ?? true,
   });
@@ -62,7 +45,7 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success(result.success);
+        toast.success(result.success ?? "Settings saved");
         router.refresh();
       }
     });
@@ -71,10 +54,14 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Loan &amp; Salary Policies</CardTitle>
+        <CardTitle>Salary &amp; Member Policies</CardTitle>
         <CardDescription>
-          Default policy limits applied when employees request loans and
-          deductions are generated.
+          Payroll and member rules. Loan interest, fees, tenure, guarantor and
+          collateral are configured per loan product on the{" "}
+          <Link href="/dashboard/loans" className="font-medium text-primary underline underline-offset-2">
+            Loans page
+          </Link>
+          .
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -98,132 +85,11 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Max Deduction % of Salary *</Label>
-            <Input
-              type="number"
-              value={form.max_salary_deduction_percentage}
-              onChange={(e) =>
-                set("max_salary_deduction_percentage", Number(e.target.value))
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Min Salary (₦)</Label>
-            <Input
-              type="number"
-              value={form.min_salary}
-              onChange={(e) => set("min_salary", Number(e.target.value))}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Min Employment Period (Months)</Label>
-            <Input
-              type="number"
-              value={form.min_employment_period_months}
-              onChange={(e) =>
-                set("min_employment_period_months", Number(e.target.value))
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              Months an employee must have worked before loan eligibility. 12
-              months = 1 year. Set 0 to allow new employees.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Max Loan Amount (₦)</Label>
-            <Input
-              type="number"
-              value={form.max_loan_amount}
-              onChange={(e) => set("max_loan_amount", e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Default Interest Rate (%)</Label>
-            <Input
-              type="number"
-              step="0.1"
-              value={form.default_interest_rate}
-              onChange={(e) => set("default_interest_rate", e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Default Interest Method *</Label>
-            <Select
-              value={form.default_interest_method}
-              onValueChange={(v) => set("default_interest_method", v)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {INTEREST_METHODS.map((method) => (
-                  <SelectItem key={method} value={method}>
-                    {method === "REDUCING_BALANCE"
-                      ? "Reducing Balance"
-                      : method === "FLAT"
-                        ? "Flat"
-                        : "Amortized"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Max Tenure (Months) *</Label>
-            <Input
-              type="number"
-              value={form.max_tenure}
-              onChange={(e) => set("max_tenure", Number(e.target.value))}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Approval Workflow *</Label>
-            <Select
-              value={form.approval_workflow}
-              onValueChange={(v) => set("approval_workflow", v)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {APPROVAL_WORKFLOWS.map((workflow) => (
-                  <SelectItem key={workflow} value={workflow}>
-                    {workflow
-                      .split("_")
-                      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                      .join(" ")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
-            <div>
-              <Label>Guarantor Required</Label>
-              <p className="text-xs text-muted-foreground">
-                Employees must provide a guarantor for approvals
-              </p>
-            </div>
-            <Switch
-              checked={form.guarantor_required}
-              onCheckedChange={(v) => set("guarantor_required", v)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+          <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
               <Label>Withdrawals Enabled</Label>
               <p className="text-xs text-muted-foreground">
-                Allow employees to request withdrawals from their balance
+                Allow employees to request withdrawals from their wallet
               </p>
             </div>
             <Switch
@@ -247,9 +113,7 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
               min={1}
               max={28}
               value={form.salary_payment_day}
-              onChange={(e) =>
-                set("salary_payment_day", Number(e.target.value))
-              }
+              onChange={(e) => set("salary_payment_day", Number(e.target.value))}
             />
             <p className="text-xs text-muted-foreground">
               Day of the month (1-28) salaries leave the pool.
@@ -272,8 +136,10 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
           <div className="pt-2 sm:col-span-2">
             <h3 className="text-sm font-semibold">External members</h3>
             <p className="text-xs text-muted-foreground">
-              Rules for non-employees who save with your organization and later
-              borrow against their savings.
+              Membership rules for non-employees. Loan terms (interest, fees,
+              duration, collateral) live on the{" "}
+              <span className="font-medium text-foreground">Member Savings Loan</span>{" "}
+              product.
             </p>
           </div>
 
@@ -307,77 +173,11 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label>Member Loan Interest (%)</Label>
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              step="0.1"
-              value={form.member_loan_interest_rate}
-              onChange={(e) =>
-                set("member_loan_interest_rate", Number(e.target.value))
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              Flat interest on the loan. 1% = 10 naira on every 1,000.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Member Loan Processing Fee (%)</Label>
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              step="0.1"
-              value={form.member_loan_processing_fee_percentage}
-              onChange={(e) =>
-                set(
-                  "member_loan_processing_fee_percentage",
-                  Number(e.target.value)
-                )
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              Added to the member&apos;s total repayment.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Member Loan Duration (Months)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              value={form.member_loan_duration_months}
-              onChange={(e) =>
-                set("member_loan_duration_months", Number(e.target.value))
-              }
-            />
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
-            <div>
-              <Label>Require Loan Collateral</Label>
-              <p className="text-xs text-muted-foreground">
-                Members must submit collateral details and a document before the
-                loan can be approved.
-              </p>
-            </div>
-            <Switch
-              checked={form.member_loan_collateral_required}
-              onCheckedChange={(v) =>
-                set("member_loan_collateral_required", v)
-              }
-            />
-          </div>
-
           <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
             <div>
               <Label>Member Savings Withdrawals</Label>
               <p className="text-xs text-muted-foreground">
-                Allow members to withdraw their own savings
+                Allow members to withdraw from their wallet
               </p>
             </div>
             <Switch
