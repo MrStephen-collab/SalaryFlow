@@ -30,6 +30,10 @@ alter table public.loan_applications
 alter table public.loan_applications
   add column if not exists collateral_document_url text;
 
+-- Fees stored on the application so the member can see the full analysis.
+alter table public.loan_applications
+  add column if not exists processing_fee numeric(14, 2) not null default 0;
+
 -- 10 naira on every 1000 = 1% flat interest for member loans.
 update public.organization_settings
   set member_loan_interest_rate = 1

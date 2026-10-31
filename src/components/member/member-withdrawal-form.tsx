@@ -7,7 +7,15 @@ import { requestMemberWithdrawal } from "@/app/member/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, Wallet } from "lucide-react";
+import type { MemberBankAccount } from "./member-bank-accounts";
 
 function naira(amount: number) {
   return new Intl.NumberFormat("en-NG", {
@@ -17,9 +25,16 @@ function naira(amount: number) {
   }).format(amount);
 }
 
-export function MemberWithdrawalForm({ max }: { max: number }) {
+export function MemberWithdrawalForm({
+  max,
+  accounts,
+}: {
+  max: number;
+  accounts: MemberBankAccount[];
+}) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
+  const [bankAccountId, setBankAccountId] = useState(accounts[0]?.id ?? "");
   const [isPending, startTransition] = useTransition();
 
   function submit() {
@@ -32,9 +47,13 @@ export function MemberWithdrawalForm({ max }: { max: number }) {
       toast.error(`You can withdraw up to ${naira(max)}`);
       return;
     }
+    if (!bankAccountId) {
+      toast.error("Select a bank account");
+      return;
+    }
 
     startTransition(async () => {
-      const result = await requestMemberWithdrawal(value);
+      const result = await requestMemberWithdrawal(value, bankAccountId);
       if (!result.ok) {
         toast.error(result.error ?? "Could not submit the request");
         return;
@@ -47,6 +66,31 @@ export function MemberWithdrawalForm({ max }: { max: number }) {
 
   return (
     <div className="space-y-3">
+      <div className="space-y-2">
+        <Label>Withdraw to *</Label>
+        {accounts.length === 0 ? (
+          <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            Add a bank account first, then you can request a withdrawal.
+          </p>
+        ) : (
+          <Select
+            value={bankAccountId || undefined}
+            onValueChange={(value) => setBankAccountId(value ?? "")}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select bank account" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts.map((account) => (
+                <SelectItem key={account.id} value={account.id}>
+                  {account.bank_name} · {account.account_number}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
       <div className="space-y-2">
         <Label>Amount (₦) *</Label>
         <Input
@@ -62,7 +106,10 @@ export function MemberWithdrawalForm({ max }: { max: number }) {
           Requests are approved by the chairman before payment.
         </p>
       </div>
-      <Button onClick={submit} disabled={isPending || max <= 0}>
+      <Button
+        onClick={submit}
+        disabled={isPending || max <= 0 || accounts.length === 0}
+      >
         {isPending ? (
           <Loader2 className="size-4 animate-spin" />
         ) : (

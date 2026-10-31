@@ -229,6 +229,7 @@ export default async function MembersPage() {
                   <TableRow>
                     <TableHead>Member</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Destination</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Requested</TableHead>
                     <TableHead className="text-right">Action</TableHead>
@@ -247,6 +248,18 @@ export default async function MembersPage() {
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           {naira(withdrawal.amount)}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {withdrawal.bankName ? (
+                            <>
+                              <p className="font-medium">{withdrawal.bankName}</p>
+                              <p className="text-muted-foreground">
+                                {withdrawal.accountNumber}
+                              </p>
+                            </>
+                          ) : (
+                            "—"
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary">{withdrawal.status}</Badge>

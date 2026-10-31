@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { MemberService } from "@/services/member-service";
 import { MemberWithdrawalForm } from "@/components/member/member-withdrawal-form";
+import { MemberBankAccounts } from "@/components/member/member-bank-accounts";
 import {
   Card,
   CardContent,
@@ -46,9 +47,10 @@ function statusVariant(status: string) {
 
 export default async function MemberWithdrawalsPage() {
   const service = await MemberService.createForStaff();
-  const [summary, withdrawals] = await Promise.all([
+  const [summary, withdrawals, accounts] = await Promise.all([
     service.getMySummary(),
     service.listMyWithdrawals(),
+    service.listMyBankAccounts(),
   ]);
 
   if (!summary) {
@@ -95,10 +97,23 @@ export default async function MemberWithdrawalsPage() {
             <CardDescription>Request withdrawal</CardDescription>
           </CardHeader>
           <CardContent>
-            <MemberWithdrawalForm max={summary.walletBalance} />
+            <MemberWithdrawalForm max={summary.walletBalance} accounts={accounts} />
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Bank accounts</CardTitle>
+          <CardDescription>
+            Accounts you can withdraw to. Add at least one before requesting a
+            withdrawal.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MemberBankAccounts accounts={accounts} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

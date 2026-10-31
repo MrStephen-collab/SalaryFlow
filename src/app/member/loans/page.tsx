@@ -119,6 +119,83 @@ export default async function MemberLoansPage() {
         </CardContent>
       </Card>
 
+      {(() => {
+        const active = loans.find((loan) =>
+          ["ACTIVE", "DISBURSED"].includes(String(loan.status))
+        );
+        if (!active) return null;
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Active loan analysis</CardTitle>
+              <CardDescription>
+                The full approved amount was disbursed — no fees were deducted
+                from your loan.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 text-sm sm:grid-cols-3">
+                <div>
+                  <p className="text-muted-foreground">Amount disbursed</p>
+                  <p className="font-mono text-base font-medium text-emerald-600">
+                    {naira(Number(active.amount) || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Interest</p>
+                  <p className="font-mono text-base font-medium">
+                    {naira(Number(active.total_interest) || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Processing fee</p>
+                  <p className="font-mono text-base font-medium">
+                    {naira(Number(active.processing_fee) || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Total repayment</p>
+                  <p className="font-mono text-base font-medium">
+                    {naira(Number(active.total_repayment) || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Monthly repayment</p>
+                  <p className="font-mono text-base font-medium">
+                    {naira(Number(active.monthly_deduction) || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Outstanding</p>
+                  <p className="font-mono text-base font-medium text-primary">
+                    {naira(Number(active.outstanding) || 0)}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Repayment progress</span>
+                  <span>{Number(active.progressPercent) || 0}% repaid</span>
+                </div>
+                <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-600"
+                    style={{ width: `${Number(active.progressPercent) || 0}%` }}
+                  />
+                </div>
+              </div>
+
+              {active.collateral_description ? (
+                <p className="text-xs text-muted-foreground">
+                  Collateral: {String(active.collateral_description)}
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Loan history</CardTitle>
@@ -137,6 +214,8 @@ export default async function MemberLoansPage() {
                 <TableRow>
                   <TableHead>Submitted</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Interest</TableHead>
+                  <TableHead className="text-right">Fee</TableHead>
                   <TableHead className="text-right">Repayment</TableHead>
                   <TableHead>Monthly</TableHead>
                   <TableHead>Status</TableHead>
@@ -153,6 +232,12 @@ export default async function MemberLoansPage() {
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {naira(Number(loan.amount))}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {naira(Number(loan.total_interest) || 0)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {naira(Number(loan.processing_fee) || 0)}
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {naira(Number(loan.total_repayment))}

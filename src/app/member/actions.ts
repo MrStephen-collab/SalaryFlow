@@ -44,7 +44,30 @@ export async function listMyLoans() {
   return service.listMyLoans();
 }
 
-export async function requestMemberWithdrawal(amount: number) {
+export async function requestMemberWithdrawal(
+  amount: number,
+  bankAccountId: string
+) {
   const service = await MemberService.createForStaff();
-  return service.requestWithdrawal(amount);
+  return service.requestWithdrawal(amount, bankAccountId);
+}
+
+export async function listMyBankAccounts() {
+  const service = await MemberService.createForStaff();
+  return service.listMyBankAccounts();
+}
+
+export async function addMemberBankAccount(values: {
+  bankName: string;
+  bankCode?: string;
+  accountNumber: string;
+  accountName: string;
+}) {
+  const service = await MemberService.createForStaff();
+  return service.addBankAccount(values);
+}
+
+export async function removeMemberBankAccount(accountId: string) {
+  const service = await MemberService.createForStaff();
+  return service.removeBankAccount(accountId);
 }

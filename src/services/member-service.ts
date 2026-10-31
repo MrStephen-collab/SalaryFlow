@@ -670,6 +670,7 @@ export class MemberService {
         monthly_deduction: monthlyDeduction,
         purpose: purpose?.trim() || "Member savings loan",
         status: "SUBMITTED",
+        processing_fee: processingFee,
         collateral_description: collateral?.description?.trim() || null,
         collateral_document_url: collateral?.documentUrl || null,
         submitted_at: new Date().toISOString(),
@@ -713,12 +714,41 @@ export class MemberService {
     const { data } = await admin
       .from("loan_applications")
       .select(
-        "id, amount, status, total_repayment, monthly_deduction, duration_months, purpose, submitted_at, approved_at, disbursed_at, rejected_at, rejection_reason"
+        "id, amount, status, total_interest, processing_fee, total_repayment, monthly_deduction, duration_months, purpose, submitted_at, approved_at, disbursed_at, rejected_at, rejection_reason, collateral_description, collateral_document_url"
       )
       .eq("member_id", member.id)
       .order("created_at", { ascending: false });
 
-    return data ?? [];
+    const loans = data ?? [];
+    const ids = loans.map((loan) => loan.id as string);
+    const paidByLoan = new Map<string, number>();
+
+    if (ids.length > 0) {
+      const { data: schedules } = await admin
+        .from("loan_schedules")
+        .select("loan_application_id, total_payment, paid_amount, status")
+        .in("loan_application_id", ids);
+
+      for (const schedule of schedules ?? []) {
+        const id = schedule.loan_application_id as string;
+        paidByLoan.set(
+          id,
+          (paidByLoan.get(id) ?? 0) + (Number(schedule.paid_amount) || 0)
+        );
+      }
+    }
+
+    return loans.map((loan) => {
+      const total = Number(loan.total_repayment) || 0;
+      const paid = Math.round((paidByLoan.get(loan.id as string) ?? 0) * 100) / 100;
+      return {
+        ...loan,
+        paidAmount: paid,
+        outstanding: Math.max(0, Math.round((total - paid) * 100) / 100),
+        progressPercent:
+          total > 0 ? Math.min(100, Math.round((paid / total) * 1000) / 10) : 0,
+      };
+    });
   }
 
   async listMemberApplications() {
@@ -1089,8 +1119,122 @@ export class MemberService {
     };
   }
 
+  /** Member's saved withdrawal bank accounts. */
+  async listMyBankAccounts() {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const admin = createAdminClient();
+    const { data: member } = await admin
+      .from("members")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member) return [];
+
+    const { data } = await admin
+      .from("bank_accounts")
+      .select("id, bank_name, bank_code, account_number, account_name, is_default")
+      .eq("member_id", member.id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true });
+
+    return data ?? [];
+  }
+
+  async addBankAccount(values: {
+    bankName: string;
+    bankCode?: string;
+    accountNumber: string;
+    accountName: string;
+  }): Promise<{ ok: boolean; error?: string; success?: string }> {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Sign in to continue" };
+
+    const admin = createAdminClient();
+    const { data: member } = await admin
+      .from("members")
+      .select("id, organization_id, status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member) return { ok: false, error: "No member profile is linked to this account" };
+
+    const bankName = values.bankName?.trim();
+    const accountNumber = values.accountNumber?.trim();
+    const accountName = values.accountName?.trim();
+
+    if (!bankName) return { ok: false, error: "Bank name is required" };
+    if (!accountNumber || !/^\d{10}$/.test(accountNumber)) {
+      return { ok: false, error: "Account number must be 10 digits" };
+    }
+    if (!accountName) return { ok: false, error: "Account name is required" };
+
+    const { data: existing } = await admin
+      .from("bank_accounts")
+      .select("id")
+      .eq("member_id", member.id)
+      .eq("account_number", accountNumber)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (existing) {
+      return { ok: false, error: "This account has already been added" };
+    }
+
+    const { count } = await admin
+      .from("bank_accounts")
+      .select("id", { count: "exact", head: true })
+      .eq("member_id", member.id)
+      .is("deleted_at", null);
+
+    const { error } = await admin.from("bank_accounts").insert({
+      organization_id: member.organization_id,
+      member_id: member.id,
+      bank_name: bankName,
+      bank_code: values.bankCode?.trim() || null,
+      account_number: accountNumber,
+      account_name: accountName,
+      is_default: (count ?? 0) === 0,
+      verified: false,
+    });
+
+    if (error) return { ok: false, error: error.message };
+
+    return { ok: true, success: "Bank account added" };
+  }
+
+  async removeBankAccount(accountId: string) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Sign in to continue" };
+
+    const admin = createAdminClient();
+    const { data: member } = await admin
+      .from("members")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member) return { ok: false, error: "No member profile found" };
+
+    const { error } = await admin
+      .from("bank_accounts")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", accountId)
+      .eq("member_id", member.id);
+
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, success: "Bank account removed" };
+  }
+
   /** Member requests a withdrawal from their savings wallet. */
-  async requestWithdrawal(amount: number) {
+  async requestWithdrawal(amount: number, bankAccountId?: string) {
     const supabase = await createClient();
     const {
       data: { user },
@@ -1132,9 +1276,24 @@ export class MemberService {
       };
     }
 
+    if (!bankAccountId) {
+      return { ok: false, error: "Add a bank account before requesting a withdrawal" };
+    }
+
+    const { data: account } = await admin
+      .from("bank_accounts")
+      .select("id")
+      .eq("id", bankAccountId)
+      .eq("member_id", member.id)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (!account) return { ok: false, error: "Select a valid bank account" };
+
     const { error } = await admin.from("withdrawal_requests").insert({
       organization_id: member.organization_id,
       member_id: member.id,
+      bank_account_id: bankAccountId,
       amount: requested,
       fee: 0,
       net_amount: requested,
@@ -1188,7 +1347,7 @@ export class MemberService {
     const { data } = await admin
       .from("withdrawal_requests")
       .select(
-        "id, amount, net_amount, status, reference, created_at, members:member_id(first_name, last_name, member_number)"
+        "id, amount, net_amount, status, reference, created_at, members:member_id(first_name, last_name, member_number), bank_accounts:bank_account_id(bank_name, account_number, account_name)"
       )
       .eq("organization_id", this.organizationId)
       .not("member_id", "is", null)
@@ -1201,6 +1360,11 @@ export class MemberService {
         last_name: string;
         member_number: string;
       } | null;
+      const account = row.bank_accounts as unknown as {
+        bank_name: string | null;
+        account_number: string | null;
+        account_name: string | null;
+      } | null;
       return {
         id: row.id as string,
         memberName: member ? `${member.first_name} ${member.last_name}` : "Unknown member",
@@ -1209,6 +1373,11 @@ export class MemberService {
         status: row.status as string,
         reference: row.reference as string,
         createdAt: row.created_at as string,
+        bankName: account?.bank_name ?? "",
+        accountNumber: account?.account_number
+          ? `••••${account.account_number.slice(-4)}`
+          : "",
+        accountName: account?.account_name ?? "",
       };
     });
   }
