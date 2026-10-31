@@ -128,6 +128,15 @@ export function LoanAnalysis({
               {loan.interestRate}% {loan.interestMethod.toLowerCase()} ·{" "}
               {loan.durationMonths} months
             </p>
+            {fees > 0 ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Credited to wallet{" "}
+                <span className="font-medium text-foreground">
+                  {naira(Math.max(0, (Number(loan.amount) || 0) - fees))}
+                </span>{" "}
+                after {naira(fees)} fees
+              </p>
+            ) : null}
           </CardContent>
         </Card>
         <Card>
@@ -135,7 +144,7 @@ export function LoanAnalysis({
             <p className="text-xs text-muted-foreground">Interest</p>
             <p className="text-lg font-bold">{naira(totalInterest)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {fees > 0 ? `Fees: ${naira(fees)} · ` : ""}Total{" "}
+              {fees > 0 ? `Fees: ${naira(fees)} · ` : ""}Total repayable{" "}
               {naira(totalRepayment)}
             </p>
           </CardContent>

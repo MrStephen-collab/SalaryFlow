@@ -132,8 +132,9 @@ export default async function MemberLoansPage() {
             <CardHeader>
               <CardTitle className="text-base">Active loan analysis</CardTitle>
               <CardDescription>
-                The full approved amount was disbursed — no fees were deducted
-                from your loan.
+                Processing and insurance fees are deducted at disbursement; the
+                balance was credited to your wallet. See how each repayment splits
+                between principal and interest.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -213,6 +214,13 @@ export default async function MemberLoansPage() {
                   Collateral: {String(active.collateral_description)}
                 </p>
               ) : null}
+
+              <Button
+                variant="outline"
+                render={<Link href={`/member/loans/${active.id}`} />}
+              >
+                View full loan analysis
+              </Button>
             </CardContent>
           </Card>
         );
