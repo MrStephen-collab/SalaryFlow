@@ -1076,7 +1076,8 @@ export class MemberService {
       const interestPortion = round2(
         Math.min(
           Number(schedule.interest_payment) || 0,
-          (Number(schedule.interest_payment) || 0) * (portion / due)
+          (Number(schedule.interest_payment) || 0) *
+            (portion / (Number(schedule.total_payment) || due))
         )
       );
       const principalPortion = round2(portion - interestPortion);
