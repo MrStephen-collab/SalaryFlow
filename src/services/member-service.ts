@@ -1024,7 +1024,14 @@ export class MemberService {
     applicationId: string,
     amount: number,
     actorUserId: string | null = null
-  ) {
+  ): Promise<{
+    ok: boolean;
+    applied?: number;
+    savings?: number;
+    interest?: number;
+    completed?: boolean;
+    error?: string;
+  }> {
     const requested = round2(Number(amount));
     if (!Number.isFinite(requested) || requested <= 0) {
       return { ok: false, error: "Enter a valid repayment amount" };
