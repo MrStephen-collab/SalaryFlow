@@ -165,9 +165,15 @@ export class PaymentService {
   static async startSavingsDeposit(input: {
     amount: number;
     callbackUrl: string;
+    loanRepaymentAmount?: number;
   }): Promise<StartFundingResult> {
     const amountError = validateAmount(input.amount);
     if (amountError) return { ok: false, error: amountError };
+
+    const loanRepaymentAmount = Math.min(
+      input.amount,
+      Math.max(0, Number(input.loanRepaymentAmount) || 0)
+    );
 
     const supabase = await createClient();
     const {
@@ -210,7 +216,10 @@ export class PaymentService {
         amount: input.amount,
         currency: "NGN",
         status: "PENDING",
-        metadata: { source: "member/savings" },
+        metadata: {
+          source: "member/savings",
+          loanRepaymentAmount,
+        },
       })
       .select("id")
       .single();
@@ -520,14 +529,56 @@ export class PaymentService {
       organization_id: string;
       internal_reference: string;
       member_id?: string | null;
+      metadata?: Record<string, unknown> | null;
     },
     amount: number
   ): Promise<{ error?: string; reference?: string; message?: string }> {
     if (!intent.member_id) return { error: "This deposit is not linked to a member" };
 
     const ledger = LedgerService.createForOrganization(intent.organization_id);
+
+    // Optional split: part of the payment services the member's active loan,
+    // the rest is credited to savings.
+    const requestedRepayment = Math.min(
+      amount,
+      Math.max(0, Number(intent.metadata?.loanRepaymentAmount ?? 0) || 0)
+    );
+    const savingsPortion =
+      Math.round((amount - requestedRepayment) * 100) / 100;
+
+    if (requestedRepayment > 0) {
+      const { data: loan } = await admin
+        .from("loan_applications")
+        .select("id")
+        .eq("member_id", intent.member_id)
+        .eq("organization_id", intent.organization_id)
+        .in("status", ["ACTIVE", "DISBURSED"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (loan?.id) {
+        const { MemberService } = await import("./member-service");
+        const result = await MemberService.applyMemberRepayment(
+          intent.organization_id,
+          loan.id,
+          requestedRepayment
+        );
+        if (!result.ok) {
+          return { error: result.error ?? "Could not apply the loan repayment" };
+        }
+      }
+    }
+
+    if (savingsPortion <= 0) {
+      return {
+        reference: `SPLIT-${intent.internal_reference}`,
+        message: "Deposit applied to the loan",
+      };
+    }
+
     const wallet = await ledger.ensureMemberFinancialAccount(intent.member_id);
-    if (!wallet?.id) return { error: "No savings wallet for this member" };
+    if (!wallet?.id) return { error: "No savings account for this member" };
 
     const depositReference = `SAV-${intent.internal_reference}`;
 
@@ -541,7 +592,7 @@ export class PaymentService {
     const posted = await ledger.postSavingsDeposit(
       intent.member_id,
       depositReference,
-      amount,
+      savingsPortion,
       "Savings deposit via payment gateway"
     );
     if (posted.error) return { error: posted.error };
@@ -551,7 +602,7 @@ export class PaymentService {
       member_id: intent.member_id,
       financial_account_id: wallet.id,
       transaction_type: "DEPOSIT",
-      amount,
+      amount: savingsPortion,
       direction: "IN",
       reference: depositReference,
       description: "Savings deposit via payment gateway",

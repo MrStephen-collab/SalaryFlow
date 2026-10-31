@@ -68,7 +68,10 @@ export default async function MemberSavingsPage({
             {summary.member.memberNumber} · {summary.member.email}
           </p>
         </div>
-        <DepositDialog gatewayReady={gateway.collections} />
+        <DepositDialog
+          gatewayReady={gateway.collections}
+          activeLoanOutstanding={summary.activeLoan?.outstanding ?? 0}
+        />
       </div>
 
       {params.payment === "success" && (

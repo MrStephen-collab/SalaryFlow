@@ -69,6 +69,7 @@ export interface SavingsSummary {
     id: string;
     amount: number;
     totalRepayment: number;
+    outstanding: number;
     status: string;
     disbursedAt: string | null;
   } | null;
@@ -491,6 +492,18 @@ export class MemberService {
       .limit(1)
       .maybeSingle();
 
+    let activeLoanPaid = 0;
+    if (activeLoan) {
+      const { data: paidSchedules } = await admin
+        .from("loan_schedules")
+        .select("paid_amount")
+        .eq("loan_application_id", activeLoan.id);
+      activeLoanPaid = (paidSchedules ?? []).reduce(
+        (sum, row) => sum + (Number(row.paid_amount) || 0),
+        0
+      );
+    }
+
     return {
       member: {
         id: member.id,
@@ -519,6 +532,12 @@ export class MemberService {
             id: activeLoan.id,
             amount: Number(activeLoan.amount),
             totalRepayment: Number(activeLoan.total_repayment),
+            outstanding: Math.max(
+              0,
+              round2(
+                Number(activeLoan.total_repayment) - activeLoanPaid
+              )
+            ),
             status: activeLoan.status,
             disbursedAt: activeLoan.disbursed_at,
           }
@@ -988,6 +1007,24 @@ export class MemberService {
       return { ok: false, error: "You do not have permission to record repayments" };
     }
 
+    return MemberService.applyMemberRepayment(
+      this.organizationId,
+      applicationId,
+      amount,
+      this.userId
+    );
+  }
+
+  /**
+   * Shared member repayment engine. Used by the admin "Record repayment" action
+   * and by gateway settlement when a deposit is split into savings + repayment.
+   */
+  static async applyMemberRepayment(
+    organizationId: string,
+    applicationId: string,
+    amount: number,
+    actorUserId: string | null = null
+  ) {
     const requested = round2(Number(amount));
     if (!Number.isFinite(requested) || requested <= 0) {
       return { ok: false, error: "Enter a valid repayment amount" };
@@ -998,7 +1035,7 @@ export class MemberService {
       .from("loan_applications")
       .select("id, member_id, status, total_repayment")
       .eq("id", applicationId)
-      .eq("organization_id", this.organizationId)
+      .eq("organization_id", organizationId)
       .maybeSingle();
 
     if (!loan) return { ok: false, error: "Member loan not found" };
@@ -1058,10 +1095,7 @@ export class MemberService {
       return { ok: false, error: "That amount does not cover any instalment" };
     }
 
-    const ledger = LedgerService.createForOrganization(
-      this.organizationId,
-      this.userId
-    );
+    const ledger = LedgerService.createForOrganization(organizationId, actorUserId);
     const posted = await ledger.postLoanRepayment(
       "",
       applicationId,
@@ -1074,7 +1108,7 @@ export class MemberService {
     const wallet = await ledger.ensureMemberFinancialAccount(loan.member_id);
     if (wallet?.id && principalSaved > 0) {
       await admin.from("savings_transactions").insert({
-        organization_id: this.organizationId,
+        organization_id: organizationId,
         member_id: loan.member_id,
         financial_account_id: wallet.id,
         transaction_type: "DEPOSIT",
@@ -1102,8 +1136,8 @@ export class MemberService {
     }
 
     await recordAudit({
-      organizationId: this.organizationId,
-      userId: this.userId,
+      organizationId,
+      userId: actorUserId,
       action: "member.loan_repayment_recorded",
       entityType: "loan_application",
       entityId: applicationId,

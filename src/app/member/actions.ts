@@ -17,11 +17,15 @@ async function siteUrl() {
   return `${protocol}://${host}`;
 }
 
-export async function startSavingsDeposit(amount: number) {
+export async function startSavingsDeposit(
+  amount: number,
+  loanRepaymentAmount = 0
+) {
   const base = await siteUrl();
   return PaymentService.startSavingsDeposit({
     amount,
     callbackUrl: `${base}/api/payments/callback`,
+    loanRepaymentAmount,
   });
 }
 

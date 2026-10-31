@@ -27,22 +27,44 @@ function naira(amount: number) {
   }).format(amount);
 }
 
-export function DepositDialog({ gatewayReady }: { gatewayReady: boolean }) {
+export function DepositDialog({
+  gatewayReady,
+  activeLoanOutstanding = 0,
+}: {
+  gatewayReady: boolean;
+  activeLoanOutstanding?: number;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [amount, setAmount] = useState("");
+  const [loanPortion, setLoanPortion] = useState("");
 
   const numericAmount = Number(amount.replace(/,/g, ""));
+  const numericLoanPortion = Number(loanPortion.replace(/,/g, "")) || 0;
+  const maxLoanPortion = Math.min(
+    Number.isFinite(numericAmount) ? numericAmount : 0,
+    activeLoanOutstanding
+  );
+  const savingsPortion = Math.max(0, numericAmount - numericLoanPortion);
 
   function handleSubmit() {
     if (!Number.isFinite(numericAmount) || numericAmount < 1000) {
       toast.error("Enter at least ₦1,000");
       return;
     }
+    if (numericLoanPortion > maxLoanPortion) {
+      toast.error(
+        `You can allocate at most ${naira(maxLoanPortion)} to loan repayment`
+      );
+      return;
+    }
 
     startTransition(async () => {
-      const result = await startSavingsDeposit(numericAmount);
+      const result = await startSavingsDeposit(
+        numericAmount,
+        numericLoanPortion
+      );
       if (!result.ok || !result.authorizationUrl) {
         toast.error(result.error ?? "Could not start the payment");
         return;
@@ -103,6 +125,67 @@ export function DepositDialog({ gatewayReady }: { gatewayReady: boolean }) {
                 ))}
               </div>
             </div>
+
+            {activeLoanOutstanding > 0 ? (
+              <div className="space-y-3 rounded-lg border p-3">
+                <div>
+                  <p className="text-sm font-medium">Split this deposit</p>
+                  <p className="text-xs text-muted-foreground">
+                    You have an active loan (outstanding{" "}
+                    {naira(activeLoanOutstanding)}). Choose how much of this
+                    deposit should repay the loan.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>To loan repayment (₦)</Label>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={maxLoanPortion}
+                    step="0.01"
+                    value={loanPortion}
+                    onChange={(event) => setLoanPortion(event.target.value)}
+                    placeholder="0"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setLoanPortion("0")}
+                    >
+                      All to savings
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setLoanPortion(String(Math.max(0, maxLoanPortion)))
+                      }
+                      disabled={maxLoanPortion <= 0}
+                    >
+                      All to loan
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">To savings</p>
+                    <p className="font-medium">{naira(savingsPortion)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      To loan repayment
+                    </p>
+                    <p className="font-medium">
+                      {naira(Math.min(numericLoanPortion, maxLoanPortion))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <p className="text-xs text-muted-foreground">
               You will be redirected to the payment provider to complete this

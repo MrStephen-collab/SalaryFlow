@@ -76,7 +76,10 @@ export default async function MemberHomePage() {
           <Badge variant={summary.member.status === "ACTIVE" ? "default" : "secondary"}>
             {summary.member.status}
           </Badge>
-          <DepositDialog gatewayReady={gateway.collections} />
+          <DepositDialog
+            gatewayReady={gateway.collections}
+            activeLoanOutstanding={summary.activeLoan?.outstanding ?? 0}
+          />
         </div>
       </div>
 
