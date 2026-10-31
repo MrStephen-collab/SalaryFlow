@@ -599,7 +599,7 @@ export class MemberService {
     let { data: product } = await admin
       .from("loan_products")
       .select(
-        "id, interest_rate, interest_method, duration_months, processing_fee, collateral_required, minimum_amount, maximum_amount, active"
+        "id, interest_rate, interest_method, duration_months, processing_fee, insurance_fee, collateral_required, minimum_amount, maximum_amount, active"
       )
       .eq("organization_id", member.organization_id)
       .eq("name", MEMBER_LOAN_PRODUCT)
@@ -632,7 +632,7 @@ export class MemberService {
           active: true,
         })
         .select(
-          "id, interest_rate, interest_method, duration_months, processing_fee, collateral_required, minimum_amount, maximum_amount, active"
+          "id, interest_rate, interest_method, duration_months, processing_fee, insurance_fee, collateral_required, minimum_amount, maximum_amount, active"
         )
         .single();
       if (error) return { ok: false, error: error.message };
