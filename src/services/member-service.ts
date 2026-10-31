@@ -538,7 +538,8 @@ export class MemberService {
   /** Member applies for a savings-backed loan. */
   async applyForLoan(
     amount: number,
-    purpose: string
+    purpose: string,
+    collateral?: { description?: string; documentUrl?: string }
   ): Promise<{ ok: boolean; error?: string; success?: string; applicationId?: string }> {
     const supabase = await createClient();
     const {
@@ -587,7 +588,9 @@ export class MemberService {
 
     const { data: settings } = await admin
       .from("organization_settings")
-      .select("default_interest_rate, default_interest_method, member_loan_interest_rate")
+      .select(
+        "default_interest_rate, default_interest_method, member_loan_interest_rate, member_loan_collateral_required, member_loan_processing_fee_percentage, member_loan_duration_months"
+      )
       .eq("organization_id", member.organization_id)
       .maybeSingle();
 
@@ -595,10 +598,26 @@ export class MemberService {
       member.loan_interest_rate ?? settings?.member_loan_interest_rate ?? 1
     );
     const interestMethod = settings?.default_interest_method ?? "FLAT";
-    const durationMonths = 6;
+    const durationMonths = Number(settings?.member_loan_duration_months ?? 6);
+    const feePercentage = Number(
+      settings?.member_loan_processing_fee_percentage ?? 0
+    );
+    const collateralRequired = Boolean(
+      settings?.member_loan_collateral_required
+    );
+
+    if (collateralRequired) {
+      if (!collateral?.description?.trim()) {
+        return { ok: false, error: "Collateral description is required" };
+      }
+      if (!collateral?.documentUrl) {
+        return { ok: false, error: "Collateral document is required" };
+      }
+    }
 
     const totalInterest = round2((requested * interestRate) / 100);
-    const totalRepayment = round2(requested + totalInterest);
+    const processingFee = round2((requested * feePercentage) / 100);
+    const totalRepayment = round2(requested + totalInterest + processingFee);
     const monthlyDeduction = round2(totalRepayment / durationMonths);
 
     let { data: product } = await admin
@@ -651,6 +670,8 @@ export class MemberService {
         monthly_deduction: monthlyDeduction,
         purpose: purpose?.trim() || "Member savings loan",
         status: "SUBMITTED",
+        collateral_description: collateral?.description?.trim() || null,
+        collateral_document_url: collateral?.documentUrl || null,
         submitted_at: new Date().toISOString(),
       })
       .select("id")
@@ -833,6 +854,42 @@ export class MemberService {
     });
 
     return { ok: true };
+  }
+
+  /** Terms the employer configured for member loans. */
+  async getLoanTerms() {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const admin = createAdminClient();
+    const { data: member } = await admin
+      .from("members")
+      .select("organization_id, loan_interest_rate")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member) return null;
+
+    const { data: settings } = await admin
+      .from("organization_settings")
+      .select(
+        "member_loan_interest_rate, member_loan_collateral_required, member_loan_processing_fee_percentage, member_loan_duration_months"
+      )
+      .eq("organization_id", member.organization_id)
+      .maybeSingle();
+
+    return {
+      interestRate: Number(
+        member.loan_interest_rate ?? settings?.member_loan_interest_rate ?? 1
+      ),
+      feePercentage: Number(
+        settings?.member_loan_processing_fee_percentage ?? 0
+      ),
+      durationMonths: Number(settings?.member_loan_duration_months ?? 6),
+      collateralRequired: Boolean(settings?.member_loan_collateral_required),
+    };
   }
 
   /** Admin/chairman: active member loans with outstanding balances. */
@@ -1286,6 +1343,36 @@ export class MemberService {
           summary.monthsRemaining > 0
             ? `This member is still ${summary.monthsRemaining} month(s) away from eligibility`
             : "This member is not eligible for a loan",
+      };
+    }
+
+    // No approval without the required documents.
+    const { data: memberDocs } = await admin
+      .from("members")
+      .select("nin, nin_document_url")
+      .eq("id", application.member_id)
+      .maybeSingle();
+
+    if (!memberDocs?.nin || !memberDocs?.nin_document_url) {
+      return {
+        error:
+          "Cannot approve: the member's NIN and NIN document must be submitted first",
+      };
+    }
+
+    const { data: loanTerms } = await admin
+      .from("organization_settings")
+      .select("member_loan_collateral_required")
+      .eq("organization_id", this.organizationId)
+      .maybeSingle();
+
+    if (
+      loanTerms?.member_loan_collateral_required &&
+      !application.collateral_document_url
+    ) {
+      return {
+        error:
+          "Cannot approve: a collateral document is required for member loans",
       };
     }
     if (Number(application.amount) > summary.maxLoan) {

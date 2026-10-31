@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { applyMemberLoan } from "@/app/member/actions";
+import { uploadNinDocument } from "@/app/nin/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { HandCoins } from "lucide-react";
+import { CheckCircle2, HandCoins, Loader2, Upload } from "lucide-react";
 
 function naira(amount: number) {
   return new Intl.NumberFormat("en-NG", {
@@ -30,20 +31,44 @@ export function ApplyLoanDialog({
   eligible,
   monthsRemaining,
   hasActiveLoan,
+  collateralRequired = false,
+  interestRate = 1,
+  feePercentage = 0,
+  durationMonths = 6,
 }: {
   maxLoan: number;
   eligible: boolean;
   monthsRemaining: number;
   hasActiveLoan: boolean;
+  collateralRequired?: boolean;
+  interestRate?: number;
+  feePercentage?: number;
+  durationMonths?: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [amount, setAmount] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [collateralDescription, setCollateralDescription] = useState("");
+  const [collateralDocumentUrl, setCollateralDocumentUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const numericAmount = Number(amount.replace(/,/g, ""));
   const blocked = !eligible || hasActiveLoan || maxLoan <= 0;
+
+  async function handleCollateralFile(file: File) {
+    setUploading(true);
+    const result = await uploadNinDocument(file);
+    setUploading(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    setCollateralDocumentUrl(result.url ?? "");
+    toast.success("Collateral document uploaded");
+  }
 
   function handleSubmit() {
     if (!Number.isFinite(numericAmount) || numericAmount < 1000) {
@@ -54,9 +79,22 @@ export function ApplyLoanDialog({
       toast.error(`Your maximum loan is ${naira(maxLoan)}`);
       return;
     }
+    if (collateralRequired) {
+      if (!collateralDescription.trim()) {
+        toast.error("Enter the collateral description");
+        return;
+      }
+      if (!collateralDocumentUrl) {
+        toast.error("Upload the collateral document");
+        return;
+      }
+    }
 
     startTransition(async () => {
-      const result = await applyMemberLoan(numericAmount, purpose);
+      const result = await applyMemberLoan(numericAmount, purpose, {
+        description: collateralDescription,
+        documentUrl: collateralDocumentUrl,
+      });
       if (!result.ok) {
         toast.error(result.error ?? "Could not submit your application");
         return;
@@ -65,6 +103,8 @@ export function ApplyLoanDialog({
       setOpen(false);
       setAmount("");
       setPurpose("");
+      setCollateralDescription("");
+      setCollateralDocumentUrl("");
       router.refresh();
     });
   }
@@ -120,6 +160,62 @@ export function ApplyLoanDialog({
                 placeholder="e.g. School fees"
               />
             </div>
+
+            <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+              Interest: <span className="font-medium text-foreground">{interestRate}%</span>
+              {feePercentage > 0 ? (
+                <> · Processing fee: <span className="font-medium text-foreground">{feePercentage}%</span></>
+              ) : null}
+              {" "}· Duration: <span className="font-medium text-foreground">{durationMonths} months</span>
+            </div>
+
+            {collateralRequired ? (
+              <>
+                <div className="space-y-2">
+                  <Label>Collateral description *</Label>
+                  <Input
+                    value={collateralDescription}
+                    onChange={(event) => setCollateralDescription(event.target.value)}
+                    placeholder="e.g. Shop inventory, titled land"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Collateral document *</Label>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,application/pdf"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void handleCollateralFile(file);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={uploading}
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    {uploading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Upload className="size-4" />
+                    )}
+                    {uploading
+                      ? "Uploading…"
+                      : collateralDocumentUrl
+                        ? "Replace document"
+                        : "Upload collateral document"}
+                  </Button>
+                  {collateralDocumentUrl ? (
+                    <p className="inline-flex items-center gap-1 text-xs text-green-600">
+                      <CheckCircle2 className="size-3.5" /> Document uploaded
+                    </p>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
             <p className="text-xs text-muted-foreground">
               Your request is reviewed by the organization. Once approved, the
               loan is credited to your savings wallet.

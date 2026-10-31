@@ -38,9 +38,10 @@ function statusVariant(status: string) {
 
 export default async function MemberLoansPage() {
   const service = await MemberService.createForStaff();
-  const [summary, loans] = await Promise.all([
+  const [summary, loans, terms] = await Promise.all([
     service.getMySummary(),
     service.listMyLoans(),
+    service.getLoanTerms(),
   ]);
 
   if (!summary) {
@@ -70,6 +71,10 @@ export default async function MemberLoansPage() {
           eligible={summary.loanEligible}
           monthsRemaining={summary.monthsRemaining}
           hasActiveLoan={Boolean(summary.activeLoan)}
+          collateralRequired={terms?.collateralRequired ?? false}
+          interestRate={terms?.interestRate ?? 1}
+          feePercentage={terms?.feePercentage ?? 0}
+          durationMonths={terms?.durationMonths ?? 6}
         />
       </div>
 

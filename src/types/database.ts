@@ -806,6 +806,9 @@ export interface Database {
           savings_min_membership_months: number
           member_loan_multiplier: number
           member_loan_interest_rate: number
+          member_loan_collateral_required: boolean
+          member_loan_processing_fee_percentage: number
+          member_loan_duration_months: number
           member_savings_withdrawals_enabled: boolean
           guarantor_required: boolean
           id: string
@@ -830,6 +833,9 @@ export interface Database {
           max_salary_deduction_percentage: number
           max_tenure: number
           member_loan_interest_rate?: number
+          member_loan_collateral_required?: boolean
+          member_loan_processing_fee_percentage?: number
+          member_loan_duration_months?: number
           member_loan_multiplier?: number
           member_savings_withdrawals_enabled?: boolean
           min_employment_period_months: number

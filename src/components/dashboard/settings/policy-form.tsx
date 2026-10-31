@@ -38,6 +38,11 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
       settings?.savings_min_membership_months ?? 6,
     member_loan_multiplier: settings?.member_loan_multiplier ?? 2,
     member_loan_interest_rate: settings?.member_loan_interest_rate ?? 1,
+    member_loan_collateral_required:
+      settings?.member_loan_collateral_required ?? false,
+    member_loan_processing_fee_percentage:
+      settings?.member_loan_processing_fee_percentage ?? 0,
+    member_loan_duration_months: settings?.member_loan_duration_months ?? 6,
     member_savings_withdrawals_enabled:
       settings?.member_savings_withdrawals_enabled ?? true,
   });
@@ -317,6 +322,55 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
             <p className="text-xs text-muted-foreground">
               Flat interest on the loan. 1% = 10 naira on every 1,000.
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Member Loan Processing Fee (%)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step="0.1"
+              value={form.member_loan_processing_fee_percentage}
+              onChange={(e) =>
+                set(
+                  "member_loan_processing_fee_percentage",
+                  Number(e.target.value)
+                )
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Added to the member&apos;s total repayment.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Member Loan Duration (Months)</Label>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={form.member_loan_duration_months}
+              onChange={(e) =>
+                set("member_loan_duration_months", Number(e.target.value))
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+            <div>
+              <Label>Require Loan Collateral</Label>
+              <p className="text-xs text-muted-foreground">
+                Members must submit collateral details and a document before the
+                loan can be approved.
+              </p>
+            </div>
+            <Switch
+              checked={form.member_loan_collateral_required}
+              onCheckedChange={(v) =>
+                set("member_loan_collateral_required", v)
+              }
+            />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">

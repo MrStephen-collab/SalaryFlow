@@ -30,9 +30,13 @@ export async function getMySavings() {
   return service.getMySummary();
 }
 
-export async function applyMemberLoan(amount: number, purpose: string) {
+export async function applyMemberLoan(
+  amount: number,
+  purpose: string,
+  collateral?: { description?: string; documentUrl?: string }
+) {
   const service = await MemberService.createForStaff();
-  return service.applyForLoan(amount, purpose);
+  return service.applyForLoan(amount, purpose, collateral);
 }
 
 export async function listMyLoans() {

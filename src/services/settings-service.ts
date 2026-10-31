@@ -22,6 +22,9 @@ export interface OrganizationSettingsRecord {
   member_loan_multiplier?: number;
   member_savings_withdrawals_enabled?: boolean;
   member_loan_interest_rate?: number;
+  member_loan_collateral_required?: boolean;
+  member_loan_processing_fee_percentage?: number;
+  member_loan_duration_months?: number;
   employee_registration_enabled?: boolean;
   member_registration_enabled?: boolean;
 }
@@ -236,6 +239,15 @@ export class SettingsService {
       ),
       member_loan_multiplier: Number(values.member_loan_multiplier ?? 2),
       member_loan_interest_rate: Number(values.member_loan_interest_rate ?? 1),
+      member_loan_collateral_required: Boolean(
+        values.member_loan_collateral_required
+      ),
+      member_loan_processing_fee_percentage: Number(
+        values.member_loan_processing_fee_percentage ?? 0
+      ),
+      member_loan_duration_months: Number(
+        values.member_loan_duration_months ?? 6
+      ),
       member_savings_withdrawals_enabled:
         values.member_savings_withdrawals_enabled === undefined
           ? true
@@ -251,6 +263,9 @@ export class SettingsService {
       "savings_min_membership_months",
       "member_loan_multiplier",
       "member_loan_interest_rate",
+      "member_loan_collateral_required",
+      "member_loan_processing_fee_percentage",
+      "member_loan_duration_months",
       "member_savings_withdrawals_enabled",
     ];
 
