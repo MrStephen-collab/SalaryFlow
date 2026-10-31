@@ -29,6 +29,7 @@ type MemberRecord = {
   date_of_birth: string | null;
   nin: string | null;
   nin_document_url: string | null;
+  loan_interest_rate: number | null;
 };
 
 function formFromMember(member: MemberRecord) {
@@ -41,6 +42,10 @@ function formFromMember(member: MemberRecord) {
     dateOfBirth: member.date_of_birth ?? "",
     nin: member.nin ?? "",
     ninDocumentUrl: member.nin_document_url ?? "",
+    loanInterestRate:
+      member.loan_interest_rate === null || member.loan_interest_rate === undefined
+        ? ""
+        : String(member.loan_interest_rate),
   };
 }
 
@@ -82,6 +87,8 @@ export function EditMemberDialog({ member }: { member: MemberRecord }) {
         dateOfBirth: form.dateOfBirth || undefined,
         nin: form.nin || undefined,
         ninDocumentUrl: form.ninDocumentUrl || undefined,
+        loanInterestRate:
+          form.loanInterestRate === "" ? null : Number(form.loanInterestRate),
       });
 
       if (!result.ok) {
@@ -176,6 +183,22 @@ export function EditMemberDialog({ member }: { member: MemberRecord }) {
               value={form.ninDocumentUrl || null}
               onChange={(url) => set("ninDocumentUrl", url ?? "")}
             />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Loan Interest Rate (%)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step="0.1"
+              value={form.loanInterestRate}
+              onChange={(event) => set("loanInterestRate", event.target.value)}
+              placeholder="Organization default (1%)"
+            />
+            <p className="text-xs text-muted-foreground">
+              Overrides the organization&apos;s member loan rate for this account.
+              Leave blank to use the default. 1% = ₦10 on every ₦1,000.
+            </p>
           </div>
         </div>
 

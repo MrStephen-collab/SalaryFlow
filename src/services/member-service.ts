@@ -591,8 +591,9 @@ export class MemberService {
       .eq("organization_id", member.organization_id)
       .maybeSingle();
 
-    // Member loan interest: 10 naira per 1,000 = 1% flat by default.
-    const interestRate = Number(settings?.member_loan_interest_rate ?? 1);
+    const interestRate = Number(
+      member.loan_interest_rate ?? settings?.member_loan_interest_rate ?? 1
+    );
     const interestMethod = settings?.default_interest_method ?? "FLAT";
     const durationMonths = 6;
 
@@ -738,6 +739,7 @@ export class MemberService {
       dateOfBirth?: string;
       nin?: string;
       ninDocumentUrl?: string;
+      loanInterestRate?: number | null;
     }
   ): Promise<{ ok: boolean; error?: string }> {
     if (!this.organizationId || !this.userId) {
@@ -768,6 +770,10 @@ export class MemberService {
         date_of_birth: values.dateOfBirth || null,
         nin: values.nin || null,
         nin_document_url: values.ninDocumentUrl || null,
+        loan_interest_rate:
+          values.loanInterestRate === undefined || values.loanInterestRate === null
+            ? null
+            : Number(values.loanInterestRate),
       })
       .eq("id", memberId);
 

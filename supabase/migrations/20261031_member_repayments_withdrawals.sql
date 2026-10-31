@@ -12,6 +12,10 @@ alter table public.bank_accounts alter column employee_id drop not null;
 alter table public.organization_settings
   add column if not exists member_loan_interest_rate numeric(6, 2) not null default 1;
 
+-- Per-member interest override (null = use the organization rate).
+alter table public.members
+  add column if not exists loan_interest_rate numeric(6, 2);
+
 -- 10 naira on every 1000 = 1% flat interest for member loans.
 update public.organization_settings
   set member_loan_interest_rate = 1

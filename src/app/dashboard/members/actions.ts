@@ -81,6 +81,7 @@ export async function updateMember(
     dateOfBirth?: string;
     nin?: string;
     ninDocumentUrl?: string;
+    loanInterestRate?: number | null;
   }
 ) {
   const service = await MemberService.createForStaff();
