@@ -1032,7 +1032,7 @@ export class MemberService {
       );
       const principalPortion = round2(portion - interestPortion);
       const newPaid = round2(Number(schedule.paid_amount) + portion);
-      const fullyPaid = newPaid >= Number(schedule.total_payment) - 0.005;
+      const fullyPaid = newPaid >= Number(schedule.total_payment) - 0.01;
 
       await admin
         .from("loan_schedules")
