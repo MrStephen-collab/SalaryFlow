@@ -74,6 +74,7 @@ export default async function MemberLoansPage() {
           collateralRequired={terms?.collateralRequired ?? false}
           interestRate={terms?.interestRate ?? 1}
           processingFee={terms?.processingFee ?? 0}
+          insuranceFee={terms?.insuranceFee ?? 0}
           durationMonths={terms?.durationMonths ?? 6}
         />
       </div>
@@ -136,9 +137,22 @@ export default async function MemberLoansPage() {
             <CardContent className="space-y-4">
               <div className="grid gap-4 text-sm sm:grid-cols-3">
                 <div>
-                  <p className="text-muted-foreground">Amount disbursed</p>
+                  <p className="text-muted-foreground">Loan amount</p>
                   <p className="font-mono text-base font-medium text-emerald-600">
                     {naira(Number(active.amount) || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Credited to wallet</p>
+                  <p className="font-mono text-base font-medium text-emerald-600">
+                    {naira(
+                      Math.max(
+                        0,
+                        (Number(active.amount) || 0) -
+                          (Number(active.processing_fee) || 0) -
+                          (Number(active.insurance_fee) || 0)
+                      )
+                    )}
                   </p>
                 </div>
                 <div>
@@ -151,6 +165,12 @@ export default async function MemberLoansPage() {
                   <p className="text-muted-foreground">Processing fee</p>
                   <p className="font-mono text-base font-medium">
                     {naira(Number(active.processing_fee) || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Insurance fee</p>
+                  <p className="font-mono text-base font-medium">
+                    {naira(Number(active.insurance_fee) || 0)}
                   </p>
                 </div>
                 <div>
@@ -216,6 +236,7 @@ export default async function MemberLoansPage() {
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="text-right">Interest</TableHead>
                   <TableHead className="text-right">Fee</TableHead>
+                  <TableHead className="text-right">Insurance</TableHead>
                   <TableHead className="text-right">Repayment</TableHead>
                   <TableHead>Monthly</TableHead>
                   <TableHead>Status</TableHead>
@@ -238,6 +259,9 @@ export default async function MemberLoansPage() {
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {naira(Number(loan.processing_fee) || 0)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {naira(Number(loan.insurance_fee) || 0)}
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {naira(Number(loan.total_repayment))}

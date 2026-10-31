@@ -645,6 +645,7 @@ export class MemberService {
     const interestMethod = product.interest_method ?? "FLAT";
     const durationMonths = Number(product.duration_months ?? 6);
     const processingFee = round2(Number(product.processing_fee) || 0);
+    const insuranceFee = round2(Number(product.insurance_fee) || 0);
     const collateralRequired = Boolean(product.collateral_required);
 
     if (collateralRequired) {
@@ -657,7 +658,7 @@ export class MemberService {
     }
 
     const totalInterest = round2((requested * interestRate) / 100);
-    const totalRepayment = round2(requested + totalInterest + processingFee);
+    const totalRepayment = round2(requested + totalInterest);
     const monthlyDeduction = round2(totalRepayment / durationMonths);
 
     const { data: application, error } = await admin
@@ -676,6 +677,7 @@ export class MemberService {
         purpose: purpose?.trim() || "Member savings loan",
         status: "SUBMITTED",
         processing_fee: processingFee,
+        insurance_fee: insuranceFee,
         collateral_description: collateral?.description?.trim() || null,
         collateral_document_url: collateral?.documentUrl || null,
         submitted_at: new Date().toISOString(),
@@ -719,7 +721,7 @@ export class MemberService {
     const { data } = await admin
       .from("loan_applications")
       .select(
-        "id, amount, status, total_interest, processing_fee, total_repayment, monthly_deduction, duration_months, purpose, submitted_at, approved_at, disbursed_at, rejected_at, rejection_reason, collateral_description, collateral_document_url"
+        "id, amount, status, total_interest, processing_fee, insurance_fee, total_repayment, monthly_deduction, duration_months, purpose, submitted_at, approved_at, disbursed_at, rejected_at, rejection_reason, collateral_description, collateral_document_url"
       )
       .eq("member_id", member.id)
       .order("created_at", { ascending: false });
@@ -909,7 +911,9 @@ export class MemberService {
 
     const { data: product } = await admin
       .from("loan_products")
-      .select("interest_rate, processing_fee, duration_months, collateral_required")
+      .select(
+        "interest_rate, processing_fee, insurance_fee, duration_months, collateral_required"
+      )
       .eq("organization_id", member.organization_id)
       .eq("name", MEMBER_LOAN_PRODUCT)
       .maybeSingle();
@@ -917,6 +921,7 @@ export class MemberService {
     return {
       interestRate: Number(member.loan_interest_rate ?? product?.interest_rate ?? 1),
       processingFee: Number(product?.processing_fee ?? 0),
+      insuranceFee: Number(product?.insurance_fee ?? 0),
       durationMonths: Number(product?.duration_months ?? 6),
       collateralRequired: Boolean(product?.collateral_required),
     };
@@ -1252,16 +1257,6 @@ export class MemberService {
       return { ok: false, error: "Your membership is not active" };
     }
 
-    const { data: settings } = await admin
-      .from("organization_settings")
-      .select("member_savings_withdrawals_enabled")
-      .eq("organization_id", member.organization_id)
-      .maybeSingle();
-
-    if (settings && settings.member_savings_withdrawals_enabled === false) {
-      return { ok: false, error: "Savings withdrawals are not enabled" };
-    }
-
     const requested = round2(Number(amount));
     if (!Number.isFinite(requested) || requested <= 0) {
       return { ok: false, error: "Enter a valid amount" };
@@ -1542,7 +1537,11 @@ export class MemberService {
     const posted = await ledger.postMemberLoanDisbursement(
       application.member_id,
       application.id,
-      Number(application.amount)
+      Number(application.amount),
+      round2(
+        (Number(application.processing_fee) || 0) +
+          (Number(application.insurance_fee) || 0)
+      )
     );
     if (posted.error) return { error: posted.error };
 

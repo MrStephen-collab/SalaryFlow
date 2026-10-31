@@ -642,22 +642,37 @@ export class LedgerService {
   async postMemberLoanDisbursement(
     memberId: string,
     loanApplicationId: string,
-    amount: number
+    amount: number,
+    fees = 0
   ) {
     await this.ensureChartOfAccounts();
     const wallet = await this.ensureMemberWalletAccount(memberId);
     const receivable = await this.getAccountByCode("1100");
+    const feeIncome = await this.getAccountByCode("4100");
 
     if (!wallet?.id) return { error: "Could not open a wallet for this member" };
 
+    const netCredit = Math.max(0, Math.round((amount - fees) * 100) / 100);
+
+    const entries = [
+      { accountId: receivable?.id, debit: amount, credit: 0, description: "Member loan - receivable" },
+      { financialAccountId: wallet.id, debit: 0, credit: netCredit, description: "Member loan - withdrawable wallet (net of fees)" },
+    ];
+
+    if (fees > 0 && feeIncome?.id) {
+      entries.push({
+        accountId: feeIncome.id,
+        debit: 0,
+        credit: Math.round(fees * 100) / 100,
+        description: "Member loan - processing & insurance fees",
+      });
+    }
+
     return this.postTransaction(
       {
-        description: `Member loan disbursement ${loanApplicationId.slice(0, 8)} - amount ${amount}`,
+        description: `Member loan disbursement ${loanApplicationId.slice(0, 8)} - amount ${amount}, fees ${fees}`,
         transactionType: "LOAN_DISBURSEMENT",
-        entries: [
-          { accountId: receivable?.id, debit: amount, credit: 0, description: "Member loan - receivable" },
-          { financialAccountId: wallet.id, debit: 0, credit: amount, description: "Member loan - withdrawable wallet" },
-        ],
+        entries,
       },
       `SLF-MLOAN-${Date.now()}`
     );

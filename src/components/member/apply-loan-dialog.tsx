@@ -34,6 +34,7 @@ export function ApplyLoanDialog({
   collateralRequired = false,
   interestRate = 1,
   processingFee = 0,
+  insuranceFee = 0,
   durationMonths = 6,
 }: {
   maxLoan: number;
@@ -43,6 +44,7 @@ export function ApplyLoanDialog({
   collateralRequired?: boolean;
   interestRate?: number;
   processingFee?: number;
+  insuranceFee?: number;
   durationMonths?: number;
 }) {
   const router = useRouter();
@@ -166,7 +168,15 @@ export function ApplyLoanDialog({
               {processingFee > 0 ? (
                 <> · Processing fee: <span className="font-medium text-foreground">{naira(processingFee)}</span></>
               ) : null}
+              {insuranceFee > 0 ? (
+                <> · Insurance: <span className="font-medium text-foreground">{naira(insuranceFee)}</span></>
+              ) : null}
               {" "}· Duration: <span className="font-medium text-foreground">{durationMonths} months</span>
+              {processingFee + insuranceFee > 0 ? (
+                <span className="mt-1 block">
+                  Fees are deducted from the amount credited to your wallet.
+                </span>
+              ) : null}
             </div>
 
             {collateralRequired ? (
