@@ -24,6 +24,7 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar";
 import {
+  ArrowDownToLine,
   Banknote,
   Bell,
   BookOpen,
@@ -93,6 +94,16 @@ const employerNavGroups: NavGroup[] = [
         title: "Members",
         href: "/dashboard/members",
         icon: Contact,
+      },
+      {
+        title: "Member Loans",
+        href: "/dashboard/members/loans",
+        icon: HandCoins,
+      },
+      {
+        title: "Member Withdrawals",
+        href: "/dashboard/members/withdrawals",
+        icon: ArrowDownToLine,
       },
     ],
   },

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { MemberService } from "@/services/member-service";
 import { getProfile } from "@/lib/auth";
 import { SettingsService } from "@/services/settings-service";
@@ -6,9 +7,7 @@ import { AddMemberDialog } from "@/components/dashboard/members/add-member-dialo
 import { InviteLinkButton } from "@/components/dashboard/invite-link-button";
 import { MemberApprovalActions } from "@/components/dashboard/members/member-approval-actions";
 import { EditMemberDialog } from "@/components/dashboard/members/edit-member-dialog";
-import { MemberRepaymentDialog } from "@/components/dashboard/members/member-repayment-dialog";
-import { MemberWithdrawalActions } from "@/components/dashboard/members/member-withdrawal-actions";
-import { MemberLoanActions } from "@/components/dashboard/members/member-loan-actions";
+import { NinVerification } from "@/components/nin/nin-verification";
 import {
   Card,
   CardContent,
@@ -17,44 +16,33 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
+  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users } from "lucide-react";
-import { NinVerification } from "@/components/nin/nin-verification";
+import { ArrowDownToLine, HandCoins, Users } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Members",
 };
 
-function naira(amount: number) {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
 export default async function MembersPage() {
   const service = await MemberService.createForStaff();
   const profile = await getProfile();
   const settingsService = await SettingsService.create();
-  const [members, applications, settings, activeLoans, memberWithdrawals] =
-    await Promise.all([
-      service.listMembers(),
-      service.listMemberApplications(),
-      settingsService.getSettings(),
-      service.listActiveMemberLoans(),
-      service.listMemberWithdrawals(),
-    ]);
+  const [members, settings] = await Promise.all([
+    service.listMembers(),
+    settingsService.getSettings(),
+  ]);
 
-  const pending = applications.filter((application) =>
-    ["PENDING", "SUBMITTED", "UNDER_REVIEW"].includes(application.status)
-  );
+  const pendingApprovals = members.filter(
+    (member) => member.status !== "ACTIVE"
+  ).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -62,11 +50,25 @@ export default async function MembersPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">External Members</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Non-employees who save with your organization and borrow against their
-            savings.
+            Non-employees who save with your organization and borrow against
+            their savings.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            render={<Link href="/dashboard/members/loans" />}
+          >
+            <HandCoins className="size-4" />
+            Member Loans
+          </Button>
+          <Button
+            variant="outline"
+            render={<Link href="/dashboard/members/withdrawals" />}
+          >
+            <ArrowDownToLine className="size-4" />
+            Withdrawals
+          </Button>
           {profile?.organization_id ? (
             <InviteLinkButton
               organizationId={profile.organization_id}
@@ -87,200 +89,19 @@ export default async function MembersPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Pending loan requests</CardDescription>
-            <CardTitle className="text-2xl">{pending.length}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
             <CardDescription>Active members</CardDescription>
             <CardTitle className="text-2xl">
               {members.filter((member) => member.status === "ACTIVE").length}
             </CardTitle>
           </CardHeader>
         </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Awaiting approval</CardDescription>
+            <CardTitle className="text-2xl">{pendingApprovals}</CardTitle>
+          </CardHeader>
+        </Card>
       </div>
-
-      {pending.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Loan requests</CardTitle>
-            <CardDescription>
-              Approving a request credits the loan into the member&apos;s savings
-              wallet.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Member</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Repayment</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead className="text-right">Decision</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <tbody>
-                  {pending.map((application) => (
-                    <TableRow key={application.id}>
-                      <TableCell>
-                        <p className="font-medium">{application.memberName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {application.memberNumber}
-                          {application.joinedAt
-                            ? ` · joined ${new Date(application.joinedAt).toLocaleDateString("en-NG")}`
-                            : ""}
-                        </p>
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        {naira(Number(application.amount))}
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        {naira(Number(application.total_repayment))}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {application.submitted_at
-                          ? new Date(application.submitted_at).toLocaleDateString("en-NG")
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <MemberLoanActions applicationId={application.id} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {activeLoans.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Active member loans</CardTitle>
-            <CardDescription>
-              Record repayments. The principal portion rebuilds the member&apos;s
-              savings for their next loan; the interest portion is loan income.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Member</TableHead>
-                    <TableHead className="text-right">Loan</TableHead>
-                    <TableHead className="text-right">Outstanding</TableHead>
-                    <TableHead className="text-right">Monthly</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <tbody>
-                  {activeLoans.map((loan) => (
-                    <TableRow key={loan.id}>
-                      <TableCell>
-                        <p className="font-medium">{loan.memberName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {loan.memberNumber}
-                        </p>
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm">
-                        {naira(loan.amount)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm font-medium">
-                        {naira(loan.outstanding)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm">
-                        {naira(loan.monthly)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <MemberRepaymentDialog
-                          applicationId={loan.id}
-                          memberName={loan.memberName}
-                          outstanding={loan.outstanding}
-                          monthly={loan.monthly}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {memberWithdrawals.some((w) => w.status === "PENDING" || w.status === "APPROVED") && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Member withdrawals</CardTitle>
-            <CardDescription>
-              Approve as chairman, then mark paid to debit the member&apos;s
-              savings wallet.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Member</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Requested</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <tbody>
-                  {memberWithdrawals
-                    .filter((w) => w.status === "PENDING" || w.status === "APPROVED")
-                    .map((withdrawal) => (
-                      <TableRow key={withdrawal.id}>
-                        <TableCell>
-                          <p className="font-medium">{withdrawal.memberName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {withdrawal.memberNumber}
-                          </p>
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          {naira(withdrawal.amount)}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {withdrawal.bankName ? (
-                            <>
-                              <p className="font-medium">{withdrawal.bankName}</p>
-                              <p className="text-muted-foreground">
-                                {withdrawal.accountNumber}
-                              </p>
-                            </>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{withdrawal.status}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {new Date(withdrawal.createdAt).toLocaleDateString("en-NG")}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <MemberWithdrawalActions
-                            withdrawalId={withdrawal.id}
-                            status={withdrawal.status}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </tbody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {members.length === 0 ? (
         <Card>
@@ -306,7 +127,7 @@ export default async function MembersPage() {
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <tbody>
+            <TableBody>
               {members.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">
@@ -321,7 +142,9 @@ export default async function MembersPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Badge variant={member.status === "ACTIVE" ? "default" : "secondary"}>
+                      <Badge
+                        variant={member.status === "ACTIVE" ? "default" : "secondary"}
+                      >
                         {member.status}
                       </Badge>
                       {member.status === "PENDING" ? (
@@ -343,7 +166,7 @@ export default async function MembersPage() {
                   </TableCell>
                 </TableRow>
               ))}
-            </tbody>
+            </TableBody>
           </Table>
         </div>
       )}
