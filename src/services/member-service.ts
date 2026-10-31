@@ -1131,9 +1131,10 @@ export class MemberService {
       .select("status")
       .eq("loan_application_id", applicationId);
 
-    const completed =
+    const completed = Boolean(
       allSchedules?.length &&
-      allSchedules.every((s) => s.status === "PAID" || s.status === "WAIVED");
+        allSchedules.every((s) => s.status === "PAID" || s.status === "WAIVED")
+    );
 
     if (completed) {
       await admin
