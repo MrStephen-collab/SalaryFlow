@@ -39,3 +39,8 @@ export async function listMyLoans() {
   const service = await MemberService.createForStaff();
   return service.listMyLoans();
 }
+
+export async function requestMemberWithdrawal(amount: number) {
+  const service = await MemberService.createForStaff();
+  return service.requestWithdrawal(amount);
+}

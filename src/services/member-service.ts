@@ -587,11 +587,12 @@ export class MemberService {
 
     const { data: settings } = await admin
       .from("organization_settings")
-      .select("default_interest_rate, default_interest_method")
+      .select("default_interest_rate, default_interest_method, member_loan_interest_rate")
       .eq("organization_id", member.organization_id)
       .maybeSingle();
 
-    const interestRate = Number(settings?.default_interest_rate ?? 5);
+    // Member loan interest: 10 naira per 1,000 = 1% flat by default.
+    const interestRate = Number(settings?.member_loan_interest_rate ?? 1);
     const interestMethod = settings?.default_interest_method ?? "FLAT";
     const durationMonths = 6;
 
@@ -826,6 +827,423 @@ export class MemberService {
     });
 
     return { ok: true };
+  }
+
+  /** Admin/chairman: active member loans with outstanding balances. */
+  async listActiveMemberLoans() {
+    if (!this.organizationId) return [];
+    const admin = createAdminClient();
+
+    const { data: loans } = await admin
+      .from("loan_applications")
+      .select(
+        `
+        id, amount, total_repayment, monthly_deduction, duration_months, status,
+        members:member_id(first_name, last_name, member_number),
+        loan_schedules(total_payment, paid_amount, status)
+      `
+      )
+      .eq("organization_id", this.organizationId)
+      .not("member_id", "is", null)
+      .in("status", ["ACTIVE", "DISBURSED"])
+      .order("created_at", { ascending: false });
+
+    return (loans ?? []).map((loan) => {
+      const member = loan.members as unknown as {
+        first_name: string;
+        last_name: string;
+        member_number: string;
+      } | null;
+      const schedules = (loan.loan_schedules as unknown as
+        | { total_payment: number; paid_amount: number; status: string }[]
+        | null) ?? [];
+      const paid = schedules.reduce(
+        (sum, s) => sum + (Number(s.paid_amount) || 0),
+        0
+      );
+      const total = Number(loan.total_repayment) || 0;
+
+      return {
+        id: loan.id as string,
+        memberName: member ? `${member.first_name} ${member.last_name}` : "Unknown member",
+        memberNumber: member?.member_number ?? "",
+        amount: Number(loan.amount) || 0,
+        total,
+        paid: Math.round(paid * 100) / 100,
+        outstanding: Math.max(0, Math.round((total - paid) * 100) / 100),
+        monthly: Number(loan.monthly_deduction) || 0,
+        status: loan.status as string,
+      };
+    });
+  }
+
+  /**
+   * Record a member loan repayment. The principal portion rebuilds the member's
+   * savings (which determines the next loan limit); the interest portion is the
+   * organization's loan income.
+   */
+  async recordMemberRepayment(applicationId: string, amount: number) {
+    if (!this.organizationId || !this.userId) {
+      return { ok: false, error: "Unauthorized" };
+    }
+    if (!this.role || !MEMBER_APPROVER_ROLES.has(this.role)) {
+      return { ok: false, error: "You do not have permission to record repayments" };
+    }
+
+    const requested = round2(Number(amount));
+    if (!Number.isFinite(requested) || requested <= 0) {
+      return { ok: false, error: "Enter a valid repayment amount" };
+    }
+
+    const admin = createAdminClient();
+    const { data: loan } = await admin
+      .from("loan_applications")
+      .select("id, member_id, status, total_repayment")
+      .eq("id", applicationId)
+      .eq("organization_id", this.organizationId)
+      .maybeSingle();
+
+    if (!loan) return { ok: false, error: "Member loan not found" };
+    if (!loan.member_id) return { ok: false, error: "This is not a member loan" };
+    if (!["ACTIVE", "DISBURSED"].includes(loan.status)) {
+      return { ok: false, error: `Cannot repay a loan in ${loan.status} status` };
+    }
+
+    const { data: schedules } = await admin
+      .from("loan_schedules")
+      .select("id, total_payment, paid_amount, interest_payment, status, month_number")
+      .eq("loan_application_id", applicationId)
+      .in("status", ["UPCOMING", "DUE", "LATE", "PARTIAL"])
+      .order("month_number", { ascending: true });
+
+    if (!schedules?.length) {
+      return { ok: false, error: "This loan has no outstanding instalments" };
+    }
+
+    let remaining = requested;
+    let principalSaved = 0;
+    let interestPaid = 0;
+    let applied = 0;
+
+    for (const schedule of schedules) {
+      if (remaining <= 0) break;
+      const due = round2(Number(schedule.total_payment) - Number(schedule.paid_amount));
+      if (due <= 0.005) continue;
+
+      const portion = round2(Math.min(remaining, due));
+      const interestPortion = round2(
+        Math.min(
+          Number(schedule.interest_payment) || 0,
+          (Number(schedule.interest_payment) || 0) * (portion / due)
+        )
+      );
+      const principalPortion = round2(portion - interestPortion);
+      const newPaid = round2(Number(schedule.paid_amount) + portion);
+      const fullyPaid = newPaid >= Number(schedule.total_payment) - 0.005;
+
+      await admin
+        .from("loan_schedules")
+        .update({
+          paid_amount: newPaid,
+          status: fullyPaid ? "PAID" : "LATE",
+          paid_at: new Date().toISOString(),
+        })
+        .eq("id", schedule.id);
+
+      remaining = round2(remaining - portion);
+      principalSaved = round2(principalSaved + principalPortion);
+      interestPaid = round2(interestPaid + interestPortion);
+      applied = round2(applied + portion);
+    }
+
+    if (applied <= 0) {
+      return { ok: false, error: "That amount does not cover any instalment" };
+    }
+
+    const ledger = LedgerService.createForOrganization(
+      this.organizationId,
+      this.userId
+    );
+    const posted = await ledger.postLoanRepayment(
+      "",
+      applicationId,
+      applied,
+      principalSaved,
+      interestPaid
+    );
+    if (posted.error) return { ok: false, error: posted.error };
+
+    const wallet = await ledger.ensureMemberFinancialAccount(loan.member_id);
+    if (wallet?.id && principalSaved > 0) {
+      await admin.from("savings_transactions").insert({
+        organization_id: this.organizationId,
+        member_id: loan.member_id,
+        financial_account_id: wallet.id,
+        transaction_type: "DEPOSIT",
+        amount: principalSaved,
+        direction: "IN",
+        reference: `SAV-REPAY-${applicationId.slice(0, 8)}-${Date.now()}`,
+        description: "Fresh savings from loan repayment",
+      });
+    }
+
+    const { data: allSchedules } = await admin
+      .from("loan_schedules")
+      .select("status")
+      .eq("loan_application_id", applicationId);
+
+    const completed =
+      allSchedules?.length &&
+      allSchedules.every((s) => s.status === "PAID" || s.status === "WAIVED");
+
+    if (completed) {
+      await admin
+        .from("loan_applications")
+        .update({ status: "COMPLETED" })
+        .eq("id", applicationId);
+    }
+
+    await recordAudit({
+      organizationId: this.organizationId,
+      userId: this.userId,
+      action: "member.loan_repayment_recorded",
+      entityType: "loan_application",
+      entityId: applicationId,
+      after: {
+        amount: applied,
+        savings: principalSaved,
+        interest: interestPaid,
+        completed,
+      },
+    });
+
+    return {
+      ok: true,
+      applied,
+      savings: principalSaved,
+      interest: interestPaid,
+      completed,
+    };
+  }
+
+  /** Member requests a withdrawal from their savings wallet. */
+  async requestWithdrawal(amount: number) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Sign in to continue" };
+
+    const admin = createAdminClient();
+    const { data: member } = await admin
+      .from("members")
+      .select("id, organization_id, status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member) return { ok: false, error: "No member profile is linked to this account" };
+    if (member.status !== "ACTIVE") {
+      return { ok: false, error: "Your membership is not active" };
+    }
+
+    const { data: settings } = await admin
+      .from("organization_settings")
+      .select("member_savings_withdrawals_enabled")
+      .eq("organization_id", member.organization_id)
+      .maybeSingle();
+
+    if (settings && settings.member_savings_withdrawals_enabled === false) {
+      return { ok: false, error: "Savings withdrawals are not enabled" };
+    }
+
+    const requested = round2(Number(amount));
+    if (!Number.isFinite(requested) || requested <= 0) {
+      return { ok: false, error: "Enter a valid amount" };
+    }
+
+    const summary = await this.getMySummary();
+    if (!summary) return { ok: false, error: "Member profile not found" };
+    if (requested > summary.walletBalance) {
+      return {
+        ok: false,
+        error: `You can withdraw up to ${naira(summary.walletBalance)}`,
+      };
+    }
+
+    const { error } = await admin.from("withdrawal_requests").insert({
+      organization_id: member.organization_id,
+      member_id: member.id,
+      amount: requested,
+      fee: 0,
+      net_amount: requested,
+      status: "PENDING",
+      reference: `SF-MWD-${Date.now()}`,
+      notes: "Member savings withdrawal request",
+    });
+
+    if (error) return { ok: false, error: error.message };
+
+    await recordAudit({
+      organizationId: member.organization_id,
+      userId: user.id,
+      action: "member.withdrawal_requested",
+      entityType: "withdrawal",
+      entityId: member.id,
+      after: { amount: requested },
+    });
+
+    return { ok: true, success: "Withdrawal request submitted for approval" };
+  }
+
+  async listMyWithdrawals() {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const admin = createAdminClient();
+    const { data: member } = await admin
+      .from("members")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member) return [];
+
+    const { data } = await admin
+      .from("withdrawal_requests")
+      .select("id, amount, net_amount, status, reference, created_at, paid_at, failure_reason")
+      .eq("member_id", member.id)
+      .order("created_at", { ascending: false });
+
+    return data ?? [];
+  }
+
+  async listMemberWithdrawals() {
+    if (!this.organizationId) return [];
+    const admin = createAdminClient();
+
+    const { data } = await admin
+      .from("withdrawal_requests")
+      .select(
+        "id, amount, net_amount, status, reference, created_at, members:member_id(first_name, last_name, member_number)"
+      )
+      .eq("organization_id", this.organizationId)
+      .not("member_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    return (data ?? []).map((row) => {
+      const member = row.members as unknown as {
+        first_name: string;
+        last_name: string;
+        member_number: string;
+      } | null;
+      return {
+        id: row.id as string,
+        memberName: member ? `${member.first_name} ${member.last_name}` : "Unknown member",
+        memberNumber: member?.member_number ?? "",
+        amount: Number(row.amount) || 0,
+        status: row.status as string,
+        reference: row.reference as string,
+        createdAt: row.created_at as string,
+      };
+    });
+  }
+
+  /** Chairman approves a pending member withdrawal. */
+  async approveMemberWithdrawal(withdrawalId: string) {
+    if (!this.organizationId || !this.userId) {
+      return { ok: false, error: "Unauthorized" };
+    }
+    if (this.role !== "ORGANIZATION_OWNER") {
+      return { ok: false, error: "Only the chairman can approve member withdrawals" };
+    }
+
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from("withdrawal_requests")
+      .update({
+        status: "APPROVED",
+        approved_by: this.userId,
+        approved_at: new Date().toISOString(),
+      })
+      .eq("id", withdrawalId)
+      .eq("organization_id", this.organizationId)
+      .eq("status", "PENDING");
+
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, success: "Withdrawal approved" };
+  }
+
+  /** Pay an approved member withdrawal from the savings wallet. */
+  async payMemberWithdrawal(withdrawalId: string) {
+    if (!this.organizationId || !this.userId) {
+      return { ok: false, error: "Unauthorized" };
+    }
+    if (!this.role || !MEMBER_APPROVER_ROLES.has(this.role)) {
+      return { ok: false, error: "You do not have permission to pay withdrawals" };
+    }
+
+    const admin = createAdminClient();
+    const { data: request } = await admin
+      .from("withdrawal_requests")
+      .select("id, member_id, amount, status")
+      .eq("id", withdrawalId)
+      .eq("organization_id", this.organizationId)
+      .maybeSingle();
+
+    if (!request) return { ok: false, error: "Withdrawal not found" };
+    if (!request.member_id) return { ok: false, error: "This is not a member withdrawal" };
+    if (request.status !== "APPROVED") {
+      return { ok: false, error: `Cannot pay a withdrawal in ${request.status} status` };
+    }
+
+    const amount = round2(Number(request.amount) || 0);
+    const ledger = LedgerService.createForOrganization(this.organizationId, this.userId);
+    const posted = await ledger.postSavingsWithdrawal(
+      request.member_id,
+      `SLF-MWD-${request.id.slice(0, 8)}`,
+      amount,
+      "Member savings withdrawal"
+    );
+    if (posted.error) return { ok: false, error: posted.error };
+
+    const wallet = await ledger.ensureMemberFinancialAccount(request.member_id);
+    if (wallet?.id) {
+      await admin.from("savings_transactions").insert({
+        organization_id: this.organizationId,
+        member_id: request.member_id,
+        financial_account_id: wallet.id,
+        transaction_type: "WITHDRAWAL",
+        amount,
+        direction: "OUT",
+        reference: `SAV-MWD-${request.id.slice(0, 8)}`,
+        description: "Savings withdrawal paid",
+      });
+    }
+
+    const { error } = await admin
+      .from("withdrawal_requests")
+      .update({
+        status: "PAID",
+        paid_at: new Date().toISOString(),
+        processed_by: this.userId,
+        processed_at: new Date().toISOString(),
+      })
+      .eq("id", withdrawalId);
+
+    if (error) return { ok: false, error: error.message };
+
+    await recordAudit({
+      organizationId: this.organizationId,
+      userId: this.userId,
+      action: "member.withdrawal_paid",
+      entityType: "withdrawal",
+      entityId: withdrawalId,
+      after: { amount },
+    });
+
+    return { ok: true, success: "Withdrawal marked as paid" };
   }
 
   async approveApplication(applicationId: string) {

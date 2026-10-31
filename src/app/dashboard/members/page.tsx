@@ -6,6 +6,8 @@ import { AddMemberDialog } from "@/components/dashboard/members/add-member-dialo
 import { InviteLinkButton } from "@/components/dashboard/invite-link-button";
 import { MemberApprovalActions } from "@/components/dashboard/members/member-approval-actions";
 import { EditMemberDialog } from "@/components/dashboard/members/edit-member-dialog";
+import { MemberRepaymentDialog } from "@/components/dashboard/members/member-repayment-dialog";
+import { MemberWithdrawalActions } from "@/components/dashboard/members/member-withdrawal-actions";
 import { MemberLoanActions } from "@/components/dashboard/members/member-loan-actions";
 import {
   Card,
@@ -41,11 +43,14 @@ export default async function MembersPage() {
   const service = await MemberService.createForStaff();
   const profile = await getProfile();
   const settingsService = await SettingsService.create();
-  const [members, applications, settings] = await Promise.all([
-    service.listMembers(),
-    service.listMemberApplications(),
-    settingsService.getSettings(),
-  ]);
+  const [members, applications, settings, activeLoans, memberWithdrawals] =
+    await Promise.all([
+      service.listMembers(),
+      service.listMemberApplications(),
+      settingsService.getSettings(),
+      service.listActiveMemberLoans(),
+      service.listMemberWithdrawals(),
+    ]);
 
   const pending = applications.filter((application) =>
     ["PENDING", "SUBMITTED", "UNDER_REVIEW"].includes(application.status)
@@ -145,6 +150,118 @@ export default async function MembersPage() {
                       </TableCell>
                     </TableRow>
                   ))}
+                </tbody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeLoans.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Active member loans</CardTitle>
+            <CardDescription>
+              Record repayments. The principal portion rebuilds the member&apos;s
+              savings for their next loan; the interest portion is loan income.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead className="text-right">Loan</TableHead>
+                    <TableHead className="text-right">Outstanding</TableHead>
+                    <TableHead className="text-right">Monthly</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <tbody>
+                  {activeLoans.map((loan) => (
+                    <TableRow key={loan.id}>
+                      <TableCell>
+                        <p className="font-medium">{loan.memberName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {loan.memberNumber}
+                        </p>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {naira(loan.amount)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm font-medium">
+                        {naira(loan.outstanding)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {naira(loan.monthly)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <MemberRepaymentDialog
+                          applicationId={loan.id}
+                          memberName={loan.memberName}
+                          outstanding={loan.outstanding}
+                          monthly={loan.monthly}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {memberWithdrawals.some((w) => w.status === "PENDING" || w.status === "APPROVED") && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Member withdrawals</CardTitle>
+            <CardDescription>
+              Approve as chairman, then mark paid to debit the member&apos;s
+              savings wallet.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Requested</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <tbody>
+                  {memberWithdrawals
+                    .filter((w) => w.status === "PENDING" || w.status === "APPROVED")
+                    .map((withdrawal) => (
+                      <TableRow key={withdrawal.id}>
+                        <TableCell>
+                          <p className="font-medium">{withdrawal.memberName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {withdrawal.memberNumber}
+                          </p>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {naira(withdrawal.amount)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{withdrawal.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {new Date(withdrawal.createdAt).toLocaleDateString("en-NG")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <MemberWithdrawalActions
+                            withdrawalId={withdrawal.id}
+                            status={withdrawal.status}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </tbody>
               </Table>
             </div>

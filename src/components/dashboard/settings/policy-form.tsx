@@ -37,6 +37,7 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
     savings_min_membership_months:
       settings?.savings_min_membership_months ?? 6,
     member_loan_multiplier: settings?.member_loan_multiplier ?? 2,
+    member_loan_interest_rate: settings?.member_loan_interest_rate ?? 1,
     member_savings_withdrawals_enabled:
       settings?.member_savings_withdrawals_enabled ?? true,
   });
@@ -298,6 +299,23 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
             />
             <p className="text-xs text-muted-foreground">
               A member can borrow up to savings × this multiple.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Member Loan Interest (%)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step="0.1"
+              value={form.member_loan_interest_rate}
+              onChange={(e) =>
+                set("member_loan_interest_rate", Number(e.target.value))
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Flat interest on the loan. 1% = 10 naira on every 1,000.
             </p>
           </div>
 

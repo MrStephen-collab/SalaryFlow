@@ -805,6 +805,7 @@ export interface Database {
           auto_disburse_salaries: boolean
           savings_min_membership_months: number
           member_loan_multiplier: number
+          member_loan_interest_rate: number
           member_savings_withdrawals_enabled: boolean
           guarantor_required: boolean
           id: string
@@ -828,6 +829,9 @@ export interface Database {
           max_loan_amount?: number | null
           max_salary_deduction_percentage: number
           max_tenure: number
+          member_loan_interest_rate?: number
+          member_loan_multiplier?: number
+          member_savings_withdrawals_enabled?: boolean
           min_employment_period_months: number
           min_salary: number
           organization_id: string

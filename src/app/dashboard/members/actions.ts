@@ -44,6 +44,32 @@ export async function approveMemberMembership(memberId: string) {
   return result;
 }
 
+export async function recordMemberRepayment(
+  applicationId: string,
+  amount: number
+) {
+  const service = await MemberService.createForStaff();
+  const result = await service.recordMemberRepayment(applicationId, amount);
+  if (result.ok) {
+    revalidatePath("/dashboard/members");
+  }
+  return result;
+}
+
+export async function approveMemberWithdrawal(withdrawalId: string) {
+  const service = await MemberService.createForStaff();
+  const result = await service.approveMemberWithdrawal(withdrawalId);
+  revalidatePath("/dashboard/members");
+  return result;
+}
+
+export async function payMemberWithdrawal(withdrawalId: string) {
+  const service = await MemberService.createForStaff();
+  const result = await service.payMemberWithdrawal(withdrawalId);
+  revalidatePath("/dashboard/members");
+  return result;
+}
+
 export async function updateMember(
   memberId: string,
   values: {

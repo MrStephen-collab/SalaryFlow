@@ -21,6 +21,7 @@ export interface OrganizationSettingsRecord {
   savings_min_membership_months?: number;
   member_loan_multiplier?: number;
   member_savings_withdrawals_enabled?: boolean;
+  member_loan_interest_rate?: number;
   employee_registration_enabled?: boolean;
   member_registration_enabled?: boolean;
 }
@@ -234,6 +235,7 @@ export class SettingsService {
         values.savings_min_membership_months ?? 6
       ),
       member_loan_multiplier: Number(values.member_loan_multiplier ?? 2),
+      member_loan_interest_rate: Number(values.member_loan_interest_rate ?? 1),
       member_savings_withdrawals_enabled:
         values.member_savings_withdrawals_enabled === undefined
           ? true
@@ -248,6 +250,7 @@ export class SettingsService {
       "auto_disburse_salaries",
       "savings_min_membership_months",
       "member_loan_multiplier",
+      "member_loan_interest_rate",
       "member_savings_withdrawals_enabled",
     ];
 

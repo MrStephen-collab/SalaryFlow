@@ -23,6 +23,7 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar";
 import {
+  ArrowDownToLine,
   Bell,
   HandCoins,
   Home,
@@ -40,6 +41,7 @@ const memberNav = [
   { title: "Dashboard", href: "/member", icon: Home },
   { title: "Savings", href: "/member/savings", icon: PiggyBank },
   { title: "Loans", href: "/member/loans", icon: HandCoins },
+  { title: "Withdrawals", href: "/member/withdrawals", icon: ArrowDownToLine },
   { title: "Notifications", href: "/member/notifications", icon: Bell },
   { title: "Profile", href: "/member/profile", icon: UserCircle2 },
 ];
