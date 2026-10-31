@@ -1167,6 +1167,68 @@ export class MemberService {
     };
   }
 
+  /** Full loan analysis for a signed-in member's own loan. */
+  async getLoanDetailForMember(loanId: string) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const admin = createAdminClient();
+    const { data: member } = await admin
+      .from("members")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member) return null;
+
+    const { data: loan } = await admin
+      .from("loan_applications")
+      .select("*, loan_products:loan_product_id(name)")
+      .eq("id", loanId)
+      .eq("member_id", member.id)
+      .maybeSingle();
+
+    if (!loan) return null;
+
+    const { data: schedules } = await admin
+      .from("loan_schedules")
+      .select(
+        "month_number, due_date, opening_balance, principal_payment, interest_payment, total_payment, paid_amount, status"
+      )
+      .eq("loan_application_id", loanId)
+      .order("month_number", { ascending: true });
+
+    return { loan, schedules: schedules ?? [] };
+  }
+
+  /** Staff view of one member loan with its schedule. */
+  async getMemberLoanDetail(loanId: string) {
+    if (!this.organizationId) return null;
+    const admin = createAdminClient();
+
+    const { data: loan } = await admin
+      .from("loan_applications")
+      .select("*, members:member_id(first_name, last_name, member_number)")
+      .eq("id", loanId)
+      .eq("organization_id", this.organizationId)
+      .not("member_id", "is", null)
+      .maybeSingle();
+
+    if (!loan) return null;
+
+    const { data: schedules } = await admin
+      .from("loan_schedules")
+      .select(
+        "month_number, due_date, opening_balance, principal_payment, interest_payment, total_payment, paid_amount, status"
+      )
+      .eq("loan_application_id", loanId)
+      .order("month_number", { ascending: true });
+
+    return { loan, schedules: schedules ?? [] };
+  }
+
   /** Member's saved withdrawal bank accounts. */
   async listMyBankAccounts() {
     const supabase = await createClient();

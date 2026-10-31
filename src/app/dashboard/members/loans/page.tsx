@@ -218,12 +218,25 @@ export default async function MemberLoansPage() {
                           {naira(loan.monthly)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <MemberRepaymentDialog
-                            applicationId={loan.id}
-                            memberName={loan.memberName}
-                            outstanding={loan.outstanding}
-                            monthly={loan.monthly}
-                          />
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              render={
+                                <Link
+                                  href={`/dashboard/members/loans/${loan.id}`}
+                                />
+                              }
+                            >
+                              Analysis
+                            </Button>
+                            <MemberRepaymentDialog
+                              applicationId={loan.id}
+                              memberName={loan.memberName}
+                              outstanding={loan.outstanding}
+                              monthly={loan.monthly}
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

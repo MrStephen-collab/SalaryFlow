@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { MemberService } from "@/services/member-service";
 import { ApplyLoanDialog } from "@/components/member/apply-loan-dialog";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -241,6 +243,7 @@ export default async function MemberLoansPage() {
                   <TableHead>Monthly</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Purpose</TableHead>
+                  <TableHead className="text-right">Analysis</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -281,6 +284,15 @@ export default async function MemberLoansPage() {
                           {loan.rejection_reason}
                         </p>
                       ) : null}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        render={<Link href={`/member/loans/${loan.id}`} />}
+                      >
+                        View
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

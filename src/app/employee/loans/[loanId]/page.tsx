@@ -4,60 +4,13 @@ import { notFound } from "next/navigation";
 import { EmployeePortalService } from "@/services/employee-portal-service";
 import { LoanSettlementService } from "@/services/loan-settlement-service";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { ArrowLeft } from "lucide-react";
 import { EarlySettlementCard } from "@/components/employee/loans/early-settlement";
+import { LoanAnalysis } from "@/components/loans/loan-analysis";
 
 export const metadata: Metadata = {
   title: "Loan Detail",
 };
-
-function naira(amount: number) {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-function statusBadge(status: string) {
-  switch (status) {
-    case "PAID":
-      return "default" as const;
-    case "DUE":
-    case "LATE":
-      return "destructive" as const;
-    case "WAIVED":
-    case "REVERSED":
-      return "outline" as const;
-    default:
-      return "secondary" as const;
-  }
-}
-
-interface ScheduleEntry {
-  id: string;
-  month_number: number;
-  due_date: string | null;
-  principal_payment: number;
-  interest_payment: number;
-  total_payment: number;
-  status: string;
-}
 
 export default async function EmployeeLoanDetailPage({
   params,
@@ -75,63 +28,39 @@ export default async function EmployeeLoanDetailPage({
   const settlement = await LoanSettlementService.create();
   const quoteResult = await settlement.getSettlementQuote(loanId);
 
+  const schedules = (loan.schedule as Array<{
+    month_number: number;
+    due_date: string | null;
+    opening_balance: number | null;
+    principal_payment: number;
+    interest_payment: number;
+    total_payment: number;
+    paid_amount: number | null;
+    status: string;
+  }>) ?? [];
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{loan.productName}</h1>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2 mb-2"
+            render={<Link href="/employee/loans" />}
+          >
+            <ArrowLeft className="size-4" />
+            My Loans
+          </Button>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {loan.productName} analysis
+          </h1>
           <p className="text-sm text-muted-foreground">
-            {loan.interestRate}% {loan.interestMethod} · {loan.productDuration} months
+            {loan.interestRate}% {loan.interestMethod.toLowerCase()} ·{" "}
+            {loan.productDuration} months · {String(loan.status)}
           </p>
         </div>
-        <Button variant="outline" render={<Link href="/employee/loans" />}>
-          <ArrowLeft className="size-4" />
-          My Loans
-        </Button>
       </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground">Loan Amount</p>
-            <p className="text-lg font-bold">{naira(Number(loan.amount))}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground">Total Repayment</p>
-            <p className="text-lg font-bold">{naira(Number(loan.total_repayment))}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground">Paid</p>
-            <p className="text-lg font-bold text-green-600">{naira(loan.paid)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground">Outstanding</p>
-            <p className="text-lg font-bold text-red-600">{naira(loan.outstanding)}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-sm font-medium">Repayment Progress</p>
-          <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${loan.progress}%` }}
-            />
-          </div>
-          <div className="mt-1 flex justify-between text-sm">
-            <span className="text-muted-foreground">{loan.outstanding} remaining</span>
-            <span>{loan.progress}%</span>
-          </div>
-        </CardContent>
-      </Card>
 
       {quoteResult.quote && (
         <EarlySettlementCard
@@ -140,50 +69,32 @@ export default async function EmployeeLoanDetailPage({
         />
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Repayment Schedule</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Due Date</TableHead>
-                <TableHead className="text-right">Principal</TableHead>
-                <TableHead className="text-right">Interest</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <CollapsibleTableBody columns={5} itemLabel="installments">
-              {(loan.schedule as ScheduleEntry[]).map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="text-sm">
-                    {entry.due_date
-                      ? new Date(entry.due_date).toLocaleDateString("en-GB", {
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : `Month ${entry.month_number}`}
-                  </TableCell>
-                  <TableCell className="text-right text-sm">
-                    {naira(Number(entry.principal_payment))}
-                  </TableCell>
-                  <TableCell className="text-right text-sm">
-                    {naira(Number(entry.interest_payment))}
-                  </TableCell>
-                  <TableCell className="text-right text-sm font-medium">
-                    {naira(Number(entry.total_payment))}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant={statusBadge(entry.status)}>{entry.status}</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </CollapsibleTableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <LoanAnalysis
+        loan={{
+          amount: Number(loan.amount) || 0,
+          interestRate: Number(loan.interestRate) || 0,
+          interestMethod: String(loan.interestMethod ?? "FLAT"),
+          durationMonths: Number(loan.productDuration) || Number(loan.duration_months) || 0,
+          processingFee: Number(loan.processing_fee) || 0,
+          insuranceFee: Number(loan.insurance_fee) || 0,
+          totalInterest: Number(loan.total_interest) || 0,
+          totalRepayment: Number(loan.total_repayment) || 0,
+          monthly: Number(loan.monthly_deduction) || 0,
+          status: String(loan.status),
+          disbursedAt: loan.disbursed_at,
+          purpose: loan.purpose,
+        }}
+        schedules={schedules.map((entry) => ({
+          month: Number(entry.month_number) || 0,
+          dueDate: entry.due_date,
+          openingBalance: Number(entry.opening_balance) || 0,
+          principal: Number(entry.principal_payment) || 0,
+          interest: Number(entry.interest_payment) || 0,
+          total: Number(entry.total_payment) || 0,
+          paid: Number(entry.paid_amount) || 0,
+          status: String(entry.status),
+        }))}
+      />
     </div>
   );
 }
