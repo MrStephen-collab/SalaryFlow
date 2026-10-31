@@ -78,7 +78,14 @@ export function MemberWithdrawalForm({
             onValueChange={(value) => setBankAccountId(value ?? "")}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select bank account" />
+              <SelectValue>
+                {(value) => {
+                  const selected = accounts.find((account) => account.id === value);
+                  return selected
+                    ? `${selected.bank_name} · ${selected.account_number}`
+                    : "Select bank account";
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {accounts.map((account) => (
