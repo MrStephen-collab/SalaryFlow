@@ -40,7 +40,7 @@ import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 const memberNav = [
   { title: "Dashboard", href: "/member", icon: Home },
   { title: "Savings", href: "/member/savings", icon: PiggyBank },
-  { title: "Loans", href: "/member/loans", icon: HandCoins },
+  { title: "My Loans", href: "/member/loans", icon: HandCoins },
   { title: "Withdrawals", href: "/member/withdrawals", icon: ArrowDownToLine },
   { title: "Notifications", href: "/member/notifications", icon: Bell },
   { title: "Profile", href: "/member/profile", icon: UserCircle2 },

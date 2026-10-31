@@ -32,7 +32,7 @@ const NAVS: Record<"dashboard" | "member" | "employee", NavItem[]> = {
   member: [
     { title: "Dashboard", href: "/member", icon: Home },
     { title: "Savings", href: "/member/savings", icon: PiggyBank },
-    { title: "Loans", href: "/member/loans", icon: HandCoins },
+    { title: "My Loans", href: "/member/loans", icon: HandCoins },
     { title: "Withdraw", href: "/member/withdrawals", icon: ArrowDownToLine },
     { title: "Profile", href: "/member/profile", icon: UserCircle2 },
   ],

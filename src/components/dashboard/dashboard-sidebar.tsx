@@ -95,16 +95,6 @@ const employerNavGroups: NavGroup[] = [
         href: "/dashboard/members",
         icon: Contact,
       },
-      {
-        title: "Member Loans",
-        href: "/dashboard/members/loans",
-        icon: HandCoins,
-      },
-      {
-        title: "Member Withdrawals",
-        href: "/dashboard/members/withdrawals",
-        icon: ArrowDownToLine,
-      },
     ],
   },
   {
@@ -136,6 +126,16 @@ const employerNavGroups: NavGroup[] = [
         title: "Loans",
         href: "/dashboard/loans",
         icon: HandCoins,
+      },
+      {
+        title: "Member Loans",
+        href: "/dashboard/members/loans",
+        icon: HandCoins,
+      },
+      {
+        title: "Member Withdrawals",
+        href: "/dashboard/members/withdrawals",
+        icon: ArrowDownToLine,
       },
       {
         title: "Repayments",
