@@ -478,7 +478,7 @@ export class MemberService {
       );
     }
 
-    const savingsBalance = round2(totalDeposited - totalWithdrawn);
+    const savingsBalance = Math.max(0, round2(totalDeposited - totalWithdrawn));
     const monthsActive = monthsBetween(member.joined_at, new Date());
     const monthsRemaining = Math.max(0, monthsRequired - monthsActive);
 
@@ -1439,20 +1439,6 @@ export class MemberService {
       "Member savings withdrawal"
     );
     if (posted.error) return { ok: false, error: posted.error };
-
-    const wallet = await ledger.ensureMemberFinancialAccount(request.member_id);
-    if (wallet?.id) {
-      await admin.from("savings_transactions").insert({
-        organization_id: this.organizationId,
-        member_id: request.member_id,
-        financial_account_id: wallet.id,
-        transaction_type: "WITHDRAWAL",
-        amount,
-        direction: "OUT",
-        reference: `SAV-MWD-${request.id.slice(0, 8)}`,
-        description: "Savings withdrawal paid",
-      });
-    }
 
     const { error } = await admin
       .from("withdrawal_requests")
