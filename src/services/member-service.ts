@@ -452,13 +452,32 @@ export class MemberService {
       .order("created_at", { ascending: false })
       .limit(50);
 
+    const { data: paidWithdrawals } = await admin
+      .from("withdrawal_requests")
+      .select("id, amount, net_amount, reference, status, paid_at, created_at")
+      .eq("member_id", member.id)
+      .eq("status", "PAID")
+      .order("paid_at", { ascending: false })
+      .limit(50);
+
     let totalDeposited = 0;
-    let totalWithdrawn = 0;
+    let appliedToLoan = 0;
     for (const tx of transactions ?? []) {
       const amount = Number(tx.amount) || 0;
       if (tx.transaction_type === "DEPOSIT") totalDeposited += amount;
-      if (tx.transaction_type === "WITHDRAWAL") totalWithdrawn += amount;
+      if (
+        tx.transaction_type === "WITHDRAWAL" &&
+        String(tx.reference ?? "").startsWith("SAV-LOAN-")
+      ) {
+        appliedToLoan += amount;
+      }
     }
+
+    // "Total withdrawn" is real cash paid out of the wallet to the member's bank.
+    const totalWithdrawn = (paidWithdrawals ?? []).reduce(
+      (sum, row) => sum + (Number(row.net_amount ?? row.amount) || 0),
+      0
+    );
 
     const { data: account } = await admin
       .from("financial_accounts")
@@ -479,7 +498,7 @@ export class MemberService {
       );
     }
 
-    const savingsBalance = Math.max(0, round2(totalDeposited - totalWithdrawn));
+    const savingsBalance = Math.max(0, round2(totalDeposited - appliedToLoan));
     const monthsActive = monthsBetween(member.joined_at, new Date());
     const monthsRemaining = Math.max(0, monthsRequired - monthsActive);
 
@@ -542,15 +561,31 @@ export class MemberService {
             disbursedAt: activeLoan.disbursed_at,
           }
         : null,
-      transactions: (transactions ?? []).map((tx) => ({
-        id: tx.id,
-        type: tx.transaction_type,
-        direction: tx.direction,
-        amount: Number(tx.amount),
-        reference: tx.reference,
-        description: tx.description,
-        createdAt: tx.created_at,
-      })),
+      transactions: [
+        ...(transactions ?? []).map((tx) => ({
+          id: tx.id as string,
+          type: tx.transaction_type as string,
+          direction: tx.direction as string,
+          amount: Number(tx.amount),
+          reference: tx.reference as string,
+          description: tx.description as string | null,
+          createdAt: tx.created_at as string,
+        })),
+        ...(paidWithdrawals ?? []).map((row) => ({
+          id: `wallet-withdrawal-${row.id}`,
+          type: "WALLET_WITHDRAWAL",
+          direction: "OUT",
+          amount: Number(row.net_amount ?? row.amount) || 0,
+          reference: row.reference as string,
+          description: "Wallet withdrawal paid to your bank account",
+          createdAt: (row.paid_at ?? row.created_at) as string,
+        })),
+      ]
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        .slice(0, 50),
     };
   }
 
