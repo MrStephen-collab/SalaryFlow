@@ -440,6 +440,93 @@ export class LedgerService {
   }
 
   /**
+   * Ensure a member wallet exists (withdrawable balance - loan proceeds).
+   */
+  async ensureMemberWalletAccount(memberId: string) {
+    if (!this.orgId) return null;
+
+    const { data: existing } = await this.supabase
+      .from("financial_accounts")
+      .select("id")
+      .eq("member_id", memberId)
+      .eq("account_type", "WALLET")
+      .maybeSingle();
+
+    if (existing) return existing;
+
+    const { data: created } = await this.supabase
+      .from("financial_accounts")
+      .insert({
+        organization_id: this.orgId,
+        member_id: memberId,
+        account_type: "WALLET",
+        currency: "NGN",
+        status: "ACTIVE",
+      })
+      .select()
+      .single();
+
+    return created ?? null;
+  }
+
+  /**
+   * Credit a member's withdrawable wallet (loan proceeds).
+   * Debit: Loan Receivable   Credit: Member wallet
+   */
+  async postMemberWalletCredit(
+    memberId: string,
+    loanApplicationId: string,
+    amount: number
+  ) {
+    await this.ensureChartOfAccounts();
+    const wallet = await this.ensureMemberWalletAccount(memberId);
+    const receivable = await this.getAccountByCode("1100");
+
+    if (!wallet?.id) return { error: "Could not open a wallet for this member" };
+
+    return this.postTransaction(
+      {
+        description: `Member loan disbursement ${loanApplicationId.slice(0, 8)} - amount ${amount}`,
+        transactionType: "LOAN_DISBURSEMENT",
+        entries: [
+          { accountId: receivable?.id, debit: amount, credit: 0, description: "Member loan - receivable" },
+          { financialAccountId: wallet.id, debit: 0, credit: amount, description: "Member loan - withdrawable wallet" },
+        ],
+      },
+      `SLF-MLOAN-${Date.now()}`
+    );
+  }
+
+  /**
+   * Debit a member's withdrawable wallet (cash paid out).
+   * Debit: Member wallet   Credit: Lending Fund
+   */
+  async postMemberWalletWithdrawal(
+    memberId: string,
+    reference: string,
+    amount: number,
+    description = "Member wallet withdrawal"
+  ) {
+    await this.ensureChartOfAccounts();
+    const wallet = await this.ensureMemberWalletAccount(memberId);
+    const cash = await this.getAccountByCode("1000");
+
+    if (!wallet?.id) return { error: "Wallet not found" };
+
+    return this.postTransaction(
+      {
+        description,
+        transactionType: "WITHDRAWAL",
+        entries: [
+          { financialAccountId: wallet.id, debit: amount, credit: 0, description: `${description} - member wallet` },
+          { accountId: cash?.id, debit: 0, credit: amount, description: `${description} - cash paid out` },
+        ],
+      },
+      reference
+    );
+  }
+
+  /**
    * Move the agreed voluntary saving out of the salary wallet into the
    * employee's thrift savings account.
    * Debit: Employee wallet   Credit: Employee thrift savings
@@ -549,8 +636,8 @@ export class LedgerService {
   }
 
   /**
-   * Member loan payout: principal receivable against member wallet.
-   * Debit: Loan Receivable   Credit: Member Savings wallet
+   * Member loan payout: principal receivable against the member's wallet.
+   * Debit: Loan Receivable   Credit: Member wallet (withdrawable)
    */
   async postMemberLoanDisbursement(
     memberId: string,
@@ -558,8 +645,10 @@ export class LedgerService {
     amount: number
   ) {
     await this.ensureChartOfAccounts();
-    const wallet = await this.ensureMemberFinancialAccount(memberId);
+    const wallet = await this.ensureMemberWalletAccount(memberId);
     const receivable = await this.getAccountByCode("1100");
+
+    if (!wallet?.id) return { error: "Could not open a wallet for this member" };
 
     return this.postTransaction(
       {
@@ -567,7 +656,7 @@ export class LedgerService {
         transactionType: "LOAN_DISBURSEMENT",
         entries: [
           { accountId: receivable?.id, debit: amount, credit: 0, description: "Member loan - receivable" },
-          { financialAccountId: wallet?.id, debit: 0, credit: amount, description: "Member loan - savings wallet" },
+          { financialAccountId: wallet.id, debit: 0, credit: amount, description: "Member loan - withdrawable wallet" },
         ],
       },
       `SLF-MLOAN-${Date.now()}`

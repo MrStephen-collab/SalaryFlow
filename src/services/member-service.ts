@@ -463,7 +463,7 @@ export class MemberService {
       .from("financial_accounts")
       .select("id")
       .eq("member_id", member.id)
-      .eq("account_type", "SAVINGS")
+      .eq("account_type", "WALLET")
       .maybeSingle();
 
     let walletBalance = 0;
@@ -1432,11 +1432,11 @@ export class MemberService {
 
     const amount = round2(Number(request.amount) || 0);
     const ledger = LedgerService.createForOrganization(this.organizationId, this.userId);
-    const posted = await ledger.postSavingsWithdrawal(
+    const posted = await ledger.postMemberWalletWithdrawal(
       request.member_id,
       `SLF-MWD-${request.id.slice(0, 8)}`,
       amount,
-      "Member savings withdrawal"
+      "Member wallet withdrawal"
     );
     if (posted.error) return { ok: false, error: posted.error };
 

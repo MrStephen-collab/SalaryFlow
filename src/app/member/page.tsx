@@ -87,7 +87,7 @@ export default async function MemberHomePage() {
           description={
             summary.activeLoan
               ? "Applied to loan · fresh savings grow"
-              : "Your own deposits"
+              : "Savings · not withdrawable"
           }
           href="/member/savings"
           icon={PiggyBank}
@@ -97,8 +97,8 @@ export default async function MemberHomePage() {
         <StatCard
           title="Wallet Balance"
           value={naira(summary.walletBalance)}
-          description="Includes approved loans"
-          href="/member/savings"
+          description="Withdrawable balance"
+          href="/member/withdrawals"
           icon={Wallet}
           accent="blue"
           delay={80}

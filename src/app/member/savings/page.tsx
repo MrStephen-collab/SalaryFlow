@@ -106,7 +106,7 @@ export default async function MemberSavingsPage({
           <CardContent className="text-xs text-muted-foreground">
             {summary.activeLoan
               ? "Savings applied to your active loan — fresh savings grow as you repay"
-              : "Deposits minus withdrawals"}
+              : "Savings are held for you and are not withdrawable"}
           </CardContent>
         </Card>
         <Card>
@@ -120,7 +120,7 @@ export default async function MemberSavingsPage({
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            Includes approved loan proceeds
+            Withdrawable balance (loan proceeds)
           </CardContent>
         </Card>
         <Card>
