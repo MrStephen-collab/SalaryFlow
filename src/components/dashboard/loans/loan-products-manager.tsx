@@ -216,6 +216,9 @@ export function LoanProductsManager({
         ? `Are you sure you want to delete "${dialog.product.name}"? This can't be undone.`
         : "Define a new loan product for your organization.";
 
+  const isMemberProduct =
+    form.name.trim().toLowerCase() === "member savings loan";
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -475,36 +478,40 @@ export function LoanProductsManager({
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Max Deduction % of Salary *</Label>
-                  <Input
-                    type="number"
-                    value={form.maximumSalaryDeductionPercentage}
-                    onChange={(e) =>
-                      set("maximumSalaryDeductionPercentage", Number(e.target.value))
-                    }
-                  />
-                </div>
+                {!isMemberProduct ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Max Deduction % of Salary *</Label>
+                      <Input
+                        type="number"
+                        value={form.maximumSalaryDeductionPercentage}
+                        onChange={(e) =>
+                          set("maximumSalaryDeductionPercentage", Number(e.target.value))
+                        }
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label>Minimum Salary (₦)</Label>
-                  <Input
-                    type="number"
-                    value={form.minimumSalary}
-                    onChange={(e) => set("minimumSalary", Number(e.target.value))}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label>Minimum Salary (₦)</Label>
+                      <Input
+                        type="number"
+                        value={form.minimumSalary}
+                        onChange={(e) => set("minimumSalary", Number(e.target.value))}
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label>Min Employment (Months)</Label>
-                  <Input
-                    type="number"
-                    value={form.minimumEmploymentPeriodMonths}
-                    onChange={(e) =>
-                      set("minimumEmploymentPeriodMonths", Number(e.target.value))
-                    }
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label>Min Employment (Months)</Label>
+                      <Input
+                        type="number"
+                        value={form.minimumEmploymentPeriodMonths}
+                        onChange={(e) =>
+                          set("minimumEmploymentPeriodMonths", Number(e.target.value))
+                        }
+                      />
+                    </div>
+                  </>
+                ) : null}
 
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <Label>Guarantor Required</Label>
