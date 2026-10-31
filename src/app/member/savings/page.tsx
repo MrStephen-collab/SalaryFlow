@@ -104,7 +104,9 @@ export default async function MemberSavingsPage({
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            Deposits minus withdrawals
+            {summary.activeLoan
+              ? "Savings applied to your active loan — fresh savings grow as you repay"
+              : "Deposits minus withdrawals"}
           </CardContent>
         </Card>
         <Card>

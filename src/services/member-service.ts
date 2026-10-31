@@ -880,6 +880,24 @@ export class MemberService {
     );
     if (posted.error) return { error: posted.error };
 
+    // The savings that secured this loan are consumed at disbursement. Fresh
+    // savings start accumulating again as the member repays.
+    if (summary.savingsBalance > 0) {
+      const wallet = await ledger.ensureMemberFinancialAccount(application.member_id);
+      if (wallet?.id) {
+        await admin.from("savings_transactions").insert({
+          organization_id: this.organizationId,
+          member_id: application.member_id,
+          financial_account_id: wallet.id,
+          transaction_type: "WITHDRAWAL",
+          amount: summary.savingsBalance,
+          direction: "OUT",
+          reference: `SAV-LOAN-${application.id.slice(0, 8)}`,
+          description: "Savings applied to member loan — fresh savings start with repayment",
+        });
+      }
+    }
+
     const duration = Number(application.duration_months) || 6;
     const monthly = Number(application.monthly_deduction) || 0;
     const principalPerMonth = round2(Number(application.amount) / duration);

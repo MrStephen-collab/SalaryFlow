@@ -84,7 +84,11 @@ export default async function MemberHomePage() {
         <StatCard
           title="My Savings"
           value={naira(summary.savingsBalance)}
-          description="Your own deposits"
+          description={
+            summary.activeLoan
+              ? "Applied to loan · fresh savings grow"
+              : "Your own deposits"
+          }
           href="/member/savings"
           icon={PiggyBank}
           accent="emerald"
