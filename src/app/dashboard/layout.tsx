@@ -33,7 +33,7 @@ export default async function DashboardLayout({
     <SidebarProvider>
       <DashboardSidebar user={user} role={profile?.role ?? null} notifications={notifications} />
       <SidebarInset>
-        <header className="relative z-40 flex h-14 items-center gap-1 border-b bg-background/95 px-4 backdrop-blur print:hidden">
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-1 border-b bg-background/95 px-4 backdrop-blur print:hidden">
           <SidebarTrigger className="-ml-1 md:hidden" />
           <div className="flex-1" />
           <NotificationBell items={notifications} viewAllHref="/dashboard/notifications" />
