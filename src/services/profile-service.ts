@@ -24,7 +24,8 @@ export class ProfileService {
     service.userId = user?.id ?? null;
 
     if (user) {
-      const { data: employee } = await supabase
+      const admin = createAdminClient();
+      const { data: employee } = await admin
         .from("employees")
         .select("id")
         .eq("user_id", user.id)
@@ -136,7 +137,8 @@ export class ProfileService {
 
   async getWithdrawalPinHash(userId = this.userId) {
     if (!userId) return null;
-    const { data } = await this.supabase.auth.admin.getUserById(userId);
+    const admin = createAdminClient();
+    const { data } = await admin.auth.admin.getUserById(userId);
     return data.user?.user_metadata?.withdrawal_pin_hash ?? null;
   }
 
