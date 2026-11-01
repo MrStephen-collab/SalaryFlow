@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { bankAccountSchema, withdrawalSchema } from "@/schemas/withdrawal";
 import type { BankAccountValues } from "@/schemas/withdrawal";
 import { getPaymentProvider } from "./payment-provider";
@@ -7,6 +8,7 @@ import { recordAudit } from "./audit-service";
 
 export class WithdrawalService {
   private supabase: Awaited<ReturnType<typeof createClient>>;
+  private admin = createAdminClient();
   private orgId: string | null = null;
   private userId: string | null = null;
   private employeeId: string | null = null;
@@ -25,7 +27,8 @@ export class WithdrawalService {
     service.userId = user?.id ?? null;
 
     if (user) {
-      const { data: employee } = await supabase
+      const admin = createAdminClient();
+      const { data: employee } = await admin
         .from("employees")
         .select("id, organization_id")
         .eq("user_id", user.id)
@@ -266,7 +269,9 @@ export class WithdrawalService {
   async listWithdrawals(status?: string) {
     if (!this.orgId) return [];
 
-    let query = this.supabase
+    // Staff views use the service role: the table is locked down by RLS for
+    // employee sessions, which made pending requests invisible to the chairman.
+    let query = this.admin
       .from("withdrawal_requests")
       .select(
         `
@@ -336,7 +341,7 @@ export class WithdrawalService {
   async getWithdrawal(withdrawalId: string) {
     if (!this.orgId) return null;
 
-    const { data } = await this.supabase
+    const { data } = await this.admin
       .from("withdrawal_requests")
       .select(
         `
