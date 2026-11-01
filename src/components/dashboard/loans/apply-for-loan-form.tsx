@@ -147,7 +147,12 @@ export function ApplyForLoanForm({
                 setDuration(0);
               }}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a loan product" />
+                  <SelectValue placeholder="Select a loan product">
+                    {(value) =>
+                      products.find((p) => p.id === value)?.name ??
+                      "Select a loan product"
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {products

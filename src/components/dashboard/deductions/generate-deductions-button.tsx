@@ -72,7 +72,11 @@ export function GenerateDeductionsButton({
             <Label>Salary Period</Label>
             <Select value={periodId} onValueChange={(v) => setPeriodId(v ?? "")}>
               <SelectTrigger>
-                <SelectValue placeholder="Select period" />
+                <SelectValue placeholder="Select period">
+                  {(value) =>
+                    periods.find((p) => p.id === value)?.name ?? "Select period"
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {periods.map((p) => (

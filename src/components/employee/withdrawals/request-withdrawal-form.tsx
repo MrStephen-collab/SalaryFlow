@@ -101,8 +101,15 @@ export function RequestWithdrawalForm({
       <div className="space-y-2">
         <Label>Bank Account</Label>
         <Select value={bankAccountId} onValueChange={(v) => setBankAccountId(v ?? "")}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select account" />
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select account">
+              {(value) => {
+                const selected = accounts.find((account) => account.id === value);
+                return selected
+                  ? `${selected.bankName} · ${selected.masked}`
+                  : "Select account";
+              }}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {accounts.map((account) => (

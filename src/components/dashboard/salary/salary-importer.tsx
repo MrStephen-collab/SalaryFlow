@@ -175,7 +175,11 @@ export function SalaryImporter({
               <label className="text-sm font-medium">Salary Period</label>
               <Select value={periodId} onValueChange={(v) => setPeriodId(v ?? "")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select period" />
+                  <SelectValue placeholder="Select period">
+                    {(value) =>
+                      periods.find((p) => p.id === value)?.name ?? "Select period"
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {periods.map((p) => (
