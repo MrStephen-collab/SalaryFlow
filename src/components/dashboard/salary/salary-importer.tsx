@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { SalaryImportRow } from "@/schemas/salary";
 import { importSalary } from "@/app/dashboard/salary/actions";
-import { parseSalaryCsv } from "@/lib/csv";
+import { parseSalaryFile } from "@/lib/salary-import";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -66,6 +66,7 @@ export function SalaryImporter({
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [filename, setFilename] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const employeeNumbers = useMemo(
@@ -73,53 +74,79 @@ export function SalaryImporter({
     [employees]
   );
 
-  const handleFile = (file: File) => {
+  const employeeByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const employee of employees) {
+      const key = `${employee.first_name} ${employee.last_name}`
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ");
+      map.set(key, employee.employee_number);
+    }
+    return map;
+  }, [employees]);
+
+  const handleFile = async (file: File) => {
     setError(null);
+    setNote(null);
     setFilename(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = String(e.target?.result ?? "");
-        const raw = parseSalaryCsv(text);
 
-        if (raw.length === 0) {
-          setError(
-            "Could not parse the file. Expected columns: Employee Number/Name, Basic Salary, Allowances, Other Deductions."
-          );
-          setRows([]);
-          return;
-        }
+    const result = await parseSalaryFile(file);
+    if (result.error) {
+      setError(result.error);
+      setRows([]);
+      return;
+    }
+    if (result.note) setNote(result.note);
 
-        const seen = new Set<string>();
-        const parsed: ParsedRow[] = raw.map((r) => {
-          if (!r.employeeNumber && !r.employeeName) {
-            return { ...r, status: "INVALID", error: "Missing employee identifier" };
-          }
-          if (!employeeNumbers.has(r.employeeNumber.toLowerCase())) {
-            return {
-              ...r,
-              status: "INVALID",
-              error: `Employee "${r.employeeNumber}" not found`,
-            };
-          }
-          if (seen.has(r.employeeNumber.toLowerCase())) {
-            return { ...r, status: "DUPLICATE", error: "Duplicate employee" };
-          }
-          seen.add(r.employeeNumber.toLowerCase());
-          if (r.basicSalary <= 0) {
-            return { ...r, status: "INVALID", error: "Basic salary must be > 0" };
-          }
-          return { ...r, status: "VALID" };
-        });
+    const seen = new Set<string>();
+    const parsed: ParsedRow[] = result.rows.map((r) => {
+      let employeeNumber = r.employeeNumber.trim();
 
-        setRows(parsed);
-      } catch {
-        setError("Unable to read the file. Please upload a valid CSV.");
-        setRows([]);
+      if (!employeeNumber || !employeeNumbers.has(employeeNumber.toLowerCase())) {
+        const nameKey = r.employeeName
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, " ");
+        const matched = employeeByName.get(nameKey);
+        if (matched) employeeNumber = matched;
       }
-    };
-    reader.readAsText(file);
+
+      if (!employeeNumber) {
+        return { ...r, status: "INVALID", error: "Missing employee identifier" };
+      }
+      if (!employeeNumbers.has(employeeNumber.toLowerCase())) {
+        return {
+          ...r,
+          status: "INVALID",
+          error: `Employee "${employeeNumber || r.employeeName}" not found`,
+        };
+      }
+      if (seen.has(employeeNumber.toLowerCase())) {
+        return { ...r, status: "DUPLICATE", error: "Duplicate employee" };
+      }
+      seen.add(employeeNumber.toLowerCase());
+      if (r.basicSalary <= 0) {
+        return { ...r, status: "INVALID", error: "Basic salary must be > 0" };
+      }
+      return { ...r, employeeNumber, status: "VALID" };
+    });
+
+    setRows(parsed);
   };
+
+  function downloadTemplate() {
+    const csv =
+      "Employee Number,Employee Name,Basic Salary,Allowances,Other Deductions\n" +
+      "EMP-001,Jane Doe,250000,20000,5000\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "salary-import-template.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   const counts = useMemo(() => {
     const valid = rows.filter((r) => r.status === "VALID").length;
@@ -197,23 +224,40 @@ export function SalaryImporter({
             >
               <FileUp className="size-8 text-muted-foreground" />
               <span className="text-sm font-medium">
-                {filename || "Click to upload CSV"}
+                {filename || "Click to upload CSV or Excel"}
               </span>
               <span className="text-xs text-muted-foreground">
-                Columns: Employee Number/Name, Basic Salary, Allowances, Other
-                Deductions
+                Standard template: Employee Number/Name, Basic Salary,
+                Allowances, Other Deductions. Bank schedules with
+                Name/Staff ID/Amount also work.
               </span>
               <input
                 id="salary-file"
                 type="file"
-                accept=".csv,.txt"
+                accept=".csv,.txt,.xlsx,.xls"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) handleFile(file);
+                  if (file) void handleFile(file);
                 }}
               />
             </label>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={downloadTemplate}
+            >
+              <FileUp className="size-4" />
+              Download template
+            </Button>
+
+            {note && (
+              <Alert>
+                <AlertDescription>{note}</AlertDescription>
+              </Alert>
+            )}
 
             {error && (
               <Alert variant="destructive">
