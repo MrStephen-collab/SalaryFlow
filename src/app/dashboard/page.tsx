@@ -149,6 +149,26 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      {(pendingApplications.length > 0 || pendingWithdrawals.length > 0) && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="font-medium">Approvals waiting for the chairman</p>
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+            {pendingWithdrawals.length > 0 ? (
+              <Link href="/dashboard/withdrawals" className="underline">
+                {pendingWithdrawals.length} withdrawal request
+                {pendingWithdrawals.length === 1 ? "" : "s"}
+              </Link>
+            ) : null}
+            {pendingApplications.length > 0 ? (
+              <Link href="/dashboard/loans/applications" className="underline">
+                {pendingApplications.length} loan application
+                {pendingApplications.length === 1 ? "" : "s"}
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
         {stats.map((stat, i) => (
           <StatCard

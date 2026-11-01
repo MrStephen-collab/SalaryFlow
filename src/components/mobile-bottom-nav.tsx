@@ -28,6 +28,7 @@ const NAVS: Record<"dashboard" | "member" | "employee", NavItem[]> = {
     { title: "Loans", href: "/dashboard/loans", icon: HandCoins },
     { title: "Salary", href: "/dashboard/salary", icon: FileText },
     { title: "Funds", href: "/dashboard/funds", icon: PiggyBank },
+    { title: "Alerts", href: "/dashboard/notifications", icon: Bell },
     { title: "Settings", href: "/dashboard/settings", icon: Settings },
   ],
   member: [

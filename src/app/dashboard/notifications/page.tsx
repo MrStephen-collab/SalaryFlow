@@ -17,7 +17,7 @@ export default async function DashboardNotificationsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
         <p className="text-sm text-muted-foreground">
-          Approvals, repayments, deductions and withdrawals that need your attention.
+          Loan requests, withdrawal requests, shortfalls and repayment updates.
         </p>
       </div>
       <NotificationList items={items} />

@@ -91,6 +91,21 @@ const employerNavGroups: NavGroup[] = [
         href: "/dashboard/employees/branches",
         icon: MapPin,
       },
+      {
+        title: "Employee Loans",
+        href: "/dashboard/loans",
+        icon: HandCoins,
+      },
+      {
+        title: "Repayments",
+        href: "/dashboard/repayments",
+        icon: Banknote,
+      },
+      {
+        title: "Collections",
+        href: "/dashboard/collections",
+        icon: ShieldAlert,
+      },
     ],
   },
   {
@@ -132,27 +147,6 @@ const employerNavGroups: NavGroup[] = [
         title: "Reconciliation",
         href: "/dashboard/deductions/reconciliation",
         icon: ClipboardCheck,
-      },
-    ],
-  },
-  {
-    id: "lending",
-    label: "Lending",
-    items: [
-      {
-        title: "Loans",
-        href: "/dashboard/loans",
-        icon: HandCoins,
-      },
-      {
-        title: "Repayments",
-        href: "/dashboard/repayments",
-        icon: Banknote,
-      },
-      {
-        title: "Collections",
-        href: "/dashboard/collections",
-        icon: ShieldAlert,
       },
     ],
   },
