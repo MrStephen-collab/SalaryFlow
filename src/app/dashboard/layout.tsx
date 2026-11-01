@@ -26,6 +26,10 @@ export default async function DashboardLayout({
     redirect("/employee");
   }
 
+  if (profile?.role === "SUPER_ADMIN") {
+    redirect("/super-admin");
+  }
+
   const notificationService = await NotificationService.create();
   const notifications = await notificationService.list(8);
 
