@@ -95,49 +95,53 @@ export default async function MemberSavingsPage({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5">
-              <PiggyBank className="size-3.5" />
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+        <Card className="gap-1 py-3 sm:gap-4 sm:py-6">
+          <CardHeader className="px-3 pb-0 sm:px-6 sm:pb-2">
+            <CardDescription className="flex items-center gap-1 text-[11px] sm:text-sm">
+              <PiggyBank className="size-3 sm:size-3.5" />
               My Savings
             </CardDescription>
-            <CardTitle className="text-2xl text-primary">
+            <CardTitle className="text-lg text-primary sm:text-2xl">
               {naira(summary.savingsBalance)}
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
+          <CardContent className="px-3 text-[10px] leading-tight text-muted-foreground sm:px-6 sm:text-xs">
             {summary.activeLoan
-              ? "Savings applied to your active loan — fresh savings grow as you repay"
-              : "Savings are held for you and are not withdrawable"}
+              ? "Applied to loan · fresh savings grow"
+              : "Not withdrawable"}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5">
-              <Wallet className="size-3.5" />
+        <Card className="gap-1 py-3 sm:gap-4 sm:py-6">
+          <CardHeader className="px-3 pb-0 sm:px-6 sm:pb-2">
+            <CardDescription className="flex items-center gap-1 text-[11px] sm:text-sm">
+              <Wallet className="size-3 sm:size-3.5" />
               Wallet Balance
             </CardDescription>
-            <CardTitle className="text-2xl">
+            <CardTitle className="text-lg sm:text-2xl">
               {naira(summary.walletBalance)}
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            Withdrawable balance (loan proceeds)
+          <CardContent className="px-3 text-[10px] leading-tight text-muted-foreground sm:px-6 sm:text-xs">
+            Withdrawable balance
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Deposited</CardDescription>
-            <CardTitle className="text-2xl">
+        <Card className="gap-1 py-3 sm:gap-4 sm:py-6">
+          <CardHeader className="px-3 pb-0 sm:px-6 sm:pb-2">
+            <CardDescription className="text-[11px] sm:text-sm">
+              Total Deposited
+            </CardDescription>
+            <CardTitle className="text-lg sm:text-2xl">
               {naira(summary.totalDeposited)}
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Withdrawn</CardDescription>
-            <CardTitle className="text-2xl">
+        <Card className="gap-1 py-3 sm:gap-4 sm:py-6">
+          <CardHeader className="px-3 pb-0 sm:px-6 sm:pb-2">
+            <CardDescription className="text-[11px] sm:text-sm">
+              Total Withdrawn
+            </CardDescription>
+            <CardTitle className="text-lg sm:text-2xl">
               {naira(summary.totalWithdrawn)}
             </CardTitle>
           </CardHeader>
