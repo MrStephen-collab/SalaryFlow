@@ -5,11 +5,22 @@ create table if not exists public.announcements (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   message text not null,
+  audience text not null default 'ALL',
   active boolean not null default true,
   created_by uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Existing deployments: add the audience column.
+alter table public.announcements
+  add column if not exists audience text not null default 'ALL';
+
+alter table public.announcements
+  drop constraint if exists announcements_audience_check;
+alter table public.announcements
+  add constraint announcements_audience_check
+  check (audience in ('ALL', 'EMPLOYEE', 'MEMBER'));
 
 create index if not exists announcements_org_idx
   on public.announcements (organization_id, active, created_at desc);

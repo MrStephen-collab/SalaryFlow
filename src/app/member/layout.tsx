@@ -41,7 +41,10 @@ export default async function MemberLayout({
   const notifications = await notificationService.list(12);
   const announcements = profile?.organization_id
     ? (
-        await AnnouncementService.listForOrganization(profile.organization_id)
+        await AnnouncementService.listForOrganization(
+          profile.organization_id,
+          "MEMBER"
+        )
       ).map((item) => item.message)
     : [];
 

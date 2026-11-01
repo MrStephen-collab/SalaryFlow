@@ -37,7 +37,10 @@ export default async function EmployeeLayout({
 
   const announcements = profile?.organization_id
     ? (
-        await AnnouncementService.listForOrganization(profile.organization_id)
+        await AnnouncementService.listForOrganization(
+          profile.organization_id,
+          "EMPLOYEE"
+        )
       ).map((item) => item.message)
     : [];
 

@@ -3,16 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { AnnouncementService } from "@/services/announcement-service";
 
-export async function createAnnouncement(message: string) {
+export async function createAnnouncement(
+  message: string,
+  audience: "ALL" | "EMPLOYEE" | "MEMBER" = "ALL"
+) {
   const service = await AnnouncementService.create();
-  const result = await service.create(message);
+  const result = await service.create(message, audience);
   if (result.ok) revalidatePath("/dashboard/announcements");
   return result;
 }
 
 export async function updateAnnouncement(
   id: string,
-  values: { message?: string; active?: boolean }
+  values: { message?: string; active?: boolean; audience?: "ALL" | "EMPLOYEE" | "MEMBER" }
 ) {
   const service = await AnnouncementService.create();
   const result = await service.update(id, values);

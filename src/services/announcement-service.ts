@@ -5,6 +5,7 @@ import { recordAudit } from "./audit-service";
 export interface Announcement {
   id: string;
   message: string;
+  audience: string;
   active: boolean;
   created_at: string;
 }
@@ -47,12 +48,17 @@ export class AnnouncementService {
   }
 
   /** Active announcements for a portal header (no session required). */
-  static async listForOrganization(organizationId: string, activeOnly = true) {
+  static async listForOrganization(
+    organizationId: string,
+    audience: "EMPLOYEE" | "MEMBER" = "EMPLOYEE",
+    activeOnly = true
+  ) {
     const admin = createAdminClient();
     let query = admin
       .from("announcements")
-      .select("id, message, active, created_at")
+      .select("id, message, audience, active, created_at")
       .eq("organization_id", organizationId)
+      .in("audience", ["ALL", audience])
       .order("created_at", { ascending: false });
 
     if (activeOnly) query = query.eq("active", true);
@@ -66,7 +72,7 @@ export class AnnouncementService {
     const admin = createAdminClient();
     const { data } = await admin
       .from("announcements")
-      .select("id, message, active, created_at")
+      .select("id, message, audience, active, created_at")
       .eq("organization_id", this.organizationId)
       .order("created_at", { ascending: false });
     return (data ?? []) as Announcement[];
@@ -80,7 +86,7 @@ export class AnnouncementService {
     return null;
   }
 
-  async create(message: string) {
+  async create(message: string, audience: "ALL" | "EMPLOYEE" | "MEMBER" = "ALL") {
     const forbidden = this.guard();
     if (forbidden) return { ok: false as const, error: forbidden };
 
@@ -91,6 +97,7 @@ export class AnnouncementService {
     const { error } = await admin.from("announcements").insert({
       organization_id: this.organizationId,
       message: text,
+      audience,
       active: true,
       created_by: this.userId,
     });
@@ -102,19 +109,20 @@ export class AnnouncementService {
       userId: this.userId,
       action: "announcement.created",
       entityType: "announcement",
-      after: { message: text },
+      after: { message: text, audience },
     });
 
     return { ok: true as const };
   }
 
-  async update(id: string, values: { message?: string; active?: boolean }) {
+  async update(id: string, values: { message?: string; active?: boolean; audience?: "ALL" | "EMPLOYEE" | "MEMBER" }) {
     const forbidden = this.guard();
     if (forbidden) return { ok: false as const, error: forbidden };
 
     const payload: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
+    if (values.audience !== undefined) payload.audience = values.audience;
     if (values.message !== undefined) {
       const text = values.message.trim();
       if (!text) return { ok: false as const, error: "Enter an announcement" };

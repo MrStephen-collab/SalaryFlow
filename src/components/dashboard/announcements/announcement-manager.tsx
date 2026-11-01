@@ -13,6 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, Megaphone, Plus, Trash2 } from "lucide-react";
 import type { Announcement } from "@/services/announcement-service";
 
@@ -23,6 +30,7 @@ export function AnnouncementManager({
 }) {
   const router = useRouter();
   const [message, setMessage] = useState("");
+  const [audience, setAudience] = useState<"ALL" | "EMPLOYEE" | "MEMBER">("ALL");
   const [isPending, startTransition] = useTransition();
 
   function create() {
@@ -31,7 +39,7 @@ export function AnnouncementManager({
       return;
     }
     startTransition(async () => {
-      const result = await createAnnouncement(message);
+      const result = await createAnnouncement(message, audience);
       if (!result.ok) {
         toast.error(result.error ?? "Could not save the announcement");
         return;
@@ -75,7 +83,35 @@ export function AnnouncementManager({
           rows={2}
           placeholder="e.g. Pay your loans on time to keep enjoying salary-backed loans."
         />
-        <div className="flex justify-end">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2 sm:w-56">
+            <Label>Show to</Label>
+            <Select
+              value={audience}
+              onValueChange={(value) =>
+                setAudience(
+                  (value ?? "ALL") as "ALL" | "EMPLOYEE" | "MEMBER"
+                )
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {(value) =>
+                    value === "MEMBER"
+                      ? "Members"
+                      : value === "EMPLOYEE"
+                        ? "Employees"
+                        : "Everyone"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Everyone</SelectItem>
+                <SelectItem value="EMPLOYEE">Employees</SelectItem>
+                <SelectItem value="MEMBER">Members</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Button onClick={create} disabled={isPending}>
             {isPending ? (
               <Loader2 className="size-4 animate-spin" />
@@ -107,6 +143,13 @@ export function AnnouncementManager({
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                <Badge variant="outline">
+                  {announcement.audience === "MEMBER"
+                    ? "Members"
+                    : announcement.audience === "EMPLOYEE"
+                      ? "Employees"
+                      : "Everyone"}
+                </Badge>
                 <Badge variant={announcement.active ? "default" : "secondary"}>
                   {announcement.active ? "Active" : "Off"}
                 </Badge>
