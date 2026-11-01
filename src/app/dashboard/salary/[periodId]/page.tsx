@@ -17,6 +17,8 @@ import { PayPeriodButton } from "@/components/dashboard/salary/pay-period-button
 import { PayrollPreviewDialog } from "@/components/dashboard/salary/payroll-preview-dialog";
 import { SalaryRecordsTable } from "@/components/dashboard/salary/salary-records-table";
 import { ApplyLoanDeductionsButton } from "@/components/dashboard/salary/apply-loan-deductions-button";
+import { FundWalletDialog } from "@/components/dashboard/funds/fund-wallet-dialog";
+import { gatewayStatus } from "@/services/payment-provider";
 import { Download, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -198,10 +200,13 @@ export default async function SalaryPeriodPage({
             </p>
           </div>
           {poolBalance < totals.net && !alreadyPaid ? (
-            <p className="text-sm text-destructive sm:col-span-3">
-              The pool is short by {naira(totals.net - poolBalance)}. Fund the pool
-              before paying this period.
-            </p>
+            <div className="flex flex-col gap-2 sm:col-span-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-destructive">
+                The pool is short by {naira(totals.net - poolBalance)}. Fund the
+                pool before paying this period.
+              </p>
+              <FundWalletDialog gatewayReady={gatewayStatus().collections} />
+            </div>
           ) : null}
         </CardContent>
       </Card>
