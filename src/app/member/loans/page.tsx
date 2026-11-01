@@ -85,9 +85,15 @@ export default async function MemberLoansPage() {
         <CardHeader>
           <CardTitle className="text-base">Your borrowing position</CardTitle>
           <CardDescription>
-            {summary.loanEligible
-              ? "You are eligible to apply for a loan."
-              : `You can apply after ${summary.monthsRemaining} more month(s) of active membership.`}
+            {summary.activeLoan
+              ? `Active loan of ${naira(
+                  summary.activeLoan.amount
+                )} · ${naira(
+                  summary.activeLoan.outstanding
+                )} outstanding. Repay it to unlock your next loan — your savings grow as you repay principal.`
+              : summary.loanEligible
+                ? "You are eligible to apply for a loan."
+                : `You can apply after ${summary.monthsRemaining} more month(s) of active membership.`}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
@@ -106,7 +112,11 @@ export default async function MemberLoansPage() {
           <div>
             <p className="text-muted-foreground">Eligibility</p>
             <p className="text-base font-medium">
-              {summary.loanEligible ? "Eligible" : `${summary.monthsRemaining} month(s) to go`}
+              {summary.activeLoan
+                ? "Active loan — repay to re-apply"
+                : summary.loanEligible
+                  ? "Eligible"
+                  : `${summary.monthsRemaining} month(s) to go`}
             </p>
           </div>
           {summary.activeLoan ? (
