@@ -28,13 +28,21 @@ export class WithdrawalService {
 
     if (user) {
       const admin = createAdminClient();
-      const { data: employee } = await admin
-        .from("employees")
-        .select("id, organization_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const [{ data: employee }, { data: profile }] = await Promise.all([
+        admin
+          .from("employees")
+          .select("id, organization_id")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        admin
+          .from("user_profiles")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
       service.employeeId = employee?.id ?? null;
-      service.orgId = employee?.organization_id ?? null;
+      service.orgId =
+        employee?.organization_id ?? profile?.organization_id ?? null;
     }
 
     return service;
