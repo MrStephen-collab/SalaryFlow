@@ -181,6 +181,25 @@
   animation: 0.25s ease-out both scale-in;
 }
 
+@keyframes announcement-ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@utility animate-announcement {
+  animation: announcement-ticker 28s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-announcement {
+    animation: none;
+  }
+}
+
 @utility no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

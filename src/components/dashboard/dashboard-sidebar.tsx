@@ -37,6 +37,7 @@ import {
   LayoutDashboard,
   LineChart,
   MapPin,
+  Megaphone,
   Percent,
   PiggyBank,
   Settings,
@@ -194,6 +195,11 @@ const employerNavGroups: NavGroup[] = [
         title: "Notifications",
         href: "/dashboard/notifications",
         icon: Bell,
+      },
+      {
+        title: "Announcements",
+        href: "/dashboard/announcements",
+        icon: Megaphone,
       },
       {
         title: "Settings",

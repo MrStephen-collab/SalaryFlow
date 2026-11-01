@@ -13,6 +13,8 @@ import { SignOutButton } from "@/components/employee/sign-out-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationService } from "@/services/notification-service";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { AnnouncementService } from "@/services/announcement-service";
+import { AnnouncementTicker } from "@/components/announcements/announcement-ticker";
 
 export default async function MemberLayout({
   children,
@@ -37,6 +39,11 @@ export default async function MemberLayout({
 
   const notificationService = await NotificationService.create();
   const notifications = await notificationService.list(12);
+  const announcements = profile?.organization_id
+    ? (
+        await AnnouncementService.listForOrganization(profile.organization_id)
+      ).map((item) => item.message)
+    : [];
 
   return (
     <SidebarProvider>
@@ -44,7 +51,8 @@ export default async function MemberLayout({
       <SidebarInset>
         <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur lg:px-6 print:hidden">
           <SidebarTrigger className="-ml-1" />
-          <div className="flex-1" />
+          <AnnouncementTicker messages={announcements} />
+          {announcements.length === 0 ? <div className="flex-1" /> : null}
           <div className="hidden items-center gap-3 sm:flex">
             <div className="text-right">
               <p className="text-sm font-medium leading-tight">

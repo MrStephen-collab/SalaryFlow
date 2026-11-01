@@ -14,6 +14,8 @@ import { SignOutButton } from "@/components/employee/sign-out-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { NotificationService } from "@/services/notification-service";
+import { AnnouncementService } from "@/services/announcement-service";
+import { AnnouncementTicker } from "@/components/announcements/announcement-ticker";
 
 export default async function EmployeeLayout({
   children,
@@ -33,6 +35,12 @@ export default async function EmployeeLayout({
 
   const employee = await service.getEmployee();
 
+  const announcements = profile?.organization_id
+    ? (
+        await AnnouncementService.listForOrganization(profile.organization_id)
+      ).map((item) => item.message)
+    : [];
+
   const initials = (employee
     ? `${employee.first_name?.[0] ?? ""}${employee.last_name?.[0] ?? ""}`
     : user.email ?? "U"
@@ -46,7 +54,8 @@ export default async function EmployeeLayout({
       <SidebarInset>
         <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur lg:px-6 print:hidden">
           <SidebarTrigger className="-ml-1" />
-          <div className="flex-1" />
+          <AnnouncementTicker messages={announcements} />
+          {announcements.length === 0 ? <div className="flex-1" /> : null}
           <div className="hidden items-center gap-3 sm:flex">
             <div className="text-right">
               <p className="text-sm font-medium leading-tight">
