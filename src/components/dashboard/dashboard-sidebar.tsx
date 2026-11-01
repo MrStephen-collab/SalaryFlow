@@ -73,8 +73,8 @@ const dashboardNav: NavItem = {
 
 const employerNavGroups: NavGroup[] = [
   {
-    id: "people",
-    label: "People",
+    id: "employees",
+    label: "Employees",
     items: [
       {
         title: "Employees",
@@ -91,10 +91,26 @@ const employerNavGroups: NavGroup[] = [
         href: "/dashboard/employees/branches",
         icon: MapPin,
       },
+    ],
+  },
+  {
+    id: "members",
+    label: "Members",
+    items: [
       {
         title: "Members",
         href: "/dashboard/members",
         icon: Contact,
+      },
+      {
+        title: "Member Loans",
+        href: "/dashboard/members/loans",
+        icon: HandCoins,
+      },
+      {
+        title: "Member Withdrawals",
+        href: "/dashboard/members/withdrawals",
+        icon: ArrowDownToLine,
       },
     ],
   },
@@ -127,16 +143,6 @@ const employerNavGroups: NavGroup[] = [
         title: "Loans",
         href: "/dashboard/loans",
         icon: HandCoins,
-      },
-      {
-        title: "Member Loans",
-        href: "/dashboard/members/loans",
-        icon: HandCoins,
-      },
-      {
-        title: "Member Withdrawals",
-        href: "/dashboard/members/withdrawals",
-        icon: ArrowDownToLine,
       },
       {
         title: "Repayments",
