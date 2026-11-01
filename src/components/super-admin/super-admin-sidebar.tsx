@@ -27,6 +27,7 @@ import {
   Bell,
   Building2,
   LayoutDashboard,
+  Plug,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SignOutButton } from "@/components/employee/sign-out-button";
@@ -37,6 +38,7 @@ const platformNav = [
   { title: "Overview", href: "/super-admin", icon: LayoutDashboard },
   { title: "Organizations", href: "/super-admin/organizations", icon: Building2 },
   { title: "Plans", href: "/super-admin/plans", icon: BadgeCheck },
+  { title: "Integrations", href: "/super-admin/integrations", icon: Plug },
   { title: "Notifications", href: "/super-admin/notifications", icon: Bell },
 ];
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPaymentProviderByName } from "@/services/payment-provider";
 import { PaymentService } from "@/services/payment-service";
+import { preparePaymentProvider } from "@/lib/platform-config";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,6 +39,7 @@ export async function POST(
   context: { params: Promise<{ provider: string }> }
 ) {
   const { provider: providerName } = await context.params;
+  await preparePaymentProvider();
   const provider = getPaymentProviderByName(providerName);
 
   if (!provider || !provider.supportsCollections()) {

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { bankAccountSchema, withdrawalSchema } from "@/schemas/withdrawal";
 import type { BankAccountValues } from "@/schemas/withdrawal";
 import { getPaymentProvider } from "./payment-provider";
+import { preparePaymentProvider } from "@/lib/platform-config";
 import { recordAudit } from "./audit-service";
 
 export class WithdrawalService {
@@ -548,6 +549,7 @@ export class WithdrawalService {
     const account = await this.getBankAccount(existing.bank_account_id);
     if (!account) return { error: "Bank account not found" };
 
+    await preparePaymentProvider();
     const provider = getPaymentProvider();
     const transfer = await provider.createTransfer({
       amount: Number(existing.net_amount),
@@ -602,6 +604,7 @@ export class WithdrawalService {
       return { error: `Cannot confirm payment in ${existing.status} status` };
     }
 
+    await preparePaymentProvider();
     const provider = getPaymentProvider();
     const verification = await provider.verifyTransfer(
       existing.provider_reference ?? existing.reference,

@@ -94,6 +94,21 @@ export interface PaymentProvider {
 const PAYSTACK_BASE = "https://api.paystack.co";
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
 
+/**
+ * Runtime overrides managed by the platform owner in the super-admin console.
+ * They take precedence over environment variables.
+ */
+let runtimeConfig: {
+  provider?: string;
+  paystackSecretKey?: string;
+  paystackPublicKey?: string;
+  flutterwaveSecretKey?: string;
+} = {};
+
+export function setPaymentRuntimeConfig(config: typeof runtimeConfig) {
+  runtimeConfig = { ...runtimeConfig, ...config };
+}
+
 function toMinorUnits(amount: number) {
   return Math.round(Number(amount) * 100);
 }
@@ -142,7 +157,11 @@ export class PaystackProvider implements PaymentProvider {
   readonly name = "paystack";
 
   private get secretKey() {
-    return process.env.PAYSTACK_SECRET_KEY?.trim() ?? "";
+    return (
+      runtimeConfig.paystackSecretKey?.trim() ||
+      process.env.PAYSTACK_SECRET_KEY?.trim() ||
+      ""
+    );
   }
 
   private headers(): Record<string, string> {
@@ -338,7 +357,11 @@ export class FlutterwaveProvider implements PaymentProvider {
   readonly name = "flutterwave";
 
   private get secretKey() {
-    return process.env.FLUTTERWAVE_SECRET_KEY?.trim() ?? "";
+    return (
+      runtimeConfig.flutterwaveSecretKey?.trim() ||
+      process.env.FLUTTERWAVE_SECRET_KEY?.trim() ||
+      ""
+    );
   }
 
   private headers(): Record<string, string> {
@@ -542,12 +565,18 @@ export class ManualSettlementProvider implements PaymentProvider {
 }
 
 export function getPaymentProvider(): PaymentProvider {
-  const provider = process.env.PAYMENT_PROVIDER?.toLowerCase();
+  const provider = (
+    runtimeConfig.provider ||
+    process.env.PAYMENT_PROVIDER ||
+    ""
+  ).toLowerCase();
   if (provider === "paystack") return new PaystackProvider();
   if (provider === "flutterwave") return new FlutterwaveProvider();
   if (provider === "manual") return new ManualSettlementProvider();
 
+  if (runtimeConfig.paystackSecretKey?.trim()) return new PaystackProvider();
   if (process.env.PAYSTACK_SECRET_KEY?.trim()) return new PaystackProvider();
+  if (runtimeConfig.flutterwaveSecretKey?.trim()) return new FlutterwaveProvider();
   if (process.env.FLUTTERWAVE_SECRET_KEY?.trim()) return new FlutterwaveProvider();
   return new ManualSettlementProvider();
 }

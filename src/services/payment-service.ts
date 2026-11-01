@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { preparePaymentProvider } from "@/lib/platform-config";
 import { recordAudit } from "./audit-service";
 import { getPaymentProvider } from "./payment-provider";
 import { LedgerService } from "./ledger-service";
@@ -86,6 +87,7 @@ export class PaymentService {
       return { ok: false, error: "You do not have permission to fund this organization" };
     }
 
+    await preparePaymentProvider();
     const provider = getPaymentProvider();
     if (!provider.supportsCollections()) {
       return {
@@ -192,6 +194,7 @@ export class PaymentService {
       return { ok: false, error: "Your membership is not active. Contact your organization." };
     }
 
+    await preparePaymentProvider();
     const provider = getPaymentProvider();
     if (!provider.supportsCollections()) {
       return {
@@ -325,6 +328,7 @@ export class PaymentService {
       return { ok: false, paid: false, status: "REVERSED", message: "Payment was reversed" };
     }
 
+    await preparePaymentProvider();
     const provider = getPaymentProvider();
     const verification = await provider.verifyCollection(internalReference);
 
