@@ -41,47 +41,56 @@ export default async function EmployeeMoneyPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">Available Balance</p>
-              <Wallet className="size-4 text-muted-foreground" />
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+        <Card className="gap-1 py-3 sm:gap-4 sm:py-6">
+          <CardContent className="px-3 sm:px-6">
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-[10px] leading-tight text-muted-foreground sm:text-xs">
+                Available Balance
+              </p>
+              <Wallet className="size-3.5 shrink-0 text-muted-foreground sm:size-4" />
             </div>
-            <p className="mt-2 text-2xl font-bold text-primary">{naira(balance)}</p>
+            <p className="mt-1 truncate text-sm font-bold text-primary sm:mt-2 sm:text-2xl">
+              {naira(balance)}
+            </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">Total Credits In</p>
-              <ArrowDownLeft className="size-4 text-green-600" />
+        <Card className="gap-1 py-3 sm:gap-4 sm:py-6">
+          <CardContent className="px-3 sm:px-6">
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-[10px] leading-tight text-muted-foreground sm:text-xs">
+                Total Credits In
+              </p>
+              <ArrowDownLeft className="size-3.5 shrink-0 text-green-600 sm:size-4" />
             </div>
-            <p className="mt-2 text-2xl font-bold text-green-600">
+            <p className="mt-1 truncate text-sm font-bold text-green-600 sm:mt-2 sm:text-2xl">
               {naira(credits)}
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">Total Deductions</p>
-              <ArrowUpRight className="size-4 text-red-600" />
+        <Card className="gap-1 py-3 sm:gap-4 sm:py-6">
+          <CardContent className="px-3 sm:px-6">
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-[10px] leading-tight text-muted-foreground sm:text-xs">
+                Total Deductions
+              </p>
+              <ArrowUpRight className="size-3.5 shrink-0 text-red-600 sm:size-4" />
             </div>
-            <p className="mt-2 text-2xl font-bold text-red-600">{naira(debits)}</p>
+            <p className="mt-1 truncate text-sm font-bold text-red-600 sm:mt-2 sm:text-2xl">
+              {naira(debits)}
+            </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">Thrift Savings</p>
-              <PiggyBank className="size-4 text-amber-600" />
+        <Card className="gap-1 py-3 sm:gap-4 sm:py-6">
+          <CardContent className="px-3 sm:px-6">
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-[10px] leading-tight text-muted-foreground sm:text-xs">
+                Thrift Savings
+              </p>
+              <PiggyBank className="size-3.5 shrink-0 text-amber-600 sm:size-4" />
             </div>
-            <p className="mt-2 text-2xl font-bold text-amber-600">
+            <p className="mt-1 truncate text-sm font-bold text-amber-600 sm:mt-2 sm:text-2xl">
               {naira(thriftBalance)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Released by the chairman
             </p>
           </CardContent>
         </Card>
