@@ -65,9 +65,6 @@ export default async function LoanApplicationsPage({
             Review and manage employee and external member loan applications
           </p>
         </div>
-        <Button render={<Link href="/dashboard/loans/apply" />}>
-          New Application
-        </Button>
       </div>
 
       <Tabs defaultValue={filterStatus ?? "all"}>
