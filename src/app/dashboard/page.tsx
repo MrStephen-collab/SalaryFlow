@@ -210,7 +210,7 @@ export default async function DashboardPage() {
             title="Member Loans Disbursed"
             value={naira(Math.round(membersOverview.savingsLent * 100) / 100)}
             description="Principal lent from savings"
-            href="/dashboard/loans"
+            href="/dashboard/members/loans"
             icon={HandCoins}
             accent="amber"
             delay={880}
