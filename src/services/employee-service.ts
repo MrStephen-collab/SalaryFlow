@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { allocateEmployeeNumber } from "@/lib/employee-number";
 import { recordAudit } from "./audit-service";
 
 const SEARCH_FIELDS = [
@@ -319,6 +320,17 @@ export class EmployeeService {
     return profile?.organization_id ?? null;
   }
 
+  /**
+   * Next free employee number in the organization, following the EMP-0001
+   * pattern (max existing number + 1). Employers can still overwrite it.
+   */
+  async getNextEmployeeNumber(organizationId?: string) {
+    const orgId = organizationId ?? (await this.getOrgId());
+    if (!orgId) return "EMP-0001";
+
+    return allocateEmployeeNumber(createAdminClient(), orgId);
+  }
+
   async createEmployee(data: Record<string, unknown>) {
     const {
       data: { user },
@@ -335,11 +347,15 @@ export class EmployeeService {
       throw new Error("No organization associated with this account");
     }
 
+    const providedNumber = String(data.employeeNumber ?? "").trim();
+    const employeeNumber =
+      providedNumber || (await this.getNextEmployeeNumber(profile.organization_id));
+
     const { data: employee, error } = await this.supabase
       .from("employees")
       .insert({
         organization_id: profile.organization_id,
-        employee_number: data.employeeNumber,
+        employee_number: employeeNumber,
         first_name: data.firstName,
         last_name: data.lastName,
         other_names: data.otherNames || null,
@@ -435,6 +451,14 @@ export class EmployeeService {
     for (const [key, value] of Object.entries(data)) {
       const dbField = fieldMap[key];
       if (!dbField) continue;
+
+      if (dbField === "employee_number") {
+        const trimmed = String(value ?? "").trim();
+        if (!trimmed) continue;
+        updateData[dbField] = trimmed;
+        continue;
+      }
+
       updateData[dbField] = value === "" ? null : value;
     }
 

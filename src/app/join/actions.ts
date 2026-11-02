@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { allocateEmployeeNumber } from "@/lib/employee-number";
 
 const BUCKET = "nin-documents";
 
@@ -277,21 +278,14 @@ export async function registerViaInvite(
           return { error: error.message };
         }
       } else {
-        const { count } = await admin
-          .from("employees")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", organization.id);
-
-        const base = (count ?? 0) + 1;
+        const nextNumber = await allocateEmployeeNumber(admin, organization.id);
 
         let inserted = false;
         for (let attempt = 0; attempt < 5 && !inserted; attempt += 1) {
           const employeeNumber =
             attempt === 0
-              ? `EMP-${String(base).padStart(4, "0")}`
-              : `EMP-${String(base).padStart(4, "0")}-${Math.floor(
-                  1000 + Math.random() * 9000
-                )}`;
+              ? nextNumber
+              : `${nextNumber}-${Math.floor(1000 + Math.random() * 9000)}`;
 
           const { error } = await admin.from("employees").insert({
             organization_id: organization.id,

@@ -3,8 +3,9 @@ import { z } from "zod";
 export const createEmployeeSchema = z.object({
   employeeNumber: z
     .string()
-    .min(1, "Employee number is required")
-    .max(50, "Employee number must be at most 50 characters"),
+    .max(50, "Employee number must be at most 50 characters")
+    .optional()
+    .or(z.literal("")),
   firstName: z
     .string()
     .min(2, "First name is required")

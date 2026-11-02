@@ -236,8 +236,11 @@ export function EmployeeForm({
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <FormFieldLabel required>Employee No.</FormFieldLabel>
-                <Input placeholder="EMP-001" {...register("employeeNumber")} />
+                <FormFieldLabel>Employee No.</FormFieldLabel>
+                <Input placeholder="Auto (e.g. EMP-0039)" {...register("employeeNumber")} />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Leave blank to allocate the next number. You can edit it later.
+                </p>
                 <FieldError errors={errors} name="employeeNumber" />
               </div>
               <div>
