@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { applyForLoan } from "@/app/dashboard/loans/actions";
 import { LoanCalculationService } from "@/services/loan-calculation-service";
 import type { InterestMethod } from "@/services/loan-calculation-service";
+import { thriftBackedLoanLimit } from "@/lib/loan-eligibility";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -62,9 +63,11 @@ function naira(amount: number) {
 export function ApplyForLoanForm({
   products,
   employee,
+  thriftBalance,
 }: {
   products: LoanProduct[];
   employee: Employee;
+  thriftBalance: number;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -74,6 +77,11 @@ export function ApplyForLoanForm({
   const [purpose, setPurpose] = useState("");
 
   const selectedProduct = products.find((p) => p.id === productId);
+  const thriftLimit = thriftBackedLoanLimit(thriftBalance);
+  const effectiveMax = selectedProduct
+    ? Math.min(selectedProduct.maximum_amount, thriftLimit)
+    : thriftLimit;
+  const exceedsThriftLimit = amount > thriftLimit;
 
   const calculation =
     selectedProduct && amount > 0 && duration > 0
@@ -100,6 +108,14 @@ export function ApplyForLoanForm({
     }
     if (amount <= 0) {
       toast.error("Enter a valid loan amount");
+      return;
+    }
+    if (amount > thriftLimit) {
+      toast.error(
+        thriftLimit <= 0
+          ? "This employee has no thrift savings. Their loan limit is 2× their thrift savings."
+          : `This employee's loan limit is ${naira(thriftLimit)} (2× their thrift savings).`
+      );
       return;
     }
     if (duration <= 0) {
@@ -173,9 +189,35 @@ export function ApplyForLoanForm({
                   <AlertDescription>
                     {selectedProduct.name}: {naira(selectedProduct.minimum_amount)} –{" "}
                     {naira(selectedProduct.maximum_amount)}, up to{" "}
-                    {selectedProduct.duration_months} months
+                    {selectedProduct.duration_months} months.
+                    <span className="mt-1 block">
+                      Thrift-backed limit: <strong>{naira(thriftLimit)}</strong>{" "}
+                      (2× {naira(thriftBalance)} savings).
+                    </span>
                   </AlertDescription>
                 </Alert>
+
+                {thriftLimit <= 0 && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="size-4" />
+                    <AlertDescription>
+                      This employee has no thrift savings yet. Their loan limit
+                      is 2× their thrift savings.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {thriftLimit > 0 &&
+                  thriftLimit < selectedProduct.minimum_amount && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="size-4" />
+                      <AlertDescription>
+                        The thrift-backed limit of {naira(thriftLimit)} is below
+                        this product&apos;s minimum amount of{" "}
+                        {naira(selectedProduct.minimum_amount)}.
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
                 <div className="space-y-2">
                   <Label>Loan Amount (₦) *</Label>
@@ -184,9 +226,12 @@ export function ApplyForLoanForm({
                     value={amount || ""}
                     onChange={(e) => setAmount(Number(e.target.value))}
                     min={selectedProduct.minimum_amount}
-                    max={selectedProduct.maximum_amount}
-                    placeholder={`Min: ${naira(selectedProduct.minimum_amount)}, Max: ${naira(selectedProduct.maximum_amount)}`}
+                    max={Math.max(0, effectiveMax)}
+                    placeholder={`Min: ${naira(selectedProduct.minimum_amount)}, Max: ${naira(effectiveMax)}`}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Maximum borrowable now: {naira(effectiveMax)}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -215,7 +260,14 @@ export function ApplyForLoanForm({
 
             <Button
               onClick={handleSubmit}
-              disabled={isPending || !productId || amount <= 0 || duration <= 0}
+              disabled={
+                isPending ||
+                !productId ||
+                amount <= 0 ||
+                duration <= 0 ||
+                effectiveMax <= 0 ||
+                exceedsThriftLimit
+              }
               className="w-full"
             >
               {isPending ? "Submitting..." : "Apply for Loan"}
@@ -234,6 +286,15 @@ export function ApplyForLoanForm({
                 <div className="rounded-lg border p-4">
                   <p className="text-xs text-muted-foreground">Principal</p>
                   <p className="text-lg font-bold">{naira(calculation.principal)}</p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs text-muted-foreground">
+                    Thrift-backed Limit (2× savings)
+                  </p>
+                  <p className="text-lg font-bold">{naira(thriftLimit)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Savings: {naira(thriftBalance)}
+                  </p>
                 </div>
                 <div className="rounded-lg border p-4">
                   <p className="text-xs text-muted-foreground">Total Interest</p>
@@ -271,6 +332,16 @@ export function ApplyForLoanForm({
                   </p>
                   <p className="text-sm font-medium">{naira(maxDeduction)}</p>
                 </div>
+              )}
+
+              {exceedsThriftLimit && amount > 0 && (
+                <Alert variant="destructive">
+                  <AlertCircle className="size-4" />
+                  <AlertDescription>
+                    The amount exceeds the thrift-backed limit of{" "}
+                    {naira(thriftLimit)}.
+                  </AlertDescription>
+                </Alert>
               )}
 
               {exceedsDeduction && (

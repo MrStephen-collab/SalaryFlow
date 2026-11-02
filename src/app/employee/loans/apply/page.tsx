@@ -15,10 +15,11 @@ export default async function EmployeeApplyLoanPage() {
   const loanService = await LoanService.create();
   const portal = await EmployeePortalService.create();
 
-  const [products, employee, eligibility] = await Promise.all([
+  const [products, employee, eligibility, thriftBalance] = await Promise.all([
     loanService.listProducts(),
     portal.getEmployee(),
     portal.getLoanEligibility(),
+    portal.getThriftBalance(),
   ]);
 
   if (!employee) {
@@ -79,6 +80,7 @@ export default async function EmployeeApplyLoanPage() {
       <ApplyLoanForm
         products={products.filter((p) => p.active)}
         employee={employee}
+        thriftBalance={thriftBalance}
       />
     </div>
   );

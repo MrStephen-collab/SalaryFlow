@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmployeePortalService } from "@/services/employee-portal-service";
+import { thriftBackedLoanLimit } from "@/lib/loan-eligibility";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,13 +37,16 @@ function statusVariant(status: string) {
 
 export default async function EmployeeLoansPage() {
   const service = await EmployeePortalService.create();
-  const [loans, eligibility] = await Promise.all([
+  const [loans, eligibility, thriftBalance] = await Promise.all([
     service.getLoans(),
     service.getLoanEligibility(),
+    service.getThriftBalance(),
   ]);
 
   const requiredMonths = eligibility?.requiredMonths ?? 0;
   const eligible = eligibility?.eligible ?? true;
+  const loanLimit = thriftBackedLoanLimit(thriftBalance);
+  const canApply = eligible && loanLimit > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,7 +57,7 @@ export default async function EmployeeLoansPage() {
             Track your applications and repayments
           </p>
         </div>
-        {eligible ? (
+        {canApply ? (
           <Button render={<Link href="/employee/loans/apply" />}>
             <HandCoins className="size-4" />
             Apply for Loan
@@ -70,6 +74,16 @@ export default async function EmployeeLoansPage() {
         <p className="text-xs text-muted-foreground">
           Eligible · {requiredMonths}-month employment requirement met
           {eligibility ? ` (${eligibility.monthsWorked} months worked)` : ""}.
+        </p>
+      ) : null}
+
+      {eligible ? (
+        <p className="text-xs text-muted-foreground">
+          {loanLimit > 0
+            ? `Thrift-backed loan limit: ${naira(loanLimit)} (2× your ${naira(
+                thriftBalance
+              )} thrift savings).`
+            : "Save in thrift to unlock a loan — your loan limit is 2× your thrift savings."}
         </p>
       ) : null}
 
@@ -103,9 +117,11 @@ export default async function EmployeeLoansPage() {
           <CardContent className="py-12 text-center">
             <p className="text-sm font-medium">No loans yet</p>
             <p className="text-sm text-muted-foreground">
-              {eligible
-                ? "Apply for your first salary-backed loan."
-                : "You will be able to apply once you meet the employment period."}
+              {canApply
+                ? "Apply for a thrift-backed loan using your savings."
+                : eligible
+                  ? "Save in thrift to unlock your first loan."
+                  : "You will be able to apply once you meet the employment period."}
             </p>
           </CardContent>
         </Card>

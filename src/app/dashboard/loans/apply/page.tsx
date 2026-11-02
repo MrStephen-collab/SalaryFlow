@@ -21,6 +21,8 @@ export default async function ApplyForLoanPage() {
     redirect("/dashboard/loans");
   }
 
+  const { thriftBalance } = await service.getThriftLoanLimit(employee.id);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between">
@@ -39,7 +41,11 @@ export default async function ApplyForLoanPage() {
         </Button>
       </div>
 
-      <ApplyForLoanForm products={products} employee={employee} />
+      <ApplyForLoanForm
+        products={products}
+        employee={employee}
+        thriftBalance={thriftBalance}
+      />
     </div>
   );
 }

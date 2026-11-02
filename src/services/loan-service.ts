@@ -4,6 +4,17 @@ import type { CreateLoanProductValues } from "@/schemas/loan";
 import { LoanCalculationService } from "./loan-calculation-service";
 import type { InterestMethod } from "./loan-calculation-service";
 import { recordAudit } from "./audit-service";
+import { LedgerService } from "./ledger-service";
+import { thriftBackedLoanLimit } from "@/lib/loan-eligibility";
+
+const round2 = (value: number) => Math.round(value * 100) / 100;
+
+const naira = (amount: number) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 2,
+  }).format(amount);
 
 export class LoanService {
   private supabase: Awaited<ReturnType<typeof createClient>>;
@@ -79,6 +90,19 @@ export class LoanService {
       .single();
 
     return data;
+  }
+
+  /** Thrift-backed employee loan limit: 2× the employee's thrift savings. */
+  async getThriftLoanLimit(employeeId: string) {
+    if (!this.orgId) return { thriftBalance: 0, loanLimit: 0 };
+
+    const ledger = LedgerService.createForOrganization(this.orgId);
+    const thriftBalance = round2(await ledger.getThriftBalance(employeeId));
+
+    return {
+      thriftBalance,
+      loanLimit: thriftBackedLoanLimit(thriftBalance),
+    };
   }
 
   async createProduct(values: CreateLoanProductValues) {
@@ -413,6 +437,19 @@ export class LoanService {
           error: `You are not eligible for a loan yet. You need ${requiredMonths} month(s) of employment; ${remaining} more month(s) to go.`,
         };
       }
+    }
+
+    // Thrift-backed limit: employees may borrow up to 2× their thrift savings.
+    const { thriftBalance, loanLimit } = await this.getThriftLoanLimit(employeeId);
+    if (amount > loanLimit) {
+      return {
+        error:
+          thriftBalance <= 0
+            ? "You have no thrift savings yet. Your loan limit is 2× your thrift savings, so save in thrift to unlock a loan."
+            : `Your loan limit is ${naira(loanLimit)} (2× your ${naira(
+                thriftBalance
+              )} thrift savings). Reduce the amount or save more in thrift.`,
+      };
     }
 
     const calculation = LoanCalculationService.calculate({
