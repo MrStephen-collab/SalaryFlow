@@ -1202,6 +1202,156 @@ export class MemberService {
     };
   }
 
+  /** Employer view of member savings across the organization. */
+  async getSavingsOverview() {
+    if (!this.organizationId) return null;
+    const admin = createAdminClient();
+
+    const { data: memberRows } = await admin
+      .from("members")
+      .select("id, member_number, first_name, last_name, email, status, joined_at")
+      .eq("organization_id", this.organizationId)
+      .order("first_name", { ascending: true });
+
+    const members = memberRows ?? [];
+
+    const { data: transactions } = await admin
+      .from("savings_transactions")
+      .select(
+        "id, member_id, transaction_type, amount, direction, description, reference, created_at"
+      )
+      .eq("organization_id", this.organizationId)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    const { data: paidWithdrawals } = await admin
+      .from("withdrawal_requests")
+      .select("member_id, net_amount, amount, paid_at, created_at")
+      .eq("organization_id", this.organizationId)
+      .eq("status", "PAID")
+      .not("member_id", "is", null);
+
+    const { data: walletAccounts } = await admin
+      .from("financial_accounts")
+      .select("id, member_id")
+      .eq("organization_id", this.organizationId)
+      .eq("account_type", "WALLET");
+
+    const walletBalanceByMember = new Map<string, number>();
+    for (const account of walletAccounts ?? []) {
+      const { data: entries } = await admin
+        .from("ledger_entries")
+        .select("debit, credit")
+        .eq("financial_account_id", account.id);
+      const balance = (entries ?? []).reduce(
+        (sum, entry) =>
+          sum + (Number(entry.credit) || 0) - (Number(entry.debit) || 0),
+        0
+      );
+      walletBalanceByMember.set(
+        account.member_id as string,
+        Math.round(balance * 100) / 100
+      );
+    }
+
+    const nameById = new Map(
+      members.map((member) => [
+        member.id as string,
+        `${member.first_name} ${member.last_name}`,
+      ])
+    );
+
+    const byMember = new Map<
+      string,
+      { deposited: number; appliedToLoan: number; withdrawn: number }
+    >();
+    for (const member of members) {
+      byMember.set(member.id as string, {
+        deposited: 0,
+        appliedToLoan: 0,
+        withdrawn: 0,
+      });
+    }
+
+    for (const tx of transactions ?? []) {
+      const bucket = byMember.get(tx.member_id as string);
+      if (!bucket) continue;
+      const amount = Number(tx.amount) || 0;
+      if (tx.transaction_type === "DEPOSIT") bucket.deposited += amount;
+      if (
+        tx.transaction_type === "WITHDRAWAL" &&
+        String(tx.reference ?? "").startsWith("SAV-LOAN-")
+      ) {
+        bucket.appliedToLoan += amount;
+      }
+    }
+
+    for (const withdrawal of paidWithdrawals ?? []) {
+      const bucket = byMember.get(withdrawal.member_id as string);
+      if (!bucket) continue;
+      bucket.withdrawn += Number(withdrawal.net_amount ?? withdrawal.amount) || 0;
+    }
+
+    let totalSavings = 0;
+    let totalWallet = 0;
+    let totalDeposited = 0;
+    let totalWithdrawn = 0;
+
+    const rows = members.map((member) => {
+      const bucket = byMember.get(member.id as string) ?? {
+        deposited: 0,
+        appliedToLoan: 0,
+        withdrawn: 0,
+      };
+      const savingsBalance = Math.max(
+        0,
+        Math.round((bucket.deposited - bucket.appliedToLoan) * 100) / 100
+      );
+      const walletBalance = walletBalanceByMember.get(member.id as string) ?? 0;
+
+      totalSavings += savingsBalance;
+      totalWallet += walletBalance;
+      totalDeposited += bucket.deposited;
+      totalWithdrawn += bucket.withdrawn;
+
+      return {
+        id: member.id as string,
+        memberNumber: member.member_number as string,
+        name: `${member.first_name} ${member.last_name}`,
+        email: member.email as string,
+        status: member.status as string,
+        joinedAt: member.joined_at as string,
+        savingsBalance,
+        walletBalance,
+        totalDeposited: Math.round(bucket.deposited * 100) / 100,
+        totalWithdrawn: Math.round(bucket.withdrawn * 100) / 100,
+      };
+    });
+
+    const activity = (transactions ?? []).map((tx) => ({
+      id: tx.id as string,
+      memberId: tx.member_id as string,
+      memberName: nameById.get(tx.member_id as string) ?? "Member",
+      type: tx.transaction_type as string,
+      direction: tx.direction as string,
+      amount: Number(tx.amount) || 0,
+      description: (tx.description as string | null) ?? null,
+      reference: tx.reference as string,
+      createdAt: tx.created_at as string,
+    }));
+
+    return {
+      members: rows,
+      activity,
+      totals: {
+        savings: Math.round(totalSavings * 100) / 100,
+        wallet: Math.round(totalWallet * 100) / 100,
+        deposited: Math.round(totalDeposited * 100) / 100,
+        withdrawn: Math.round(totalWithdrawn * 100) / 100,
+      },
+    };
+  }
+
   /** Full loan analysis for a signed-in member's own loan. */
   async getLoanDetailForMember(loanId: string) {
     const supabase = await createClient();

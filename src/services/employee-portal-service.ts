@@ -186,7 +186,8 @@ export class EmployeePortalService {
     const { data: accounts } = await admin
       .from("financial_accounts")
       .select("id, account_type")
-      .eq("employee_id", this.employeeId);
+      .eq("employee_id", this.employeeId)
+      .eq("account_type", "AVAILABLE_BALANCE");
 
     const accountIds = (accounts ?? []).map((a) => a.id);
     if (accountIds.length === 0) return [];

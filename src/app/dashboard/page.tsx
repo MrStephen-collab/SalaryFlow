@@ -12,6 +12,7 @@ import { DeductionService } from "@/services/deduction-service";
 import { WithdrawalService } from "@/services/withdrawal-service";
 import { LoanService } from "@/services/loan-service";
 import { MemberService } from "@/services/member-service";
+import { AutoRefresh } from "@/components/dashboard/auto-refresh";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -149,6 +150,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      <AutoRefresh />
       {(pendingApplications.length > 0 || pendingWithdrawals.length > 0) && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           <p className="font-medium">Approvals waiting for the chairman</p>
@@ -199,7 +201,7 @@ export default async function DashboardPage() {
             title="Member Savings Deposited"
             value={naira(Math.round(membersOverview.savingsDeposited * 100) / 100)}
             description="Across member savings wallets"
-            href="/dashboard/members"
+            href="/dashboard/members/savings"
             icon={PiggyBank}
             accent="emerald"
             delay={800}

@@ -204,6 +204,29 @@ export class LoanService {
   async deleteProduct(productId: string) {
     if (!this.orgId) return { error: "No organization found" };
 
+    // Products with loan history cannot be hard-deleted (foreign key). They are
+    // deactivated instead so existing applications keep their product link.
+    const admin = createAdminClient();
+    const { count } = await admin
+      .from("loan_applications")
+      .select("id", { count: "exact", head: true })
+      .eq("loan_product_id", productId);
+
+    if ((count ?? 0) > 0) {
+      const { error } = await admin
+        .from("loan_products")
+        .update({ active: false })
+        .eq("id", productId)
+        .eq("organization_id", this.orgId);
+
+      if (error) return { error: error.message };
+
+      await this.audit("loan.product_deactivated", "loan_product", productId);
+      return {
+        success: `This product has ${count} loan(s) in its history, so it was deactivated instead of deleted`,
+      };
+    }
+
     const { error } = await this.supabase
       .from("loan_products")
       .delete()

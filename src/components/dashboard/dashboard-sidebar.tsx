@@ -118,6 +118,11 @@ const employerNavGroups: NavGroup[] = [
         icon: Contact,
       },
       {
+        title: "Member Savings",
+        href: "/dashboard/members/savings",
+        icon: PiggyBank,
+      },
+      {
         title: "Member Loans",
         href: "/dashboard/members/loans",
         icon: HandCoins,
