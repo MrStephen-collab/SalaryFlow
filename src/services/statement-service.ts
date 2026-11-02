@@ -179,7 +179,8 @@ export class StatementService {
         this.admin
           .from("financial_accounts")
           .select("id")
-          .eq("employee_id", this.employeeId),
+          .eq("employee_id", this.employeeId)
+          .eq("account_type", "AVAILABLE_BALANCE"),
         this.admin
           .from("salary_records")
           .select(
