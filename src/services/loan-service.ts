@@ -546,7 +546,7 @@ export class LoanService {
 
     const { data: existing } = await this.supabase
       .from("loan_applications")
-      .select("status")
+      .select("status, employee_id, member_id, amount")
       .eq("id", applicationId)
       .eq("organization_id", this.orgId)
       .single();
@@ -554,6 +554,21 @@ export class LoanService {
     if (!existing) return { error: "Application not found" };
     if (existing.status !== "SUBMITTED" && existing.status !== "UNDER_REVIEW") {
       return { error: `Cannot approve application in ${existing.status} status` };
+    }
+
+    // Re-check the thrift-backed limit at approval time in case the employee's
+    // thrift balance changed after they applied.
+    if (!existing.member_id && existing.employee_id) {
+      const { thriftBalance, loanLimit } = await this.getThriftLoanLimit(
+        existing.employee_id as string
+      );
+      if (Number(existing.amount) > loanLimit) {
+        return {
+          error: `This application exceeds the employee's current thrift-backed limit of ${naira(
+            loanLimit
+          )} (2× their ${naira(thriftBalance)} thrift savings).`,
+        };
+      }
     }
 
     const { error } = await this.supabase

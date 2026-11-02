@@ -240,7 +240,14 @@ export function ApplyForLoanForm({
                   <Input
                     type="number"
                     value={amount || ""}
-                    onChange={(e) => setAmount(Number(e.target.value))}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      if (!Number.isFinite(next) || next <= 0) {
+                        setAmount(0);
+                        return;
+                      }
+                      setAmount(Math.min(next, effectiveMax));
+                    }}
                     min={selectedProduct.minimum_amount}
                     max={Math.max(0, effectiveMax)}
                     placeholder={`Min: ${naira(selectedProduct.minimum_amount)}, Max: ${naira(effectiveMax)}`}
