@@ -54,7 +54,7 @@ export default async function LoanApplicationsPage({
 }) {
   const { status: filterStatus } = await searchParams;
   const service = await LoanService.create();
-  const applications = await service.listApplications(filterStatus);
+  const applications = await service.listApplications(filterStatus, "EMPLOYEE");
 
   return (
     <div className="flex flex-col gap-6">
@@ -62,7 +62,7 @@ export default async function LoanApplicationsPage({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Loan Applications</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Review and manage employee and external member loan applications
+            Review and manage employee loan applications
           </p>
         </div>
       </div>

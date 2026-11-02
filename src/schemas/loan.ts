@@ -39,7 +39,7 @@ export const createLoanProductSchema = z
       .default(0),
     maximumSalaryDeductionPercentage: z.coerce
       .number()
-      .positive("Deduction percentage must be positive")
+      .nonnegative("Deduction percentage must be positive")
       .max(100, "Cannot exceed 100%"),
     minimumSalary: z.coerce
       .number()

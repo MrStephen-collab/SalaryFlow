@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LedgerService } from "./ledger-service";
 import { recordAudit } from "./audit-service";
+import { MEMBER_LOAN_PRODUCT_NAME } from "@/lib/loan-products";
 
 /**
  * External members (non-employees).
@@ -30,7 +31,7 @@ export const MEMBER_APPROVER_ROLES = new Set([
   "LOAN_OFFICER",
 ]);
 
-const MEMBER_LOAN_PRODUCT = "Member Savings Loan";
+const MEMBER_LOAN_PRODUCT = MEMBER_LOAN_PRODUCT_NAME;
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 

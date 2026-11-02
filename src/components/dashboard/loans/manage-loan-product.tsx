@@ -33,12 +33,14 @@ type ManageLoanProductProps = {
   product: LoanProduct;
   onEdit: (product: LoanProduct) => void;
   onDelete: (product: LoanProduct) => void;
+  canDelete?: boolean;
 };
 
 export function ManageLoanProduct({
   product,
   onEdit,
   onDelete,
+  canDelete = true,
 }: ManageLoanProductProps) {
   return (
     <DropdownMenu>
@@ -59,13 +61,15 @@ export function ManageLoanProduct({
           <Pencil className="size-4" />
           Edit
         </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          onClick={() => onDelete(product)}
-        >
-          <Trash2 className="size-4" />
-          Delete
-        </DropdownMenuItem>
+        {canDelete ? (
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => onDelete(product)}
+          >
+            <Trash2 className="size-4" />
+            Delete
+          </DropdownMenuItem>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

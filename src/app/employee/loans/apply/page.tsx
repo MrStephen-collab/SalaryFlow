@@ -16,7 +16,7 @@ export default async function EmployeeApplyLoanPage() {
   const portal = await EmployeePortalService.create();
 
   const [products, employee, eligibility, thriftBalance] = await Promise.all([
-    loanService.listProducts(),
+    loanService.listProducts("EMPLOYEE"),
     portal.getEmployee(),
     portal.getLoanEligibility(),
     portal.getThriftBalance(),

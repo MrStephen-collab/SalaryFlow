@@ -6,6 +6,7 @@ import type { InterestMethod } from "./loan-calculation-service";
 import { recordAudit } from "./audit-service";
 import { LedgerService } from "./ledger-service";
 import { thriftBackedLoanLimit } from "@/lib/loan-eligibility";
+import { isMemberLoanProduct } from "@/lib/loan-products";
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
@@ -67,7 +68,7 @@ export class LoanService {
     });
   }
 
-  async listProducts() {
+  async listProducts(scope?: "EMPLOYEE" | "MEMBER") {
     if (!this.orgId) return [];
 
     const { data } = await this.supabase
@@ -76,7 +77,14 @@ export class LoanService {
       .eq("organization_id", this.orgId)
       .order("created_at", { ascending: false });
 
-    return data ?? [];
+    const products = data ?? [];
+    if (!scope) return products;
+
+    return products.filter((product) =>
+      scope === "MEMBER"
+        ? isMemberLoanProduct(product)
+        : !isMemberLoanProduct(product)
+    );
   }
 
   async getProduct(productId: string) {
@@ -266,7 +274,10 @@ export class LoanService {
     return { success: "Loan product deleted" };
   }
 
-  async listApplications(status?: string) {
+  async listApplications(
+    status?: string,
+    borrowerType?: "EMPLOYEE" | "MEMBER"
+  ) {
     if (!this.orgId) return [];
 
     let query = this.supabase
@@ -284,6 +295,12 @@ export class LoanService {
 
     if (status) {
       query = query.eq("status", status);
+    }
+
+    if (borrowerType === "EMPLOYEE") {
+      query = query.is("member_id", null);
+    } else if (borrowerType === "MEMBER") {
+      query = query.not("member_id", "is", null);
     }
 
     const { data } = await query;
@@ -411,6 +428,12 @@ export class LoanService {
 
     if (!product) return { error: "Loan product not found" };
     if (!product.active) return { error: "Loan product is not active" };
+    if (isMemberLoanProduct(product)) {
+      return {
+        error:
+          "This loan product is for members. Employees should choose an employee loan product.",
+      };
+    }
 
     const productMinimum = Number(product.minimum_amount) || 0;
     const productMaximum = Number(product.maximum_amount) || 0;

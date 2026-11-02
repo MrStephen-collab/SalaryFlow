@@ -45,6 +45,11 @@ import {
   REPETITION_FREQUENCIES,
 } from "@/schemas/loan";
 import { ManageLoanProduct, type LoanProduct } from "@/components/dashboard/loans/manage-loan-product";
+import {
+  MEMBER_LOAN_PRODUCT_NAME,
+  isMemberLoanProduct,
+  isMemberLoanProductName,
+} from "@/lib/loan-products";
 
 type DialogState =
   | { mode: "create" }
@@ -110,13 +115,20 @@ function productToForm(product: LoanProduct): ProductFormState {
 
 export function LoanProductsManager({
   products,
+  scope = "EMPLOYEE",
 }: {
   products: LoanProduct[];
+  scope?: "EMPLOYEE" | "MEMBER";
 }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [form, setForm] = useState<ProductFormState>(emptyProductForm);
   const [isPending, startTransition] = useTransition();
+
+  const memberScope = scope === "MEMBER";
+  const visibleProducts = products.filter((product) =>
+    memberScope ? isMemberLoanProduct(product) : !isMemberLoanProduct(product)
+  );
 
   const set =
     <K extends keyof ProductFormState>(
@@ -126,7 +138,17 @@ export function LoanProductsManager({
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const openCreate = () => {
-    setForm(emptyProductForm);
+    setForm(
+      memberScope
+        ? {
+            ...emptyProductForm,
+            name: MEMBER_LOAN_PRODUCT_NAME,
+            maximumSalaryDeductionPercentage: 0,
+            minimumSalary: 0,
+            minimumEmploymentPeriodMonths: 0,
+          }
+        : emptyProductForm
+    );
     setDialog({ mode: "create" });
   };
 
@@ -146,9 +168,16 @@ export function LoanProductsManager({
   const handleSubmit = () => {
     if (!dialog || dialog.mode === "delete") return;
 
+    if (!memberScope && isMemberLoanProductName(form.name)) {
+      toast.error(
+        `"${MEMBER_LOAN_PRODUCT_NAME}" is reserved for the member loan product.`
+      );
+      return;
+    }
+
     const mode = dialog.mode;
     const values: CreateLoanProductValues = {
-      name: form.name,
+      name: memberScope ? MEMBER_LOAN_PRODUCT_NAME : form.name.trim(),
       description: form.description || undefined,
       minimumAmount: form.minimumAmount,
       maximumAmount: form.maximumAmount,
@@ -158,9 +187,13 @@ export function LoanProductsManager({
       repaymentFrequency: form.repaymentFrequency,
       processingFee: form.processingFee,
       insuranceFee: form.insuranceFee,
-      maximumSalaryDeductionPercentage: form.maximumSalaryDeductionPercentage,
-      minimumSalary: form.minimumSalary,
-      minimumEmploymentPeriodMonths: form.minimumEmploymentPeriodMonths,
+      maximumSalaryDeductionPercentage: memberScope
+        ? 0
+        : form.maximumSalaryDeductionPercentage,
+      minimumSalary: memberScope ? 0 : form.minimumSalary,
+      minimumEmploymentPeriodMonths: memberScope
+        ? 0
+        : form.minimumEmploymentPeriodMonths,
       guarantorRequired: form.guarantorRequired,
       collateralRequired: form.collateralRequired,
     };
@@ -202,44 +235,61 @@ export function LoanProductsManager({
       maximumFractionDigits: 0,
     }).format(amount);
 
+  const productLabel = memberScope ? "Member Loan Product" : "Employee Loan Product";
+
   const dialogTitle =
     dialog?.mode === "edit"
-      ? "Edit Loan Product"
+      ? `Edit ${productLabel}`
       : dialog?.mode === "delete"
-        ? "Delete Loan Product"
-        : "Create Loan Product";
+        ? `Delete ${productLabel}`
+        : `Create ${productLabel}`;
 
   const dialogDescription =
     dialog?.mode === "edit"
-      ? `Update ${dialog.product.name} settings.`
+      ? memberScope
+        ? "Update the terms used for member savings-backed loans."
+        : `Update ${dialog.product.name} settings.`
       : dialog?.mode === "delete"
         ? `Are you sure you want to delete "${dialog.product.name}"? This can't be undone.`
-        : "Define a new loan product for your organization.";
+        : memberScope
+          ? "Set the terms members see when they apply for a savings-backed loan."
+          : "Define a new loan product for your employees.";
 
-  const isMemberProduct =
-    form.name.trim().toLowerCase() === "member savings loan";
+  const isMemberProduct = memberScope;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Loan Products</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {memberScope ? "Member Loan Product" : "Employee Loan Products"}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage loan products available to employees
+            {memberScope
+              ? "Terms used when members apply for a savings-backed loan"
+              : "Manage loan products available to employees"}
           </p>
         </div>
-        <Button onClick={openCreate} className="w-full sm:w-auto">
-          <Plus className="size-4" />
-          New Product
-        </Button>
+        {!memberScope || visibleProducts.length === 0 ? (
+          <Button onClick={openCreate} className="w-full sm:w-auto">
+            <Plus className="size-4" />
+            {memberScope ? "Create Member Product" : "New Product"}
+          </Button>
+        ) : null}
       </div>
 
-      {products.length === 0 ? (
+      {visibleProducts.length === 0 ? (
         <div className="rounded-md border">
           <div className="py-12 text-center">
-            <p className="text-sm font-medium">No loan products yet</p>
+            <p className="text-sm font-medium">
+              {memberScope
+                ? "No member loan product yet"
+                : "No employee loan products yet"}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Create your first loan product to start offering loans.
+              {memberScope
+                ? "Create the member savings loan product to set its terms."
+                : "Create your first loan product to start offering employee loans."}
             </p>
           </div>
         </div>
@@ -259,7 +309,7 @@ export function LoanProductsManager({
               </TableRow>
             </TableHeader>
             <CollapsibleTableBody columns={8} itemLabel="products">
-              {products.map((product) => (
+              {visibleProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
                     <div>
@@ -289,7 +339,9 @@ export function LoanProductsManager({
                   </TableCell>
                   <TableCell className="text-sm">{product.duration_months} mo</TableCell>
                   <TableCell className="text-sm">
-                    {product.maximum_salary_deduction_percentage}%
+                    {memberScope
+                      ? "—"
+                      : `${product.maximum_salary_deduction_percentage}%`}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
@@ -315,6 +367,7 @@ export function LoanProductsManager({
                       product={product as LoanProduct}
                       onEdit={openEdit}
                       onDelete={openDelete}
+                      canDelete={!memberScope}
                     />
                   </TableCell>
                 </TableRow>
@@ -367,7 +420,14 @@ export function LoanProductsManager({
                     value={form.name}
                     onChange={(e) => set("name", e.target.value)}
                     placeholder="e.g. Employee Welfare Loan"
+                    disabled={memberScope}
                   />
+                  {memberScope ? (
+                    <p className="text-xs text-muted-foreground">
+                      This name is reserved so the member portal can find the
+                      product automatically.
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="space-y-2 sm:col-span-2">

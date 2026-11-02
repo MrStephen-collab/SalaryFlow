@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default async function ApplyForLoanPage() {
   const service = await LoanService.create();
   const [products, employee] = await Promise.all([
-    service.listProducts(),
+    service.listProducts("EMPLOYEE"),
     service.getCurrentEmployee(),
   ]);
 

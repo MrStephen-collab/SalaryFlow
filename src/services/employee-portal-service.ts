@@ -1,6 +1,7 @@
 import { cache as reactCache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isEmployeeLoanProduct } from "@/lib/loan-products";
 
 interface EmployeeRow {
   id: string;
@@ -302,17 +303,24 @@ export class EmployeePortalService {
       admin.from("employees").select("date_joined").eq("id", this.employeeId).maybeSingle(),
       admin
         .from("loan_products")
-        .select("minimum_employment_period_months")
+        .select("name, minimum_employment_period_months")
         .eq("organization_id", this.orgId)
         .eq("active", true),
     ]);
 
+    // Member loan products never gate employee eligibility.
+    const employeeProducts = (products ?? []).filter((product) =>
+      isEmployeeLoanProduct(product)
+    );
+
     // Eligibility comes from the loan products; the least demanding active
     // product is what the portal page uses as the general gate.
     const requiredMonths =
-      products && products.length > 0
+      employeeProducts.length > 0
         ? Math.min(
-            ...products.map((p) => Number(p.minimum_employment_period_months) || 0)
+            ...employeeProducts.map(
+              (p) => Number(p.minimum_employment_period_months) || 0
+            )
           )
         : 0;
     const dateJoined = (employee?.date_joined as string | null) ?? null;
