@@ -87,9 +87,21 @@ export function RequestWithdrawalForm({
           min={1}
           placeholder="0.00"
         />
-        <p className="text-xs text-muted-foreground">
-          Available: {naira(balance)}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setAmount(balance)}
+            disabled={balance <= 0}
+          >
+            Withdraw full balance
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Available: {naira(balance)} · 100% withdrawable with chairman
+            approval
+          </p>
+        </div>
         {exceedsBalance && amount > 0 && (
           <p className="flex items-center gap-1 text-xs text-red-600">
             <AlertCircle className="size-3" />
