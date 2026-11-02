@@ -4,7 +4,13 @@ import { LoanService } from "@/services/loan-service";
 import { LoanSettlementService } from "@/services/loan-settlement-service";
 import { EmployeePortalService } from "@/services/employee-portal-service";
 import { WithdrawalService } from "@/services/withdrawal-service";
+import { ThriftService } from "@/services/thrift-service";
 import type { BankAccountValues } from "@/schemas/withdrawal";
+
+export async function requestThriftRelease(amount: number) {
+  const service = await ThriftService.create();
+  return service.requestRelease(amount);
+}
 
 export async function applyForLoan(
   loanProductId: string,

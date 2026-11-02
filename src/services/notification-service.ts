@@ -561,8 +561,14 @@ export class NotificationService {
     const admin = createAdminClient();
     const items: NotificationItem[] = [];
 
-    const [applications, withdrawals, shortfalls, schedules, settlementRequests] =
-      await Promise.all([
+    const [
+      applications,
+      withdrawals,
+      shortfalls,
+      schedules,
+      settlementRequests,
+      thriftRequests,
+    ] = await Promise.all([
       admin
         .from("loan_applications")
         .select(
@@ -621,6 +627,15 @@ export class NotificationService {
         .select("id, entity_id, created_at, after_data")
         .eq("organization_id", this.orgId)
         .eq("action", "loan.early_settlement_requested")
+        .order("created_at", { ascending: false })
+        .limit(10),
+      admin
+        .from("thrift_release_requests")
+        .select(
+          "id, amount, created_at, employees:employee_id(first_name, last_name)"
+        )
+        .eq("organization_id", this.orgId)
+        .eq("status", "PENDING")
         .order("created_at", { ascending: false })
         .limit(10),
     ]);
@@ -787,6 +802,30 @@ export class NotificationService {
         title: "Early settlement requested",
         description: `${name} asked to settle their loan early for ${naira(amount)}.`,
         href: `/dashboard/loans/applications/${request.entity_id}`,
+        createdAt: timestamp(request.created_at),
+        tone: "warning",
+        category: "approval",
+        amount,
+      });
+    }
+
+    for (const request of thriftRequests.data ?? []) {
+      const employee = unwrap(
+        request.employees as unknown as Embedded<{
+          first_name: string | null;
+          last_name: string | null;
+        }>
+      );
+      const name = employee
+        ? `${employee.first_name ?? ""} ${employee.last_name ?? ""}`.trim()
+        : "An employee";
+      const amount = Number(request.amount) || 0;
+
+      items.push({
+        id: `thrift-request-${request.id}`,
+        title: "Thrift release request",
+        description: `${name} asked to release ${naira(amount)} from their thrift savings.`,
+        href: "/dashboard/employees/thrift",
         createdAt: timestamp(request.created_at),
         tone: "warning",
         category: "approval",

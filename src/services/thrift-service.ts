@@ -17,6 +17,15 @@ export const THRIFT_APPROVER_ROLES = new Set([
   "ORGANIZATION_ADMIN",
 ]);
 
+const naira = (amount: number) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+const round2 = (value: number) => Math.round(value * 100) / 100;
+
 export class ThriftService {
   private constructor(
     private supabase: Awaited<ReturnType<typeof createClient>>,
@@ -145,6 +154,171 @@ export class ThriftService {
       total: Math.round(total * 100) / 100,
       failures,
     };
+  }
+
+  private async getMyEmployee() {
+    if (!this.userId) return null;
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("employees")
+      .select("id, organization_id, first_name, last_name")
+      .eq("user_id", this.userId)
+      .maybeSingle();
+    return data ?? null;
+  }
+
+  /** Employee asks the employer to release some or all of their thrift. */
+  async requestRelease(amount: number) {
+    if (!this.userId) return { ok: false as const, error: "Sign in to continue" };
+
+    const employee = await this.getMyEmployee();
+    if (!employee?.id || !employee.organization_id) {
+      return { ok: false as const, error: "No employee profile is linked to this account" };
+    }
+
+    const requested = round2(Number(amount));
+    if (!Number.isFinite(requested) || requested <= 0) {
+      return { ok: false as const, error: "Enter a valid amount" };
+    }
+
+    const ledger = LedgerService.createForOrganization(employee.organization_id);
+    const balance = await ledger.getThriftBalance(employee.id);
+    if (requested > balance) {
+      return {
+        ok: false as const,
+        error: `You can request up to ${naira(balance)}`,
+      };
+    }
+
+    const admin = createAdminClient();
+    const { data: pending } = await admin
+      .from("thrift_release_requests")
+      .select("id")
+      .eq("employee_id", employee.id)
+      .eq("status", "PENDING")
+      .maybeSingle();
+
+    if (pending) {
+      return {
+        ok: false as const,
+        error: "You already have a pending thrift release request",
+      };
+    }
+
+    const { error } = await admin.from("thrift_release_requests").insert({
+      organization_id: employee.organization_id,
+      employee_id: employee.id,
+      amount: requested,
+      status: "PENDING",
+      requested_by: this.userId,
+    });
+
+    if (error) return { ok: false as const, error: error.message };
+
+    return { ok: true as const, success: "Release request sent to your employer" };
+  }
+
+  /** Employee's own thrift release requests. */
+  async listMyRequests() {
+    const employee = await this.getMyEmployee();
+    if (!employee?.id) return [];
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("thrift_release_requests")
+      .select("id, amount, status, notes, reviewed_at, created_at")
+      .eq("employee_id", employee.id)
+      .order("created_at", { ascending: false });
+    return data ?? [];
+  }
+
+  /** Employer view of thrift release requests. */
+  async listRequests() {
+    if (!this.organizationId) return [];
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("thrift_release_requests")
+      .select(
+        "id, amount, status, notes, reviewed_at, created_at, employees:employee_id(first_name, last_name, employee_number)"
+      )
+      .eq("organization_id", this.organizationId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    return (data ?? []).map((row) => {
+      const employee = row.employees as unknown as {
+        first_name: string;
+        last_name: string;
+        employee_number: string;
+      } | null;
+      return {
+        id: row.id as string,
+        amount: Number(row.amount) || 0,
+        status: row.status as string,
+        notes: row.notes as string | null,
+        reviewedAt: row.reviewed_at as string | null,
+        createdAt: row.created_at as string,
+        employeeId: "",
+        employeeName: employee
+          ? `${employee.first_name} ${employee.last_name}`
+          : "Employee",
+        employeeNumber: employee?.employee_number ?? "",
+      };
+    });
+  }
+
+  /** Chairman approves (releases individually) or rejects a request. */
+  async reviewRequest(id: string, approve: boolean, notes?: string) {
+    const forbidden = await this.ensureOwner();
+    if (forbidden) return { ok: false as const, error: forbidden };
+    if (!this.organizationId || !this.userId) {
+      return { ok: false as const, error: "Unauthorized" };
+    }
+
+    const admin = createAdminClient();
+    const { data: request } = await admin
+      .from("thrift_release_requests")
+      .select("id, employee_id, amount, status")
+      .eq("id", id)
+      .eq("organization_id", this.organizationId)
+      .maybeSingle();
+
+    if (!request) return { ok: false as const, error: "Request not found" };
+    if (request.status !== "PENDING") {
+      return { ok: false as const, error: "This request has already been handled" };
+    }
+
+    if (!approve) {
+      const { error } = await admin
+        .from("thrift_release_requests")
+        .update({
+          status: "REJECTED",
+          notes: notes ?? "Rejected by the chairman",
+          reviewed_by: this.userId,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+      if (error) return { ok: false as const, error: error.message };
+      return { ok: true as const };
+    }
+
+    const result = await this.releaseToWallet(
+      request.employee_id as string,
+      Number(request.amount) || undefined
+    );
+    if (!result.ok) return { ok: false as const, error: result.error };
+
+    const { error } = await admin
+      .from("thrift_release_requests")
+      .update({
+        status: "PAID",
+        reviewed_by: this.userId,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) return { ok: false as const, error: error.message };
+
+    return { ok: true as const };
   }
 
   /** Chairman releases thrift savings into the employee's withdrawable wallet. */  async releaseToWallet(employeeId: string, amount?: number) {

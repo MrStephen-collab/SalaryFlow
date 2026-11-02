@@ -26,3 +26,18 @@ export async function releaseAllThriftToWallets() {
   }
   return result;
 }
+
+export async function reviewThriftRequest(
+  id: string,
+  approve: boolean,
+  notes?: string
+) {
+  const service = await ThriftService.create();
+  const result = await service.reviewRequest(id, approve, notes);
+  if (result.ok) {
+    revalidatePath("/dashboard/employees/thrift");
+    revalidatePath("/dashboard/employees");
+    revalidatePath("/dashboard");
+  }
+  return result;
+}

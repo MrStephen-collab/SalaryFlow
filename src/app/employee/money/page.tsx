@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { EmployeePortalService } from "@/services/employee-portal-service";
+import { ThriftService } from "@/services/thrift-service";
+import { ThriftReleaseRequest } from "@/components/employee/thrift-release-request";
 import {
   Card,
   CardContent,
@@ -23,11 +25,17 @@ function naira(amount: number) {
 
 export default async function EmployeeMoneyPage() {
   const service = await EmployeePortalService.create();
-  const [balance, transactions, thriftBalance] = await Promise.all([
+  const [balance, transactions, thriftBalance, thriftRequests] = await Promise.all([
     service.getAvailableBalance(),
     service.getTransactions(),
     service.getThriftBalance(),
+    ThriftService.create().then((thrift) => thrift.listMyRequests()),
   ]);
+  const pendingThriftRequest = (thriftRequests as Array<{
+    amount: number;
+    status: string;
+    created_at: string;
+  }>).find((request) => request.status === "PENDING") ?? null;
 
   const credits = transactions.reduce((s, t) => s + t.credit, 0);
   const debits = transactions.reduce((s, t) => s + t.debit, 0);
@@ -92,6 +100,19 @@ export default async function EmployeeMoneyPage() {
             <p className="mt-1 truncate text-sm font-bold text-amber-600 sm:mt-2 sm:text-2xl">
               {naira(thriftBalance)}
             </p>
+            <div className="mt-2">
+              <ThriftReleaseRequest
+                balance={thriftBalance}
+                pending={
+                  pendingThriftRequest
+                    ? {
+                        amount: Number(pendingThriftRequest.amount) || 0,
+                        createdAt: pendingThriftRequest.created_at,
+                      }
+                    : null
+                }
+              />
+            </div>
           </CardContent>
         </Card>
       </div>

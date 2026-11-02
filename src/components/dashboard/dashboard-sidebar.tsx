@@ -106,6 +106,11 @@ const employerNavGroups: NavGroup[] = [
         href: "/dashboard/collections",
         icon: ShieldAlert,
       },
+      {
+        title: "Thrift Requests",
+        href: "/dashboard/employees/thrift",
+        icon: PiggyBank,
+      },
     ],
   },
   {
