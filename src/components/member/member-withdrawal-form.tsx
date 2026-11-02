@@ -109,6 +109,21 @@ export function MemberWithdrawalForm({
           onChange={(event) => setAmount(event.target.value)}
           placeholder={`Up to ${naira(max)}`}
         />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setAmount(String(max))}
+            disabled={max <= 0}
+          >
+            Withdraw full balance
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Wallet balance: {naira(max)} · 100% withdrawable with chairman
+            approval
+          </p>
+        </div>
         <p className="text-xs text-muted-foreground">
           Requests are approved by the chairman before payment.
         </p>
