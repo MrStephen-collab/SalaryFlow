@@ -1202,6 +1202,106 @@ export class MemberService {
     };
   }
 
+  /** Repayments recorded against member loans (paid instalments). */
+  async listMemberRepayments(limit = 100) {
+    if (!this.organizationId) return [];
+    const admin = createAdminClient();
+
+    const { data } = await admin
+      .from("loan_schedules")
+      .select(
+        `
+        id, month_number, total_payment, paid_amount, paid_at, due_date, status,
+        loan_applications!inner(
+          id, member_id, organization_id,
+          members:member_id(first_name, last_name, member_number)
+        )
+      `
+      )
+      .eq("loan_applications.organization_id", this.organizationId)
+      .not("loan_applications.member_id", "is", null)
+      .gt("paid_amount", 0)
+      .order("paid_at", { ascending: false })
+      .limit(limit);
+
+    return (data ?? []).map((row) => {
+      const loan = row.loan_applications as unknown as {
+        id: string;
+        members:
+          | { first_name: string; last_name: string; member_number: string }
+          | null;
+      } | null;
+      const member = loan?.members ?? null;
+      return {
+        id: row.id as string,
+        loanId: loan?.id ?? "",
+        memberName: member
+          ? `${member.first_name} ${member.last_name}`
+          : "Member",
+        memberNumber: member?.member_number ?? "",
+        month: Number(row.month_number) || 0,
+        amount: Number(row.paid_amount) || 0,
+        dueDate: row.due_date as string | null,
+        paidAt: row.paid_at as string | null,
+        status: row.status as string,
+      };
+    });
+  }
+
+  /** Overdue member loan instalments. */
+  async listMemberOverdue() {
+    if (!this.organizationId) return [];
+    const admin = createAdminClient();
+    const today = new Date().toISOString().slice(0, 10);
+
+    const { data } = await admin
+      .from("loan_schedules")
+      .select(
+        `
+        id, month_number, total_payment, paid_amount, due_date, status,
+        loan_applications!inner(
+          id, member_id, organization_id,
+          members:member_id(first_name, last_name, member_number)
+        )
+      `
+      )
+      .eq("loan_applications.organization_id", this.organizationId)
+      .not("loan_applications.member_id", "is", null)
+      .in("status", ["DUE", "LATE", "UPCOMING"])
+      .lt("due_date", today)
+      .order("due_date", { ascending: true })
+      .limit(200);
+
+    return (data ?? [])
+      .map((row) => {
+        const loan = row.loan_applications as unknown as {
+          id: string;
+          members:
+            | { first_name: string; last_name: string; member_number: string }
+            | null;
+        } | null;
+        const member = loan?.members ?? null;
+        const outstanding = Math.max(
+          0,
+          (Number(row.total_payment) || 0) - (Number(row.paid_amount) || 0)
+        );
+        return {
+          id: row.id as string,
+          loanId: loan?.id ?? "",
+          memberName: member
+            ? `${member.first_name} ${member.last_name}`
+            : "Member",
+          memberNumber: member?.member_number ?? "",
+          month: Number(row.month_number) || 0,
+          dueDate: row.due_date as string | null,
+          amountDue: Number(row.total_payment) || 0,
+          outstanding: Math.round(outstanding * 100) / 100,
+          status: row.status as string,
+        };
+      })
+      .filter((row) => row.outstanding > 0);
+  }
+
   /** Employer view of member savings across the organization. */
   async getSavingsOverview() {
     if (!this.organizationId) return null;

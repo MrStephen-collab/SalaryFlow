@@ -128,6 +128,16 @@ const employerNavGroups: NavGroup[] = [
         icon: HandCoins,
       },
       {
+        title: "Member Repayments",
+        href: "/dashboard/members/repayments",
+        icon: Banknote,
+      },
+      {
+        title: "Member Collections",
+        href: "/dashboard/members/collections",
+        icon: ShieldAlert,
+      },
+      {
         title: "Member Withdrawals",
         href: "/dashboard/members/withdrawals",
         icon: ArrowDownToLine,
