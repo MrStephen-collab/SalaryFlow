@@ -12,8 +12,9 @@ import {
 import { AvatarUpload } from "@/components/employee/profile/avatar-upload";
 import { ChangePasswordForm } from "@/components/employee/profile/change-password-form";
 import { PinSettings } from "@/components/employee/profile/pin-settings";
+import { ThriftSettings } from "@/components/employee/profile/thrift-settings";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, KeyRound, UserCircle2 } from "lucide-react";
+import { ShieldCheck, KeyRound, UserCircle2, PiggyBank } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Profile",
@@ -31,9 +32,10 @@ export default async function EmployeeProfilePage() {
   const user = await requireUser();
   const service = await EmployeePortalService.create();
   const profileService = await ProfileService.create();
-  const [employee, hasPin] = await Promise.all([
+  const [employee, hasPin, thriftBalance] = await Promise.all([
     service.getEmployee(),
     profileService.hasWithdrawalPin(),
+    service.getThriftBalance(),
   ]);
 
   if (!employee) {
@@ -104,6 +106,27 @@ export default async function EmployeeProfilePage() {
           </CardHeader>
           <CardContent>
             <PinSettings hasPin={hasPin} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <PiggyBank className="size-4 text-primary" />
+              Thrift Savings
+            </CardTitle>
+            <CardDescription>
+              Choose how much is set aside from each salary. Changes apply to
+              future salary runs only.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ThriftSettings
+              amount={Number(employee.thrift_amount) || 0}
+              balance={thriftBalance}
+              salary={Number(employee.salary) || 0}
+              enabled={Boolean(employee.thrift_enabled)}
+            />
           </CardContent>
         </Card>
 

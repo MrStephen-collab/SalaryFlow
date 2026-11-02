@@ -161,10 +161,82 @@ export class ThriftService {
     const admin = createAdminClient();
     const { data } = await admin
       .from("employees")
-      .select("id, organization_id, first_name, last_name")
+      .select(
+        "id, organization_id, first_name, last_name, salary, thrift_enabled, thrift_amount"
+      )
       .eq("user_id", this.userId)
       .maybeSingle();
     return data ?? null;
+  }
+
+  /**
+   * Employee changes their agreed monthly thrift contribution.
+   *
+   * This only updates the employee record used by future payroll runs. It
+   * deliberately does not post to the ledger, so the current thrift balance and
+   * past salary history stay untouched.
+   */
+  async updateMyThriftAmount(value: number) {
+    if (!this.userId) return { ok: false as const, error: "Sign in to continue" };
+
+    const employee = await this.getMyEmployee();
+    if (!employee?.id || !employee.organization_id) {
+      return {
+        ok: false as const,
+        error: "No employee profile is linked to this account",
+      };
+    }
+
+    const amount = round2(Number(value));
+    if (!Number.isFinite(amount) || amount < 0) {
+      return { ok: false as const, error: "Enter a valid thrift amount" };
+    }
+
+    const salary = Number(employee.salary) || 0;
+    if (salary > 0 && amount > salary) {
+      return {
+        ok: false as const,
+        error: `Your thrift amount cannot be more than your monthly salary (${naira(
+          salary
+        )}).`,
+      };
+    }
+
+    const before = {
+      thriftEnabled: Boolean(employee.thrift_enabled),
+      thriftAmount: Number(employee.thrift_amount) || 0,
+    };
+
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from("employees")
+      .update({
+        thrift_enabled: amount > 0,
+        thrift_amount: amount,
+      })
+      .eq("id", employee.id)
+      .eq("organization_id", employee.organization_id);
+
+    if (error) return { ok: false as const, error: error.message };
+
+    await recordAudit({
+      organizationId: employee.organization_id,
+      userId: this.userId,
+      action: "employee.thrift_updated",
+      entityType: "employee",
+      entityId: employee.id,
+      before,
+      after: { thriftEnabled: amount > 0, thriftAmount: amount },
+    });
+
+    return {
+      ok: true as const,
+      success:
+        amount > 0
+          ? `Thrift amount updated to ${naira(amount)} per salary`
+          : "Thrift savings switched off for future salary runs",
+      amount,
+    };
   }
 
   /** Employee asks the employer to release some or all of their thrift. */

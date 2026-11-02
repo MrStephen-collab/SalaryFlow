@@ -64,10 +64,10 @@ export function RequestWithdrawalForm({
 
     startTransition(async () => {
       const result = await requestWithdrawal(amount, bankAccountId, pin);
-      if (result.error) {
+      if ("error" in result && result.error) {
         toast.error(result.error);
       } else {
-        toast.success(result.success ?? "Withdrawal requested");
+        toast.success("success" in result ? result.success : "Withdrawal requested");
         setAmount(0);
         setBankAccountId("");
         setPin("");
