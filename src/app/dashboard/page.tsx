@@ -53,7 +53,7 @@ export default async function DashboardPage() {
   const loanService = await LoanService.create();
   const memberService = await MemberService.createForStaff();
 
-  const [employeeList, applications, fundAccounts, deductions, withdrawals, repayments, membersOverview] =
+  const [employeeList, applications, fundAccounts, deductions, withdrawals, repayments, membersOverview, memberApplications] =
     await Promise.all([
       employeeService.list({ pageSize: 1 }),
       loanService.listApplications(),
@@ -62,6 +62,7 @@ export default async function DashboardPage() {
       withdrawalService.listWithdrawals(),
       loanService.listRepayments(undefined, 5),
       memberService.getMembersOverview(),
+      memberService.listMemberApplications(),
     ]);
 
   const fundBalances = await Promise.all(
@@ -96,6 +97,16 @@ export default async function DashboardPage() {
   const pendingWithdrawals = withdrawals.filter(
     (w) => w.status === "PENDING" || w.status === "REVIEW"
   );
+
+  const pendingMemberLoans = memberApplications.filter((application) =>
+    ["PENDING", "SUBMITTED", "UNDER_REVIEW"].includes(application.status)
+  );
+  const pendingMemberships = membersOverview?.pending ?? 0;
+  const totalPendingApprovals =
+    pendingApplications.length +
+    pendingWithdrawals.length +
+    pendingMemberLoans.length +
+    pendingMemberships;
 
   const stats = [
     {
@@ -216,10 +227,10 @@ export default async function DashboardPage() {
             delay={880}
           />
           <StatCard
-            title="Pending Member Approvals"
-            value={membersOverview.pending.toLocaleString()}
-            description="Awaiting employer approval"
-            href="/dashboard/members"
+            title="Pending Approvals"
+            value={totalPendingApprovals.toLocaleString()}
+            description="Members · loans · withdrawals"
+            href="/dashboard/approvals"
             icon={Percent}
             accent="rose"
             delay={960}

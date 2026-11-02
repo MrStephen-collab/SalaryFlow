@@ -92,8 +92,8 @@ const employerNavGroups: NavGroup[] = [
         icon: MapPin,
       },
       {
-        title: "Employee Loans",
-        href: "/dashboard/loans",
+        title: "Loan Applications",
+        href: "/dashboard/loans/applications",
         icon: HandCoins,
       },
       {
@@ -136,8 +136,13 @@ const employerNavGroups: NavGroup[] = [
   },
   {
     id: "payroll",
-    label: "Payroll",
+    label: "Payroll & Loan",
     items: [
+      {
+        title: "Loan Products",
+        href: "/dashboard/loans",
+        icon: HandCoins,
+      },
       {
         title: "Salary",
         href: "/dashboard/salary",
