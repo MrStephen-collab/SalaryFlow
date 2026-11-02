@@ -42,7 +42,7 @@ export default async function StatementPrintPage({
 
   return (
     <div className="min-h-screen bg-muted/40 print:bg-white">
-      <div className="mx-auto w-full max-w-4xl p-4 sm:p-6 print:max-w-none print:p-0">
+      <div className="mx-auto w-full max-w-5xl p-4 sm:p-6 print:max-w-none print:p-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 print:hidden">
           <Button variant="outline" render={<Link href={backHref} />}>
             <ArrowLeft className="size-4" />
@@ -57,7 +57,7 @@ export default async function StatementPrintPage({
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-8 print:rounded-none print:border-0 print:p-0 print:shadow-none">
+        <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-8 print:rounded-none print:border-0 print:p-0 print:shadow-none print:[&_table]:text-[11px] print:[&_td]:whitespace-normal print:[&_th]:whitespace-normal print:[&_td]:px-1 print:[&_th]:px-1">
           <StatementDocument statement={statement} expandAll />
         </div>
 
