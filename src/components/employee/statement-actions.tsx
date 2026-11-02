@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 
 export function StatementActions({
   downloadHref,
+  printHref,
   shareUrl,
 }: {
   downloadHref: string;
+  printHref: string;
   shareUrl: string;
 }) {
   async function share() {
@@ -35,7 +37,12 @@ export function StatementActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2 print:hidden">
-      <Button variant="outline" onClick={() => window.print()}>
+      <Button
+        variant="outline"
+        render={
+          <a href={printHref} target="_blank" rel="noopener noreferrer" />
+        }
+      >
         <Printer />
         Print / Save PDF
       </Button>
