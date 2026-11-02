@@ -412,6 +412,20 @@ export class LoanService {
     if (!product) return { error: "Loan product not found" };
     if (!product.active) return { error: "Loan product is not active" };
 
+    const productMinimum = Number(product.minimum_amount) || 0;
+    const productMaximum = Number(product.maximum_amount) || 0;
+
+    if (amount < productMinimum) {
+      return {
+        error: `The minimum amount for ${product.name} is ${naira(productMinimum)}.`,
+      };
+    }
+    if (productMaximum > 0 && amount > productMaximum) {
+      return {
+        error: `The maximum amount for ${product.name} is ${naira(productMaximum)}.`,
+      };
+    }
+
     // Employment-period eligibility is defined on the loan product.
     const admin = createAdminClient();
     const { data: employee } = await admin

@@ -118,6 +118,22 @@ export function ApplyLoanForm({
       );
       return;
     }
+    if (amount < selectedProduct.minimum_amount) {
+      toast.error(
+        `The minimum amount for ${selectedProduct.name} is ${naira(
+          selectedProduct.minimum_amount
+        )}.`
+      );
+      return;
+    }
+    if (amount > selectedProduct.maximum_amount) {
+      toast.error(
+        `The maximum amount for ${selectedProduct.name} is ${naira(
+          selectedProduct.maximum_amount
+        )}.`
+      );
+      return;
+    }
     if (duration <= 0) {
       toast.error("Enter a valid duration");
       return;
