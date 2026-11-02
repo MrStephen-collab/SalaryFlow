@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmployeePortalService } from "@/services/employee-portal-service";
+import { thriftBackedLoanLimit } from "@/lib/loan-eligibility";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -176,14 +177,12 @@ export default async function EmployeeHomePage() {
             </div>
             <div className="text-sm text-muted-foreground sm:text-right">
               <p>
-                Agreed per salary:{" "}
+                Loan eligibility:{" "}
                 <span className="font-medium text-foreground">
-                  {employee.thrift_enabled
-                    ? naira(employee.thrift_amount ?? 0)
-                    : "—"}
+                  {naira(thriftBackedLoanLimit(thriftBalance))}
                 </span>
               </p>
-              <p className="text-xs">Released by the chairman.</p>
+              <p className="text-xs">2× your thrift savings.</p>
             </div>
           </CardContent>
         </Card>
