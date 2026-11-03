@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/table";
 import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
 import {
   INTEREST_METHODS,
   REPETITION_FREQUENCIES,
@@ -276,6 +277,30 @@ export function LoanProductsManager({
             {memberScope ? "Create Member Product" : "New Product"}
           </Button>
         ) : null}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={memberScope ? "outline" : "default"}
+          size="sm"
+          render={<Link href="/dashboard/employees/loan-products" />}
+        >
+          Employee Products
+        </Button>
+        <Button
+          variant={memberScope ? "default" : "outline"}
+          size="sm"
+          render={<Link href="/dashboard/members/loan-products" />}
+        >
+          Member Product
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          render={<Link href="/dashboard/loans" />}
+        >
+          All Product Catalogues
+        </Button>
       </div>
 
       {visibleProducts.length === 0 ? (
