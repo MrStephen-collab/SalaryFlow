@@ -79,8 +79,11 @@ export default async function MemberLoanDetailPage({
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={statusVariant(status)}>{status}</Badge>
-          {isPending ? (
-            <MemberLoanActions applicationId={String(loan.id)} />
+          {isPending || status === "APPROVED" ? (
+            <MemberLoanActions
+              applicationId={String(loan.id)}
+              status={status}
+            />
           ) : status === "ACTIVE" || status === "DISBURSED" ? (
             <MemberRepaymentDialog
               applicationId={String(loan.id)}

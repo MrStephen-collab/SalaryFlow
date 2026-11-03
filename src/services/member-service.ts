@@ -1856,7 +1856,7 @@ export class MemberService {
       return { error: "You do not have permission to approve member loans" };
     }
     if (this.role !== "ORGANIZATION_OWNER") {
-      return { error: "Only the chairman can approve and disburse member loans" };
+      return { error: "Only the chairman can approve member loans" };
     }
 
     const admin = createAdminClient();
@@ -1923,16 +1923,103 @@ export class MemberService {
     }
 
     const now = new Date();
-    const ledger = LedgerService.createForOrganization(this.organizationId, this.userId);
+    const { error } = await admin
+      .from("loan_applications")
+      .update({
+        status: "APPROVED",
+        approved_by: this.userId,
+        approved_at: now.toISOString(),
+        disbursed_at: null,
+      })
+      .eq("id", application.id);
+
+    if (error) return { error: error.message };
+
+    await recordAudit({
+      organizationId: this.organizationId,
+      userId: this.userId,
+      action: "member.loan_approved",
+      entityType: "loan_application",
+      entityId: application.id,
+      after: { status: "APPROVED", amount: Number(application.amount) },
+    });
+
+    return {
+      success:
+        "Member loan approved. Fund the Member Loan Pool, then disburse it.",
+    };
+  }
+
+  async disburseApplication(applicationId: string) {
+    if (!this.organizationId || !this.userId) return { error: "Unauthorized" };
+    if (!this.role || !MEMBER_APPROVER_ROLES.has(this.role)) {
+      return { error: "You do not have permission to disburse member loans" };
+    }
+    if (this.role !== "ORGANIZATION_OWNER") {
+      return { error: "Only the chairman can disburse member loans" };
+    }
+
+    const admin = createAdminClient();
+    const { data: application } = await admin
+      .from("loan_applications")
+      .select("*")
+      .eq("id", applicationId)
+      .eq("organization_id", this.organizationId)
+      .maybeSingle();
+
+    if (!application) return { error: "Loan application not found" };
+    if (application.status !== "APPROVED") {
+      return { error: `Cannot disburse an application in ${application.status} status` };
+    }
+    if (!application.member_id) {
+      return { error: "This is not a member loan" };
+    }
+
+    const summary = await this.getSummaryForMember(application.member_id);
+    if (!summary) return { error: "Member not found" };
+
+    if (Number(application.amount) > summary.maxLoan) {
+      return {
+        error: `Requested amount now exceeds the member's limit of ${naira(summary.maxLoan)}`,
+      };
+    }
+
+    // Member loans must be funded from a dedicated pool before disbursement.
+    const pool = await this.getMemberLoanPool(admin);
+    if (!pool) {
+      return {
+        error:
+          'No Member Loan Pool found. Create a fund account named "Member Loan Pool" in Fund Management, fund it, then disburse this loan.',
+      };
+    }
+    if (pool.balance < Number(application.amount)) {
+      const shortfall = round2(Number(application.amount) - pool.balance);
+      return {
+        error: `Member Loan Pool is short by ${naira(
+          shortfall
+        )}. Available ${naira(pool.balance)}, required ${naira(
+          Number(application.amount)
+        )}. Fund the pool and try again.`,
+      };
+    }
+
+    const now = new Date();
+    const ledger = LedgerService.createForOrganization(
+      this.organizationId,
+      this.userId
+    );
+
+    const fees = round2(
+      (Number(application.processing_fee) || 0) +
+        (Number(application.insurance_fee) || 0)
+    );
+    const netDisbursed = round2(Math.max(0, Number(application.amount) - fees));
 
     const posted = await ledger.postMemberLoanDisbursement(
       application.member_id,
       application.id,
       Number(application.amount),
-      round2(
-        (Number(application.processing_fee) || 0) +
-          (Number(application.insurance_fee) || 0)
-      )
+      fees
     );
     if (posted.error) return { error: posted.error };
 
@@ -1949,7 +2036,8 @@ export class MemberService {
           amount: summary.savingsBalance,
           direction: "OUT",
           reference: `SAV-LOAN-${application.id.slice(0, 8)}`,
-          description: "Savings applied to member loan — fresh savings start with repayment",
+          description:
+            "Savings applied to member loan ? fresh savings start with repayment",
         });
       }
     }
@@ -1965,12 +2053,17 @@ export class MemberService {
       return {
         loan_application_id: application.id,
         month_number: index + 1,
-        opening_balance: round2(Number(application.amount) - principalPerMonth * index),
+        opening_balance: round2(
+          Number(application.amount) - principalPerMonth * index
+        ),
         principal_payment: principalPerMonth,
         interest_payment: interestPerMonth,
         total_payment: round2(principalPerMonth + interestPerMonth),
         closing_balance: round2(
-          Math.max(0, Number(application.amount) - principalPerMonth * (index + 1))
+          Math.max(
+            0,
+            Number(application.amount) - principalPerMonth * (index + 1)
+          )
         ),
         status: "UPCOMING",
         due_date: due.toISOString().slice(0, 10),
@@ -1988,25 +2081,85 @@ export class MemberService {
       .update({
         status: "ACTIVE",
         approved_by: this.userId,
-        approved_at: now.toISOString(),
+        approved_at: application.approved_at ?? now.toISOString(),
         disbursed_at: now.toISOString(),
       })
       .eq("id", application.id);
 
     if (error) return { error: error.message };
 
+    await admin.from("fund_transactions").insert({
+      organization_id: this.organizationId,
+      fund_account_id: pool.id,
+      transaction_type: "DISBURSEMENT",
+      reference: `SLF-MLOAN-${application.id.slice(0, 8)}-${Date.now()}`,
+      amount: netDisbursed,
+      direction: "OUT",
+      description: `Member loan disbursement #${application.id.slice(0, 8)}`,
+      related_loan_application_id: application.id,
+      created_by: this.userId,
+    });
+
     await recordAudit({
       organizationId: this.organizationId,
       userId: this.userId,
-      action: "member.loan_approved",
+      action: "member.loan_disbursed",
       entityType: "loan_application",
       entityId: application.id,
-      after: { amount: Number(application.amount), monthly },
+      after: {
+        amount: Number(application.amount),
+        netDisbursed,
+        monthly,
+        poolId: pool.id,
+      },
     });
 
     return {
-      success: `Loan approved and ${naira(Number(application.amount))} credited to the member's wallet`,
+      success: `Loan disbursed. ${naira(
+        netDisbursed
+      )} credited to the member's wallet.`,
     };
+  }
+
+  /** The dedicated fund account used to pay out member loans. */
+  private async getMemberLoanPool(
+    admin: ReturnType<typeof createAdminClient>
+  ): Promise<{ id: string; name: string; balance: number } | null> {    if (!this.organizationId) return null;
+
+    const { data: account } = await admin
+      .from("fund_accounts")
+      .select("id, name, opening_balance")
+      .eq("organization_id", this.organizationId)
+      .eq("status", "ACTIVE")
+      .ilike("name", "%member%loan%pool%")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (!account) return null;
+
+    let balance = Number(account.opening_balance) || 0;
+    const { data: movements } = await admin
+      .from("fund_transactions")
+      .select("amount, direction")
+      .eq("fund_account_id", account.id);
+
+    for (const movement of movements ?? []) {
+      const amount = Number(movement.amount) || 0;
+      balance += movement.direction === "IN" ? amount : -amount;
+    }
+
+    return {
+      id: account.id as string,
+      name: account.name as string,
+      balance: round2(balance),
+    };
+  }
+
+  /** Pool balance shown to staff before disbursing an approved member loan. */
+  async getMemberLoanPoolInfo() {
+    if (!this.organizationId) return null;
+    return this.getMemberLoanPool(createAdminClient());
   }
 
   async rejectApplication(applicationId: string, reason: string) {

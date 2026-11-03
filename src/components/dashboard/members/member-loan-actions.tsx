@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   approveMemberLoan,
+  disburseMemberLoan,
   rejectMemberLoan,
 } from "@/app/dashboard/members/actions";
 import { Button } from "@/components/ui/button";
@@ -17,13 +18,24 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Check, X } from "lucide-react";
+import { Banknote, Check, X } from "lucide-react";
 
-export function MemberLoanActions({ applicationId }: { applicationId: string }) {
+const PENDING_STATUSES = ["PENDING", "SUBMITTED", "UNDER_REVIEW"];
+
+export function MemberLoanActions({
+  applicationId,
+  status,
+}: {
+  applicationId: string;
+  status: string;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
+
+  const canApprove = PENDING_STATUSES.includes(status);
+  const canDisburse = status === "APPROVED";
 
   function approve() {
     startTransition(async () => {
@@ -32,6 +44,18 @@ export function MemberLoanActions({ applicationId }: { applicationId: string }) 
         toast.error(result.error);
       } else {
         toast.success(result.success ?? "Loan approved");
+      }
+      router.refresh();
+    });
+  }
+
+  function disburse() {
+    startTransition(async () => {
+      const result = await disburseMemberLoan(applicationId);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(result.success ?? "Loan disbursed");
       }
       router.refresh();
     });
@@ -55,21 +79,32 @@ export function MemberLoanActions({ applicationId }: { applicationId: string }) 
     });
   }
 
+  if (!canApprove && !canDisburse) return null;
+
   return (
     <div className="flex justify-end gap-2">
-      <Button size="sm" onClick={approve} disabled={isPending}>
-        <Check className="size-4" />
-        Approve
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => setRejectOpen(true)}
-        disabled={isPending}
-      >
-        <X className="size-4" />
-        Reject
-      </Button>
+      {canApprove ? (
+        <>
+          <Button size="sm" onClick={approve} disabled={isPending}>
+            <Check className="size-4" />
+            Approve
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setRejectOpen(true)}
+            disabled={isPending}
+          >
+            <X className="size-4" />
+            Reject
+          </Button>
+        </>
+      ) : (
+        <Button size="sm" onClick={disburse} disabled={isPending}>
+          <Banknote className="size-4" />
+          {isPending ? "Disbursing…" : "Disburse Loan"}
+        </Button>
+      )}
 
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent className="sm:max-w-md">

@@ -35,6 +35,16 @@ export async function approveMemberLoan(applicationId: string) {
   const service = await MemberService.createForStaff();
   const result = await service.approveApplication(applicationId);
   revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/members/loans");
+  return result;
+}
+
+export async function disburseMemberLoan(applicationId: string) {
+  const service = await MemberService.createForStaff();
+  const result = await service.disburseApplication(applicationId);
+  revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/members/loans");
+  revalidatePath("/dashboard/funds");
   return result;
 }
 export async function approveMemberMembership(memberId: string) {

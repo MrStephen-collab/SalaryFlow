@@ -49,14 +49,18 @@ function statusVariant(status: string) {
 
 export default async function MemberLoansPage() {
   const service = await MemberService.createForStaff();
-  const [applications, activeLoans, members] = await Promise.all([
+  const [applications, activeLoans, members, pool] = await Promise.all([
     service.listMemberApplications(),
     service.listActiveMemberLoans(),
     service.listMembers(),
+    service.getMemberLoanPoolInfo(),
   ]);
 
   const pending = applications.filter((application) =>
     ["PENDING", "SUBMITTED", "UNDER_REVIEW"].includes(application.status)
+  );
+  const approved = applications.filter(
+    (application) => application.status === "APPROVED"
   );
 
   const totalOutstanding = activeLoans.reduce(
@@ -152,7 +156,73 @@ export default async function MemberLoansPage() {
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <MemberLoanActions applicationId={application.id} />
+                        <MemberLoanActions
+                          applicationId={application.id}
+                          status={application.status}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Approved — awaiting disbursement</CardTitle>
+          <CardDescription>
+            Approved loans are only paid out after the Member Loan Pool is
+            funded.
+            {pool
+              ? ` Pool balance: ${naira(pool.balance)}.`
+              : " No Member Loan Pool exists yet — create and fund one in Fund Management."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {approved.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No approved loans waiting to be disbursed.
+            </p>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Repayment</TableHead>
+                    <TableHead>Submitted</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {approved.map((application) => (
+                    <TableRow key={application.id}>
+                      <TableCell>
+                        <p className="font-medium">{application.memberName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {application.memberNumber}
+                        </p>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {naira(Number(application.amount))}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {naira(Number(application.total_repayment))}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {application.submitted_at
+                          ? new Date(application.submitted_at).toLocaleDateString("en-NG")
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <MemberLoanActions
+                          applicationId={application.id}
+                          status={application.status}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}

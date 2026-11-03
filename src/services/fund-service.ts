@@ -74,15 +74,8 @@ export class FundService {
 
     if (accountError) return { error: accountError.message };
 
-    if (openingBalance > 0) {
-      await this.recordMovement(
-        account.id,
-        "OPENING",
-        openingBalance,
-        "IN",
-        "Opening balance"
-      );
-    }
+    // Opening balance is stored on the account itself. Do not also post an
+    // OPENING movement, otherwise the balance would be counted twice.
 
     await recordAudit({
       organizationId: this.orgId,

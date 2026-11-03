@@ -57,7 +57,9 @@ export function CreateFundDialog() {
         <DialogHeader>
           <DialogTitle>Create Fund Account</DialogTitle>
           <DialogDescription>
-            Create a lending pool account for your organization.
+            Create a lending pool account for your organization. Use the name
+            &quot;Member Loan Pool&quot; for the account that funds member
+            loans.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
