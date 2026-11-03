@@ -1,53 +1,35 @@
 "use client";
 
-import { CheckIcon, LaptopIcon, MoonIcon, SunIcon } from "lucide-react";
+import { useEffect } from "react";
+import { MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 
-const OPTIONS = [
-  { value: "light", label: "Light", icon: SunIcon },
-  { value: "dark", label: "Dark", icon: MoonIcon },
-  { value: "system", label: "System", icon: LaptopIcon },
-] as const;
-
+/**
+ * Day/night switch. One tap flips between light and dark; there is deliberately
+ * no "system" option in the UI.
+ */
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const current = theme ?? "system";
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
+  // Migrate anyone who still has the old "system" choice saved.
+  useEffect(() => {
+    if (theme === "system") {
+      setTheme(resolvedTheme === "dark" ? "dark" : "light");
+    }
+  }, [theme, resolvedTheme, setTheme]);
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button variant="ghost" size="icon" aria-label="Toggle theme">
-            <SunIcon className="size-4 dark:hidden" />
-            <MoonIcon className="hidden size-4 dark:block" />
-          </Button>
-        }
-      />
-      <DropdownMenuContent align="end">
-        {OPTIONS.map((option) => {
-          const Icon = option.icon;
-          const active = current === option.value;
-          return (
-            <DropdownMenuItem
-              key={option.value}
-              onClick={() => setTheme(option.value)}
-              className={cn(active && "bg-accent text-accent-foreground")}
-            >
-              <Icon className="size-4" />
-              {option.label}
-              {active && <CheckIcon className="ms-auto size-4" />}
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Switch between day and night mode"
+      title={isDark ? "Switch to day mode" : "Switch to night mode"}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+    >
+      <SunIcon className="size-4 dark:hidden" />
+      <MoonIcon className="hidden size-4 dark:block" />
+    </Button>
   );
 }
