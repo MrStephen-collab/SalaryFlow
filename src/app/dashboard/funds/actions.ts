@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { PaymentService } from "@/services/payment-service";
+import { FundService } from "@/services/fund-service";
 
 async function siteUrl() {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
@@ -21,6 +22,25 @@ export async function startOrganizationFunding(amount: number) {
   return PaymentService.startOrganizationFunding({
     amount,
     callbackUrl: `${base}/api/payments/callback`,
+  });
+}
+
+export async function startMemberLoanPoolFunding(amount: number) {
+  const base = await siteUrl();
+  const funds = await FundService.create();
+  const pool = await funds.getOrCreateMemberLoanPool();
+
+  if (pool.error || !pool.id) {
+    return {
+      ok: false as const,
+      error: pool.error ?? "Could not prepare the Member Loan Pool",
+    };
+  }
+
+  return PaymentService.startOrganizationFunding({
+    amount,
+    callbackUrl: `${base}/api/payments/callback`,
+    fundAccountId: pool.id,
   });
 }
 

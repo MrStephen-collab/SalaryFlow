@@ -59,6 +59,33 @@ export class FundService {
     return data;
   }
 
+  async getOrCreateMemberLoanPool() {
+    if (!this.orgId || !this.userId) {
+      return { error: "Unauthorized" };
+    }
+
+    const { data: existing } = await this.supabase
+      .from("fund_accounts")
+      .select("id, name")
+      .eq("organization_id", this.orgId)
+      .eq("status", "ACTIVE")
+      .ilike("name", "%member%loan%pool%")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) {
+      return { id: existing.id as string, name: existing.name as string };
+    }
+
+    const created = await this.createFundAccount("Member Loan Pool", 0);
+    if (created.error || !created.id) {
+      return { error: created.error ?? "Could not create the Member Loan Pool" };
+    }
+
+    return { id: created.id, name: "Member Loan Pool" };
+  }
+
   async createFundAccount(name: string, openingBalance: number) {
     if (!this.orgId || !this.userId) return { error: "Unauthorized" };
 

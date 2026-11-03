@@ -60,10 +60,11 @@ function validateAmount(amount: number) {
 }
 
 export class PaymentService {
-  /** Start a salary-pool top-up for the caller's organization. */
+  /** Start a salary-pool or member-loan-pool top-up for the organization. */
   static async startOrganizationFunding(input: {
     amount: number;
     callbackUrl: string;
+    fundAccountId?: string;
   }): Promise<StartFundingResult> {
     const amountError = validateAmount(input.amount);
     if (amountError) return { ok: false, error: amountError };
@@ -87,6 +88,20 @@ export class PaymentService {
       return { ok: false, error: "You do not have permission to fund this organization" };
     }
 
+    if (input.fundAccountId) {
+      const { data: fundAccount } = await supabase
+        .from("fund_accounts")
+        .select("id")
+        .eq("id", input.fundAccountId)
+        .eq("organization_id", profile.organization_id)
+        .eq("status", "ACTIVE")
+        .maybeSingle();
+
+      if (!fundAccount) {
+        return { ok: false, error: "The selected fund account was not found" };
+      }
+    }
+
     await preparePaymentProvider();
     const provider = getPaymentProvider();
     if (!provider.supportsCollections()) {
@@ -105,6 +120,7 @@ export class PaymentService {
       .insert({
         organization_id: profile.organization_id,
         purpose: "ORGANIZATION_FUNDING",
+        fund_account_id: input.fundAccountId ?? null,
         payer_user_id: user.id,
         payer_email: email,
         provider: provider.name,
@@ -112,7 +128,11 @@ export class PaymentService {
         amount: input.amount,
         currency: "NGN",
         status: "PENDING",
-        metadata: { source: "dashboard/funds", role: profile.role },
+        metadata: {
+          source: "dashboard/funds",
+          role: profile.role,
+          fundAccountId: input.fundAccountId ?? null,
+        },
       })
       .select("id")
       .single();
@@ -486,14 +506,32 @@ export class PaymentService {
 
     if (existing) return { reference: movementReference, message: "Funds already added" };
 
-    let { data: fundAccount } = await admin
-      .from("fund_accounts")
-      .select("id, name")
-      .eq("organization_id", intent.organization_id)
-      .eq("status", "ACTIVE")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    let fundAccount: { id: string; name: string } | null = null;
+
+    if (intent.fund_account_id) {
+      const { data: selected } = await admin
+        .from("fund_accounts")
+        .select("id, name")
+        .eq("id", intent.fund_account_id)
+        .eq("organization_id", intent.organization_id)
+        .eq("status", "ACTIVE")
+        .maybeSingle();
+
+      if (!selected) {
+        return { error: "The funded account is no longer available" };
+      }
+      fundAccount = selected;
+    } else {
+      const { data: firstAccount } = await admin
+        .from("fund_accounts")
+        .select("id, name")
+        .eq("organization_id", intent.organization_id)
+        .eq("status", "ACTIVE")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      fundAccount = firstAccount;
+    }
 
     if (!fundAccount) {
       const { data: created, error } = await admin

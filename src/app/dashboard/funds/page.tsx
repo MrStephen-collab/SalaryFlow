@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { FundService } from "@/services/fund-service";
 import { PaymentService } from "@/services/payment-service";
 import { gatewayStatus } from "@/services/payment-provider";
-import { CreateFundDialog } from "@/components/dashboard/ledger/create-fund-dialog";
 import { FundMovementDialog } from "@/components/dashboard/ledger/fund-movement-dialog";
 import { FundWalletDialog } from "@/components/dashboard/funds/fund-wallet-dialog";
+import { FundMemberLoanPoolDialog } from "@/components/dashboard/funds/fund-member-loan-pool-dialog";
 import {
   Card,
   CardContent,
@@ -70,7 +70,7 @@ export default async function FundsPage({
         </div>
         <div className="flex flex-wrap gap-2">
           <FundWalletDialog gatewayReady={gateway.collections} />
-          <CreateFundDialog />
+          <FundMemberLoanPoolDialog gatewayReady={gateway.collections} />
         </div>
       </div>
 
