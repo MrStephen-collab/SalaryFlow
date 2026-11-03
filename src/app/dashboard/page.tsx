@@ -319,7 +319,7 @@ export default async function DashboardPage() {
                     key={app.id}
                     href={
                       app.borrowerType === "MEMBER"
-                        ? "/dashboard/members"
+                        ? `/dashboard/members/loans/${app.id}`
                         : `/dashboard/loans/applications/${app.id}`
                     }
                     className="flex items-center justify-between rounded-lg border p-3 transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:bg-muted/60 hover:shadow-sm"
