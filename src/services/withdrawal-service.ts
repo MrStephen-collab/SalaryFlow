@@ -619,21 +619,38 @@ export class WithdrawalService {
 
     await preparePaymentProvider();
     const provider = getPaymentProvider();
-    const verification = await provider.verifyTransfer(
-      existing.provider_reference ?? existing.reference,
-      externalReference
-    );
+    const settlementReference = String(externalReference ?? "").trim();
+    const providerReference = existing.provider_reference ?? existing.reference;
 
-    if (!verification.verified) {
-      return { error: verification.error ?? "Settlement could not be verified" };
+    // A failed or unavailable gateway payout falls back to manual settlement,
+    // in which case the provider reference is just the internal withdrawal
+    // reference. There is no gateway transfer to verify, so the chairman's
+    // settlement reference (or the internal reference as a fallback) is the
+    // proof of payment.
+    const manualSettlement =
+      provider.name === "manual" ||
+      !existing.provider_reference ||
+      existing.provider_reference === existing.reference;
+
+    if (!manualSettlement) {
+      const verification = await provider.verifyTransfer(
+        providerReference,
+        settlementReference
+      );
+      if (!verification.verified) {
+        return { error: verification.error ?? "Settlement could not be verified" };
+      }
     }
+
+    const referenceUsed =
+      settlementReference || providerReference || existing.reference;
 
     const { error } = await this.supabase
       .from("withdrawal_requests")
       .update({
         status: "PAID",
         paid_at: new Date().toISOString(),
-        provider_reference: externalReference || existing.provider_reference,
+        provider_reference: referenceUsed,
       })
       .eq("id", withdrawalId);
 
@@ -647,7 +664,8 @@ export class WithdrawalService {
         status: "PAID",
         amount: Number(existing.amount),
         reference: existing.reference,
-        providerReference: externalReference || existing.provider_reference,
+        providerReference: referenceUsed,
+        manualSettlement,
       }
     );
 

@@ -89,7 +89,10 @@ export default async function WithdrawalDetailPage({
             <ArrowLeft className="size-4" />
             Back
           </Button>
-          <WithdrawalActions status={withdrawal.status} />
+          <WithdrawalActions
+            status={withdrawal.status}
+            reference={withdrawal.reference}
+          />
         </div>
       </div>
 

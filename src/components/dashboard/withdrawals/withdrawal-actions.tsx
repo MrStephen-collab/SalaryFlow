@@ -16,6 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Eye,
   CheckCircle2,
   XCircle,
@@ -24,11 +32,18 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-export function WithdrawalActions({ status }: { status: string }) {
+export function WithdrawalActions({
+  status,
+  reference,
+}: {
+  status: string;
+  reference: string;
+}) {
   const router = useRouter();
   const { withdrawalId } = useParams<{ withdrawalId: string }>();
   const [isPending, startTransition] = useTransition();
-  const [confirm, setConfirm] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [confirmPaidOpen, setConfirmPaidOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [externalReference, setExternalReference] = useState("");
 
@@ -40,7 +55,8 @@ export function WithdrawalActions({ status }: { status: string }) {
       } else {
         toast.success(result.success ?? "Done");
         if (result.note) toast.info(result.note);
-        setConfirm(false);
+        setRejecting(false);
+        setConfirmPaidOpen(false);
         setReason("");
         setExternalReference("");
         router.refresh();
@@ -92,7 +108,7 @@ export function WithdrawalActions({ status }: { status: string }) {
             <CheckCircle2 className="size-4" />
             Approve
           </Button>
-          {confirm ? (
+          {rejecting ? (
             <div className="flex items-center gap-2">
               <Input
                 value={reason}
@@ -112,7 +128,7 @@ export function WithdrawalActions({ status }: { status: string }) {
                 size="sm"
                 variant="ghost"
                 onClick={() => {
-                  setConfirm(false);
+                  setRejecting(false);
                   setReason("");
                 }}
               >
@@ -123,7 +139,7 @@ export function WithdrawalActions({ status }: { status: string }) {
             <Button
               size="sm"
               variant="destructive"
-              onClick={() => setConfirm(true)}
+              onClick={() => setRejecting(true)}
             >
               <XCircle className="size-4" />
               Reject
@@ -145,44 +161,10 @@ export function WithdrawalActions({ status }: { status: string }) {
 
       {status === "PROCESSING" && (
         <>
-          {confirm ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs">External settlement reference</Label>
-                <Input
-                  value={externalReference}
-                  onChange={(e) => setExternalReference(e.target.value)}
-                  placeholder="e.g. bank transfer reference"
-                  className="w-64"
-                />
-              </div>
-              <Button
-                size="sm"
-                disabled={isPending || !externalReference.trim()}
-                onClick={() =>
-                  run(() => confirmWithdrawalPaid(withdrawalId, externalReference.trim()))
-                }
-              >
-                <CheckCircle2 className="size-4" />
-                Confirm Paid
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setConfirm(false);
-                  setExternalReference("");
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <Button size="sm" onClick={() => setConfirm(true)}>
-              <CheckCircle2 className="size-4" />
-              Confirm Paid
-            </Button>
-          )}
+          <Button size="sm" onClick={() => setConfirmPaidOpen(true)}>
+            <CheckCircle2 className="size-4" />
+            Confirm Paid
+          </Button>
 
           {reason !== "" && (
             <Button
@@ -199,6 +181,62 @@ export function WithdrawalActions({ status }: { status: string }) {
       )}
 
       {isPending && <Loader2 className="size-4 animate-spin" />}
+
+      <Dialog open={confirmPaidOpen} onOpenChange={setConfirmPaidOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm withdrawal paid</DialogTitle>
+            <DialogDescription>
+              Only confirm after the money has left your bank or Paystack
+              account.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <Label htmlFor="settlementReference">
+              External settlement reference (optional)
+            </Label>
+            <Input
+              id="settlementReference"
+              value={externalReference}
+              onChange={(event) => setExternalReference(event.target.value)}
+              placeholder="Bank transfer or Paystack reference"
+            />
+            <p className="text-xs text-muted-foreground">
+              Paste the bank/Paystack transfer reference if you have one. Leave
+              it blank to record the withdrawal reference ({reference}).
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConfirmPaidOpen(false);
+                setExternalReference("");
+              }}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                run(() =>
+                  confirmWithdrawalPaid(withdrawalId, externalReference.trim())
+                )
+              }
+              disabled={isPending}
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="size-4" />
+              )}
+              {isPending ? "Confirming…" : "Confirm Paid"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
