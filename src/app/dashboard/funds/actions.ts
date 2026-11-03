@@ -19,9 +19,20 @@ async function siteUrl() {
 
 export async function startOrganizationFunding(amount: number) {
   const base = await siteUrl();
+  const funds = await FundService.create();
+  const pool = await funds.getOrCreateSalaryPool();
+
+  if (pool.error || !pool.id) {
+    return {
+      ok: false as const,
+      error: pool.error ?? "Could not prepare the Salary Pool",
+    };
+  }
+
   return PaymentService.startOrganizationFunding({
     amount,
     callbackUrl: `${base}/api/payments/callback`,
+    fundAccountId: pool.id,
   });
 }
 
