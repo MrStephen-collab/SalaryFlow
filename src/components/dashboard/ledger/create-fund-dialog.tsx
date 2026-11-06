@@ -57,9 +57,9 @@ export function CreateFundDialog() {
         <DialogHeader>
           <DialogTitle>Create Fund Account</DialogTitle>
           <DialogDescription>
-            Create a lending pool account for your organization. Use the name
-            &quot;Member Loan Pool&quot; for the account that funds member
-            loans.
+            Create a fund account for your organization. Use the name
+            &quot;Thrift Pool&quot; for employee loans or &quot;Member Loan
+            Pool&quot; for member loans.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -68,7 +68,7 @@ export function CreateFundDialog() {
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Primary Lending Fund"
+              placeholder="e.g. Thrift Pool"
             />
           </div>
           <div className="space-y-2">

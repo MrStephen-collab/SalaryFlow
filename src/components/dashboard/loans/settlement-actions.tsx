@@ -337,7 +337,7 @@ export function SettlementActions({
                   <Textarea
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
-                    placeholder="e.g. Reduced salary due to unpaid leave"
+                    placeholder="e.g. Reduced thrift amount due to unpaid leave"
                     rows={3}
                   />
                 </div>

@@ -15,7 +15,7 @@ const CATEGORY_TITLES: Record<string, { title: string; description: string }> = 
   payment: {
     title: "Payments (Paystack / Flutterwave)",
     description:
-      "Gateway keys used for salary-pool funding, member savings deposits and payouts. Saved values override the deployment environment variables.",
+      "Gateway keys used for lending-fund top-ups, member savings deposits and payouts. Saved values override the deployment environment variables.",
   },
   email: {
     title: "Email",

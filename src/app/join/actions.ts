@@ -306,7 +306,6 @@ export async function registerViaInvite(
             employment_type: "Full-time",
             employment_status: "Active",
             date_joined: new Date().toISOString().slice(0, 10),
-            salary: 0,
           });
 
           if (!error) {

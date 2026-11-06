@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowLeft } from "lucide-react";
+import { NameSearch } from "@/components/dashboard/name-search";
 
 export const metadata: Metadata = {
   title: "Member Loans",
@@ -47,7 +48,12 @@ function statusVariant(status: string) {
   }
 }
 
-export default async function MemberLoansPage() {
+export default async function MemberLoansPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const service = await MemberService.createForStaff();
   const [applications, activeLoans, members, pool] = await Promise.all([
     service.listMemberApplications(),
@@ -56,10 +62,22 @@ export default async function MemberLoansPage() {
     service.getMemberLoanPoolInfo(),
   ]);
 
-  const pending = applications.filter((application) =>
+  const term = (q ?? "").trim().toLowerCase();
+  const matchesMember = (name?: string | null, number?: string | null) =>
+    !term ||
+    `${name ?? ""} ${number ?? ""}`.toLowerCase().includes(term);
+
+  const filteredApplications = applications.filter((application) =>
+    matchesMember(application.memberName, application.memberNumber)
+  );
+  const filteredActiveLoans = activeLoans.filter((loan) =>
+    matchesMember(loan.memberName, loan.memberNumber)
+  );
+
+  const pending = filteredApplications.filter((application) =>
     ["PENDING", "SUBMITTED", "UNDER_REVIEW"].includes(application.status)
   );
-  const approved = applications.filter(
+  const approved = filteredApplications.filter(
     (application) => application.status === "APPROVED"
   );
 
@@ -86,6 +104,10 @@ export default async function MemberLoansPage() {
             External member lending — separate from employee loans.
           </p>
         </div>
+      </div>
+
+      <div className="flex justify-end">
+        <NameSearch placeholder="Search member name or number…" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -241,9 +263,11 @@ export default async function MemberLoansPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {activeLoans.length === 0 ? (
+          {filteredActiveLoans.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No active member loans.
+              {term
+                ? "No member matches that name or number."
+                : "No active member loans."}
             </p>
           ) : (
             <div className="rounded-md border">
@@ -259,7 +283,7 @@ export default async function MemberLoansPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {activeLoans.map((loan) => {
+                  {filteredActiveLoans.map((loan) => {
                     const progress =
                       loan.total > 0
                         ? Math.min(
@@ -327,9 +351,11 @@ export default async function MemberLoansPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {applications.length === 0 ? (
+          {filteredApplications.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No member loan applications yet.
+              {term
+                ? "No member matches that name or number."
+                : "No member loan applications yet."}
             </p>
           ) : (
             <div className="rounded-md border">
@@ -344,7 +370,7 @@ export default async function MemberLoansPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {applications.map((application) => (
+                  {filteredApplications.map((application) => (
                     <TableRow key={application.id}>
                       <TableCell>
                         <p className="font-medium">{application.memberName}</p>

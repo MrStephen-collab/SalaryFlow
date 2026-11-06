@@ -100,7 +100,7 @@ export default async function JoinPage({
           <CardDescription>
             {kind === "member"
               ? "Save with your organization and borrow against your savings."
-              : "Register with your employer and access your salary portal."}
+              : "Register with your employer and access your employee portal."}
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -37,14 +37,6 @@ export const createLoanProductSchema = z
       .number()
       .nonnegative("Insurance fee must be positive")
       .default(0),
-    maximumSalaryDeductionPercentage: z.coerce
-      .number()
-      .nonnegative("Deduction percentage must be positive")
-      .max(100, "Cannot exceed 100%"),
-    minimumSalary: z.coerce
-      .number()
-      .nonnegative("Minimum salary must be positive")
-      .default(0),
     minimumEmploymentPeriodMonths: z.coerce
       .number()
       .nonnegative("Minimum employment period must be positive")

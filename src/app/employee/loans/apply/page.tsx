@@ -79,7 +79,7 @@ export default async function EmployeeApplyLoanPage() {
 
       <ApplyLoanForm
         products={products.filter((p) => p.active)}
-        employee={employee}
+        thriftAmount={Number(employee.thrift_amount) || 0}
         thriftBalance={thriftBalance}
       />
     </div>

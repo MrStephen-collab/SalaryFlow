@@ -21,8 +21,7 @@ import {
 } from "@/components/ui/table";
 import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { RefreshOverdueButton } from "@/components/dashboard/collections/refresh-overdue-button";
-import { RecoverShortfallButton } from "@/components/dashboard/collections/recover-shortfall-button";
-import { WaiveShortfallButton } from "@/components/dashboard/collections/waive-shortfall-button";
+import { NameSearch } from "@/components/dashboard/name-search";
 
 export const metadata: Metadata = {
   title: "Collections",
@@ -70,11 +69,12 @@ function riskVariant(bucket: RiskBucket) {
   }
 }
 
-function exceptionVariant(status: string) {
-  return status === "FAILED" ? ("destructive" as const) : ("secondary" as const);
-}
-
-export default async function CollectionsPage() {
+export default async function CollectionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   await requireUser();
   const service = await CollectionsService.create();
 
@@ -82,11 +82,19 @@ export default async function CollectionsPage() {
     redirect("/dashboard");
   }
 
-  const [summary, loans, exceptions] = await Promise.all([
+  const [summary, loans] = await Promise.all([
     service.getSummary(),
     service.listDelinquentLoans(),
-    service.listDeductionExceptions(),
   ]);
+
+  const term = (q ?? "").trim().toLowerCase();
+  const filteredLoans = term
+    ? loans.filter((loan) =>
+        `${loan.employeeName ?? ""} ${loan.employeeNumber ?? ""}`
+          .toLowerCase()
+          .includes(term)
+      )
+    : loans;
 
   const canManage = service.canManageCollections();
 
@@ -96,13 +104,13 @@ export default async function CollectionsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Collections</h1>
           <p className="text-sm text-muted-foreground">
-            Overdue loans, default risk and unresolved deduction shortfalls.
+            Overdue loans, default risk and collection follow-up.
           </p>
         </div>
         {canManage ? <RefreshOverdueButton /> : null}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardContent className="pt-6">
             <p className="text-xs text-muted-foreground">Delinquent loans</p>
@@ -129,15 +137,6 @@ export default async function CollectionsPage() {
             <p className="text-2xl font-bold">{summary.defaultedLoans}</p>
             <p className="text-xs text-muted-foreground">
               Flagged automatically from overdue schedules
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground">Deduction shortfalls</p>
-            <p className="text-2xl font-bold">{summary.deductionExceptions}</p>
-            <p className="text-xs text-muted-foreground">
-              {naira(summary.shortfallAmount)} unresolved
             </p>
           </CardContent>
         </Card>
@@ -171,10 +170,15 @@ export default async function CollectionsPage() {
 
       <Card>
         <CardHeader className="border-b">
-          <CardTitle className="text-base">Overdue loans</CardTitle>
-          <CardDescription>
-            Employees with at least one unpaid installment past its due date.
-          </CardDescription>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="text-base">Overdue loans</CardTitle>
+              <CardDescription>
+                Employees with at least one unpaid installment past its due date.
+              </CardDescription>
+            </div>
+            <NameSearch placeholder="Search employee name or number…" />
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -190,17 +194,19 @@ export default async function CollectionsPage() {
               </TableRow>
             </TableHeader>
             <CollapsibleTableBody columns={7} itemLabel="overdue loans">
-              {loans.length === 0 ? (
+              {filteredLoans.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={7}
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
-                    No overdue loans. Every active installment is on schedule.
+                    {term
+                      ? "No employee matches that name or number."
+                      : "No overdue loans. Every active installment is on schedule."}
                   </TableCell>
                 </TableRow>
               ) : (
-                loans.map((loan) => (
+                filteredLoans.map((loan) => (
                   <TableRow key={loan.loanApplicationId}>
                     <TableCell>
                       <div className="text-sm font-medium">{loan.employeeName}</div>
@@ -261,94 +267,6 @@ export default async function CollectionsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle className="text-base">Deduction exceptions</CardTitle>
-          <CardDescription>
-            Partial or failed deductions with an unresolved shortfall. Record a
-            recovery or waive it with an explicit reason — shortfalls are never
-            written off silently.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead className="text-right">Expected</TableHead>
-                <TableHead className="text-right">Deducted</TableHead>
-                <TableHead className="text-right">Shortfall</TableHead>
-                <TableHead>Status</TableHead>
-                {canManage ? <TableHead className="text-right">Action</TableHead> : null}
-              </TableRow>
-            </TableHeader>
-            <CollapsibleTableBody
-              columns={canManage ? 7 : 6}
-              itemLabel="exceptions"
-            >
-              {exceptions.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={canManage ? 7 : 6}
-                    className="py-10 text-center text-sm text-muted-foreground"
-                  >
-                    No deduction shortfalls. All processed deductions were
-                    collected in full.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                exceptions.map((exception) => (
-                  <TableRow key={exception.id}>
-                    <TableCell>
-                      <div className="text-sm font-medium">{exception.employeeName}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {exception.employeeNumber} · {exception.department}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {exception.periodName}
-                      <div className="text-xs text-muted-foreground">
-                        {formatDate(exception.processedAt)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right text-sm">
-                      {naira(exception.expectedAmount)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm">
-                      {naira(exception.actualAmount)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm font-medium text-red-600">
-                      {naira(exception.shortfall)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={exceptionVariant(exception.status)}>
-                        {exception.status}
-                      </Badge>
-                    </TableCell>
-                    {canManage ? (
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <RecoverShortfallButton
-                            deductionId={exception.id}
-                            shortfall={exception.shortfall}
-                            employeeName={exception.employeeName}
-                          />
-                          <WaiveShortfallButton
-                            deductionId={exception.id}
-                            shortfall={exception.shortfall}
-                            employeeName={exception.employeeName}
-                          />
-                        </div>
-                      </TableCell>
-                    ) : null}
-                  </TableRow>
-                ))
-              )}
-            </CollapsibleTableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
   );
 }

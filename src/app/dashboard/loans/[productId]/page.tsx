@@ -114,20 +114,8 @@ export default async function LoanProductPage({
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-xs text-muted-foreground">
-                Max Salary Deduction
-              </p>
-              <p className="text-sm font-medium">
-                {product.maximum_salary_deduction_percentage}%
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Minimum Salary</p>
-              <p className="text-sm font-medium">
-                {product.minimum_salary > 0
-                  ? naira(product.minimum_salary)
-                  : "None"}
-              </p>
+              <p className="text-xs text-muted-foreground">Loan Limit</p>
+              <p className="text-sm font-medium">3× thrift savings</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">

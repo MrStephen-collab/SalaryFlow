@@ -9,9 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { SALARY_CYCLES } from "@/schemas/settings";
 import type { OrganizationSettings } from "@/types/database";
 
 export function PolicyForm({ settings }: { settings: OrganizationSettings | null }) {
@@ -19,10 +17,8 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
   const [isPending, startTransition] = useTransition();
 
   const [form, setForm] = useState({
-    salary_cycle: settings?.salary_cycle ?? "monthly",
     withdrawals_enabled: settings?.withdrawals_enabled ?? false,
-    salary_payment_day: settings?.salary_payment_day ?? 25,
-    auto_disburse_salaries: settings?.auto_disburse_salaries ?? false,
+    thrift_interest_rate: Number(settings?.thrift_interest_rate ?? 5),
     savings_min_membership_months:
       settings?.savings_min_membership_months ?? 6,
     member_loan_multiplier: settings?.member_loan_multiplier ?? 2,
@@ -54,9 +50,9 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Salary &amp; Member Policies</CardTitle>
+        <CardTitle>Employee &amp; Member Policies</CardTitle>
         <CardDescription>
-          Payroll and member rules. Loan interest, fees, tenure, guarantor and
+          Withdrawal and member rules. Loan interest, fees, tenure, guarantor and
           collateral are configured per loan product on the{" "}
           <Link href="/dashboard/loans" className="font-medium text-primary underline underline-offset-2">
             Loans page
@@ -66,25 +62,6 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
       </CardHeader>
       <CardContent>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Salary Cycle *</Label>
-            <Select
-              value={form.salary_cycle}
-              onValueChange={(v) => set("salary_cycle", v)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SALARY_CYCLES.map((cycle) => (
-                  <SelectItem key={cycle} value={cycle}>
-                    {cycle.charAt(0).toUpperCase() + cycle.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
               <Label>Withdrawals Enabled</Label>
@@ -98,39 +75,22 @@ export function PolicyForm({ settings }: { settings: OrganizationSettings | null
             />
           </div>
 
-          <div className="pt-2 sm:col-span-2">
-            <h3 className="text-sm font-semibold">Payroll automation</h3>
-            <p className="text-xs text-muted-foreground">
-              Fund your salary pool online, then have salaries paid into employee
-              wallets automatically.
-            </p>
-          </div>
-
           <div className="space-y-2">
-            <Label>Salary Payment Day</Label>
+            <Label>Thrift Interest Rate (% per year)</Label>
             <Input
               type="number"
-              min={1}
-              max={28}
-              value={form.salary_payment_day}
-              onChange={(e) => set("salary_payment_day", Number(e.target.value))}
+              min={0}
+              max={100}
+              step="0.01"
+              value={form.thrift_interest_rate}
+              onChange={(e) =>
+                set("thrift_interest_rate", Number(e.target.value))
+              }
             />
             <p className="text-xs text-muted-foreground">
-              Day of the month (1-28) salaries leave the pool.
+              Monthly interest credited to employee thrift savings, calculated
+              on the opening balance × rate × days in month ÷ 365.
             </p>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <Label>Automatic Salary Payment</Label>
-              <p className="text-xs text-muted-foreground">
-                Pay due salary periods without manual approval
-              </p>
-            </div>
-            <Switch
-              checked={form.auto_disburse_salaries}
-              onCheckedChange={(v) => set("auto_disburse_salaries", v)}
-            />
           </div>
 
           <div className="pt-2 sm:col-span-2">

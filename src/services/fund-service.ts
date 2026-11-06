@@ -59,31 +59,41 @@ export class FundService {
     return data;
   }
 
-  async getOrCreateSalaryPool() {
-    if (!this.orgId || !this.userId) {
-      return { error: "Unauthorized" };
-    }
+  /** The fund that backs employee thrift and employee loan disbursement. */
+  async getThriftPool() {
+    if (!this.orgId) return null;
 
-    const { data: existing } = await this.supabase
+    const { data } = await this.supabase
       .from("fund_accounts")
-      .select("id, name")
+      .select("id, name, status")
       .eq("organization_id", this.orgId)
       .eq("status", "ACTIVE")
-      .ilike("name", "%salary%pool%")
+      .or(
+        "name.ilike.%thrift%pool%,name.ilike.%lending%,name.ilike.%salary%pool%"
+      )
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
 
+    return data ?? null;
+  }
+
+  async getOrCreateThriftPool() {
+    if (!this.orgId || !this.userId) {
+      return { error: "Unauthorized" };
+    }
+
+    const existing = await this.getThriftPool();
     if (existing?.id) {
       return { id: existing.id as string, name: existing.name as string };
     }
 
-    const created = await this.createFundAccount("Salary Pool", 0);
+    const created = await this.createFundAccount("Thrift Pool", 0);
     if (created.error || !created.id) {
-      return { error: created.error ?? "Could not create the Salary Pool" };
+      return { error: created.error ?? "Could not create the Thrift Pool" };
     }
 
-    return { id: created.id, name: "Salary Pool" };
+    return { id: created.id, name: "Thrift Pool" };
   }
 
   async getOrCreateMemberLoanPool() {

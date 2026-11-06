@@ -46,7 +46,6 @@ export interface EmployeeRow {
   employment_status: string;
   employment_type: string;
   date_joined: string;
-  salary: number;
   thrift_enabled: boolean | null;
   thrift_amount: number | null;
   date_of_birth: string | null;
@@ -348,35 +347,6 @@ export function EmployeesTable({
                             <Pencil className="size-4" />
                             View profile
                           </DropdownMenuItem>
-                          <EmployeeForm
-                            employee={{
-                              id: employee.id,
-                              employee_number: employee.employee_number,
-                              first_name: employee.first_name,
-                              last_name: employee.last_name,
-                              other_names: employee.other_names,
-                              email: employee.email,
-                              phone: employee.phone,
-                              date_of_birth: employee.date_of_birth,
-                              gender: employee.gender as "" | "Male" | "Female" | "Other" | null,
-                              address: employee.address,
-                              state: employee.state,
-                              lga: employee.lga,
-                              nin: employee.nin,
-                              nin_document_url: employee.nin_document_url,
-                              department: employee.department,
-                              position: employee.position,
-                              employment_type: employee.employment_type,
-                              employment_status: employee.employment_status,
-                              date_joined: employee.date_joined,
-                              salary: employee.salary,
-                              thrift_enabled: employee.thrift_enabled ?? false,
-                              thrift_amount: employee.thrift_amount ?? 0,
-                              branch_id: employee.branch_id,
-                            }}
-                            departments={departments}
-                            branches={branches}
-                          />
                           <DropdownMenuItem
                             variant="destructive"
                             disabled={isPending}

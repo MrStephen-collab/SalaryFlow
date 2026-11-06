@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "SalaryFlow",
     short_name: "SalaryFlow",
     description:
-      "Manage employee loans, salary deductions, repayments and financial accounts from one simple platform.",
+      "Manage employer-funded thrift savings, employee loans, repayments and financial accounts from one simple platform.",
     id: "/",
     start_url: "/",
     scope: "/",

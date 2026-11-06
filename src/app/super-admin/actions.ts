@@ -8,6 +8,7 @@ import {
   subscriptionPlanSchema,
   enrollOrganizationSchema,
 } from "@/schemas/super-admin";
+import { organizationSchema } from "@/schemas/settings";
 
 export type ActionResult = {
   error?: string;
@@ -65,6 +66,60 @@ export async function createPlan(
   }
 }
 
+type UpdatedPlan = {
+  id: string;
+  name: string;
+  description: string | null;
+  max_employees: number;
+  max_branches: number;
+  max_active_loans: number;
+  price_monthly: number;
+  price_annually: number;
+  active: boolean;
+};
+
+export async function updatePlan(
+  planId: string,
+  values: unknown
+): Promise<ActionResult & { plan?: UpdatedPlan }> {
+  try {
+    const parsed = subscriptionPlanSchema.safeParse(values);
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+    }
+
+    const adminClient = await requireSuperAdminAction();
+    const { data, error } = await adminClient
+      .from("subscription_plans")
+      .update({
+        name: parsed.data.name,
+        description: parsed.data.description || null,
+        max_employees: parsed.data.max_employees,
+        max_branches: parsed.data.max_branches,
+        max_active_loans: parsed.data.max_active_loans,
+        price_monthly: parsed.data.price_monthly,
+        price_annually: parsed.data.price_annually,
+      })
+      .eq("id", planId)
+      .select(
+        "id, name, description, max_employees, max_branches, max_active_loans, price_monthly, price_annually, active"
+      )
+      .single();
+
+    if (error || !data) {
+      return { error: "Unable to update plan" };
+    }
+
+    revalidatePath("/super-admin/plans");
+    return { success: "Plan updated", plan: data as UpdatedPlan };
+  } catch (err) {
+    if (err instanceof Error && "digest" in err) {
+      throw err;
+    }
+    return { error: "An unexpected error occurred" };
+  }
+}
+
 export async function togglePlan(
   planId: string,
   active: boolean
@@ -82,6 +137,75 @@ export async function togglePlan(
 
     revalidatePath("/super-admin/plans");
     return { success: "Plan updated" };
+  } catch (err) {
+    if (err instanceof Error && "digest" in err) {
+      throw err;
+    }
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+export async function updateOrganization(
+  organizationId: string,
+  values: unknown
+): Promise<ActionResult> {
+  try {
+    const parsed = organizationSchema.safeParse(values);
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+    }
+
+    const adminClient = await requireSuperAdminAction();
+    const { error } = await adminClient
+      .from("organizations")
+      .update({
+        name: parsed.data.name,
+        type: parsed.data.type,
+        registration_number: parsed.data.registrationNumber || null,
+        email: parsed.data.email,
+        phone: parsed.data.phone,
+        address: parsed.data.address ?? "",
+        state: parsed.data.state ?? "",
+        lga: parsed.data.lga ?? "",
+        currency: parsed.data.currency,
+      })
+      .eq("id", organizationId);
+
+    if (error) {
+      return { error: "Unable to update organization" };
+    }
+
+    revalidatePath("/super-admin/organizations");
+    revalidatePath("/super-admin");
+    return { success: "Organization updated" };
+  } catch (err) {
+    if (err instanceof Error && "digest" in err) {
+      throw err;
+    }
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+export async function deleteOrganization(
+  organizationId: string
+): Promise<ActionResult> {
+  try {
+    const adminClient = await requireSuperAdminAction();
+    const { error } = await adminClient
+      .from("organizations")
+      .delete()
+      .eq("id", organizationId);
+
+    if (error) {
+      return {
+        error:
+          "Unable to delete this organization. It may still have linked records.",
+      };
+    }
+
+    revalidatePath("/super-admin/organizations");
+    revalidatePath("/super-admin");
+    return { success: "Organization deleted" };
   } catch (err) {
     if (err instanceof Error && "digest" in err) {
       throw err;
@@ -146,9 +270,6 @@ export async function enrollOrganization(
       .from("organization_settings")
       .insert({
         organization_id: org.id,
-        salary_cycle: "monthly",
-        max_salary_deduction_percentage: 30,
-        min_salary: 0,
         min_employment_period_months: 0,
         default_interest_method: "FLAT",
         max_tenure: 12,

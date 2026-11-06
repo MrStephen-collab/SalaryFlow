@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/avatar";
 import {
   ArrowDownToLine,
-  Banknote,
   Bell,
   FileText,
   HandCoins,
@@ -39,7 +38,6 @@ import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 
 const employeeNav = [
   { title: "Dashboard", href: "/employee", icon: Home },
-  { title: "Salary", href: "/employee/salary", icon: Banknote },
   { title: "Money", href: "/employee/money", icon: Wallet },
   { title: "Withdrawals", href: "/employee/withdrawals", icon: ArrowDownToLine },
   { title: "Loans", href: "/employee/loans", icon: HandCoins },

@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser, getOrganization } from "@/lib/auth";
+import { isSampleEmployeeNumber } from "@/lib/demo";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatCard, type StatAccent } from "@/components/ui/stat-card";
-import { Users, HandCoins, PiggyBank, Percent } from "lucide-react";
+import { Users, HandCoins, PiggyBank, Wallet, ClipboardCheck } from "lucide-react";
 import { EmployeeService } from "@/services/employee-service";
 import { FundService } from "@/services/fund-service";
-import { DeductionService } from "@/services/deduction-service";
+import { ThriftService } from "@/services/thrift-service";
+import { ThriftInterestService } from "@/services/thrift-interest-service";
 import { WithdrawalService } from "@/services/withdrawal-service";
 import { LoanService } from "@/services/loan-service";
 import { MemberService } from "@/services/member-service";
@@ -48,21 +50,24 @@ export default async function DashboardPage() {
 
   const employeeService = await EmployeeService.create();
   const fundService = await FundService.create();
-  const deductionService = await DeductionService.create();
   const withdrawalService = await WithdrawalService.create();
   const loanService = await LoanService.create();
   const memberService = await MemberService.createForStaff();
+  const thriftService = await ThriftService.create();
+  const thriftInterestService = await ThriftInterestService.create();
 
-  const [employeeList, applications, fundAccounts, deductions, withdrawals, repayments, membersOverview, memberApplications] =
+  const [employeeList, applications, fundAccounts, thriftOverview, withdrawals, repayments, membersOverview, memberApplications, thriftRequests, thriftInterest] =
     await Promise.all([
       employeeService.list({ pageSize: 1 }),
       loanService.listApplications(),
       fundService.listFundAccounts(),
-      deductionService.listDeductions(),
+      thriftService.getOverview(),
       withdrawalService.listWithdrawals(),
       loanService.listRepayments(undefined, 5),
       memberService.getMembersOverview(),
       memberService.listMemberApplications(),
+      thriftService.listRequests(),
+      thriftInterestService.getOverview(),
     ]);
 
   const fundBalances = await Promise.all(
@@ -76,17 +81,6 @@ export default async function DashboardPage() {
   const activeLoans = applications.filter(
     (app) => app.status === "ACTIVE" || app.status === "DISBURSED"
   );
-
-  const now = new Date();
-  const monthlyDeductions = deductions
-    .filter((d) => {
-      const dDate = new Date(d.created_at);
-      return (
-        dDate.getFullYear() === now.getFullYear() &&
-        dDate.getMonth() === now.getMonth()
-      );
-    })
-    .reduce((s, d) => s + (Number(d.expected_amount) || 0), 0);
 
   const pendingApplications = applications.filter(
     (app) =>
@@ -102,11 +96,20 @@ export default async function DashboardPage() {
     ["PENDING", "SUBMITTED", "UNDER_REVIEW"].includes(application.status)
   );
   const pendingMemberships = membersOverview?.pending ?? 0;
+  const pendingThriftRequests = thriftRequests.filter(
+    (request) => request.status === "PENDING"
+  );
+  const hasSampleEmployees = Boolean(
+    thriftOverview?.employees.some((employee) =>
+      isSampleEmployeeNumber(employee.employeeNumber)
+    )
+  );
   const totalPendingApprovals =
     pendingApplications.length +
     pendingWithdrawals.length +
     pendingMemberLoans.length +
-    pendingMemberships;
+    pendingMemberships +
+    pendingThriftRequests.length;
 
   const stats = [
     {
@@ -126,7 +129,7 @@ export default async function DashboardPage() {
       accent: "emerald",
     },
     {
-      title: "Lending Funds",
+      title: "Total Funds",
       value: naira(totalFunds),
       description: "Across all fund accounts",
       href: "/dashboard/funds",
@@ -134,11 +137,15 @@ export default async function DashboardPage() {
       accent: "amber",
     },
     {
-      title: "Deductions (This Month)",
-      value: naira(monthlyDeductions),
-      description: "Expected loan deductions",
-      href: "/dashboard/deductions",
-      icon: Percent,
+      title: "Thrift Savings",
+      value: naira(thriftOverview?.totals.savings ?? 0),
+      description: thriftOverview
+        ? `${thriftOverview.totals.fundedCount}/${thriftOverview.totals.employeeCount} funded this month · ${naira(
+            thriftInterest?.totals.ytdInterest ?? 0
+          )} interest YTD`
+        : "Employer-funded employee savings",
+      href: "/dashboard/employees/thrift",
+      icon: Wallet,
       accent: "rose",
     },
   ] satisfies {
@@ -162,6 +169,13 @@ export default async function DashboardPage() {
       </div>
 
       <AutoRefresh />
+      {hasSampleEmployees ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          This workspace includes sample/demo employees. Records labelled{" "}
+          <span className="font-medium">Sample data</span> are for demonstration
+          only and are not real savings, interest or payment records.
+        </div>
+      ) : null}
       {(pendingApplications.length > 0 || pendingWithdrawals.length > 0) && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           <p className="font-medium">Approvals waiting for the chairman</p>
@@ -176,6 +190,12 @@ export default async function DashboardPage() {
               <Link href="/dashboard/loans/applications" className="underline">
                 {pendingApplications.length} loan application
                 {pendingApplications.length === 1 ? "" : "s"}
+              </Link>
+            ) : null}
+            {pendingThriftRequests.length > 0 ? (
+              <Link href="/dashboard/employees/thrift" className="underline">
+                {pendingThriftRequests.length} thrift release request
+                {pendingThriftRequests.length === 1 ? "" : "s"}
               </Link>
             ) : null}
           </div>
@@ -231,7 +251,7 @@ export default async function DashboardPage() {
             value={totalPendingApprovals.toLocaleString()}
             description="Members · loans · withdrawals"
             href="/dashboard/approvals"
-            icon={Percent}
+            icon={ClipboardCheck}
             accent="rose"
             delay={960}
           />
@@ -279,14 +299,14 @@ export default async function DashboardPage() {
             <Button render={<Link href="/dashboard/employees" />}>
               Add employees
             </Button>
-            <Button variant="outline" render={<Link href="/dashboard/salary/import" />}>
-              Import salary
+            <Button variant="outline" render={<Link href="/dashboard/employees/thrift" />}>
+              Fund thrift savings
             </Button>
             <Button variant="outline" render={<Link href="/dashboard/loans" />}>
               Manage loan products
             </Button>
-            <Button variant="outline" render={<Link href="/dashboard/deductions" />}>
-              Generate deductions
+            <Button variant="outline" render={<Link href="/dashboard/repayments" />}>
+              Record repayments
             </Button>
           </CardContent>
         </Card>

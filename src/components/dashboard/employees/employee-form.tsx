@@ -64,7 +64,6 @@ interface EmployeeFormProps {
     employment_type: string;
     employment_status: string;
     date_joined: string;
-    salary: number;
     thrift_enabled: boolean;
     thrift_amount: number;
     branch_id: string | null;
@@ -129,9 +128,10 @@ export function EmployeeForm({
           (employee.employment_status as CreateEmployeeValues["employmentStatus"]) ??
           "Active",
         dateJoined: employee.date_joined,
-        salary: employee.salary ?? 0,
         thriftEnabled: employee.thrift_enabled ?? false,
-        thriftAmount: employee.thrift_amount ?? 0,
+        thriftAmount: employee.thrift_amount
+          ? String(employee.thrift_amount)
+          : "",
         branchId: employee.branch_id ?? "",
       }
     : {
@@ -153,9 +153,8 @@ export function EmployeeForm({
         employmentType: "Full-time",
         employmentStatus: "Active",
         dateJoined: new Date().toISOString().split("T")[0],
-        salary: 0,
         thriftEnabled: false,
-        thriftAmount: 0,
+        thriftAmount: "",
         branchId: "",
       };
 
@@ -509,18 +508,6 @@ export function EmployeeForm({
                   )}
                 />
               </div>
-              <div>
-                <FormFieldLabel>Monthly Salary (₦)</FormFieldLabel>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  inputMode="decimal"
-                  placeholder="e.g. 250000"
-                  {...register("salary")}
-                />
-                <FieldError errors={errors} name="salary" />
-              </div>
             </div>
 
             <div className="space-y-3 rounded-lg border p-4">
@@ -528,8 +515,8 @@ export function EmployeeForm({
                 <div>
                   <FormFieldLabel>Thrift Savings</FormFieldLabel>
                   <p className="text-xs text-muted-foreground">
-                    Voluntary savings taken from salary after loan deductions.
-                    Activate it when the employee asks for it.
+                    Monthly amount withheld from the employee&apos;s salary and
+                    funded into their thrift savings by the employer.
                   </p>
                 </div>
                 <Controller
@@ -545,7 +532,7 @@ export function EmployeeForm({
               </div>
               {thriftEnabled ? (
                 <div>
-                  <FormFieldLabel>Amount per Salary (₦)</FormFieldLabel>
+                  <FormFieldLabel>Monthly Thrift Amount (₦)</FormFieldLabel>
                   <Input
                     type="number"
                     min={0}
@@ -553,11 +540,13 @@ export function EmployeeForm({
                     inputMode="decimal"
                     placeholder="e.g. 20000"
                     {...register("thriftAmount")}
+                    onFocus={(event) => event.currentTarget.select()}
                   />
                   <FieldError errors={errors} name="thriftAmount" />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    This amount is set aside after loan deductions on every
-                    salary run. Only the chairman can release it to the wallet.
+                    The employer funds this amount every month. An active loan
+                    is repaid from it, and only the chairman can release the
+                    savings to the wallet.
                   </p>
                 </div>
               ) : null}

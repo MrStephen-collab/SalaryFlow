@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { releaseThriftToWallet } from "@/app/dashboard/employees/thrift-actions";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Loader2, Send } from "lucide-react";
 
 /**
@@ -39,13 +40,22 @@ export function ThriftReleaseButton({
   }
 
   return (
-    <Button onClick={release} disabled={disabled || isPending}>
-      {isPending ? (
-        <Loader2 className="size-4 animate-spin" />
-      ) : (
-        <Send className="size-4" />
-      )}
-      {isPending ? "Releasing…" : "Release to wallet"}
-    </Button>
+    <ConfirmDialog
+      trigger={
+        <Button disabled={disabled || isPending}>
+          {isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Send className="size-4" />
+          )}
+          {isPending ? "Releasing…" : "Release to wallet"}
+        </Button>
+      }
+      title="Release thrift savings?"
+      description="The employee's entire thrift balance will move into their withdrawable wallet. This cannot be undone from the app."
+      confirmLabel="Release"
+      destructive
+      onConfirm={release}
+    />
   );
 }

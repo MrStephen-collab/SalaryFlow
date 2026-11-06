@@ -29,7 +29,7 @@ export function NotificationList({ items }: { items: NotificationItem[] }) {
                 : "All notifications read"}
             </p>
             <p className="text-xs text-muted-foreground">
-              Activity from loans, withdrawals, payroll and deductions.
+              Activity from loans, withdrawals and thrift funding.
             </p>
           </div>
           <Button

@@ -1,5 +1,33 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+let maintenanceCache: { at: number; enabled: boolean } | null = null;
+
+async function isMaintenanceMode() {
+  if (maintenanceCache && Date.now() - maintenanceCache.at < 5_000) {
+    return maintenanceCache.enabled;
+  }
+
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("audit_logs")
+      .select("after_data")
+      .eq("action", "platform.maintenance_mode")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const enabled =
+      data?.after_data &&
+      typeof data.after_data === "object" &&
+      (data.after_data as { enabled?: boolean }).enabled === true;
+    maintenanceCache = { at: Date.now(), enabled: Boolean(enabled) };
+    return Boolean(enabled);
+  } catch {
+    return false;
+  }
+}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -30,6 +58,32 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
+
+  // The maintenance page must stay reachable while the platform is closed.
+  if (pathname === "/maintenance") {
+    return supabaseResponse;
+  }
+
+  const maintenanceMode = await isMaintenanceMode();
+  if (
+    maintenanceMode &&
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/auth/")
+  ) {
+    let isSuperAdmin = false;
+    if (user) {
+      const { data } = await supabase.rpc("user_has_role", {
+        required_role: "SUPER_ADMIN",
+      });
+      isSuperAdmin = Boolean(data);
+    }
+
+    if (!isSuperAdmin) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/maintenance";
+      return NextResponse.rewrite(url);
+    }
+  }
 
   // Public routes that don't require auth
   const publicRoutes = ["/", "/auth/login", "/auth/register", "/auth/callback"];

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { LoanService } from "@/services/loan-service";
 import { LoanSettlementService } from "@/services/loan-settlement-service";
 import { EmployeePortalService } from "@/services/employee-portal-service";
@@ -9,7 +10,15 @@ import type { BankAccountValues } from "@/schemas/withdrawal";
 
 export async function requestThriftRelease(amount: number) {
   const service = await ThriftService.create();
-  return service.requestRelease(amount);
+  const result = await service.requestRelease(amount);
+  if (result.ok) {
+    revalidatePath("/employee/money");
+    revalidatePath("/employee");
+    revalidatePath("/dashboard/employees/thrift");
+    revalidatePath("/dashboard/approvals");
+    revalidatePath("/dashboard");
+  }
+  return result;
 }
 
 export async function applyForLoan(

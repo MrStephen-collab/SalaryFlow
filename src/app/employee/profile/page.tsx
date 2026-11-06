@@ -20,14 +20,6 @@ export const metadata: Metadata = {
   title: "Profile",
 };
 
-function naira(amount: number) {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
 export default async function EmployeeProfilePage() {
   const user = await requireUser();
   const service = await EmployeePortalService.create();
@@ -116,15 +108,14 @@ export default async function EmployeeProfilePage() {
               Thrift Savings
             </CardTitle>
             <CardDescription>
-              Choose how much is set aside from each salary. Changes apply to
-              future salary runs only.
+              Your employer sets the amount withheld from your salary each month
+              and funds it into your thrift savings.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ThriftSettings
               amount={Number(employee.thrift_amount) || 0}
               balance={thriftBalance}
-              salary={Number(employee.salary) || 0}
               enabled={Boolean(employee.thrift_enabled)}
             />
           </CardContent>
@@ -164,10 +155,6 @@ export default async function EmployeeProfilePage() {
               <div>
                 <dt className="text-muted-foreground">Employment Status</dt>
                 <dd className="font-medium">{employee.employment_status}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Monthly Salary</dt>
-                <dd className="font-medium text-primary">{naira(Number(employee.salary))}</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">NIN</dt>

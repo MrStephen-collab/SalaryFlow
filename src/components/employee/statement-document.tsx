@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { formatCurrency, formatDate } from "@/lib/report-export";
-import { ArrowDownLeft, ArrowUpRight, FileText, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, FileText, Percent, Wallet } from "lucide-react";
 
 function statusVariant(status: string) {
   switch (status) {
@@ -50,14 +50,18 @@ export function StatementDocument({
   const rowLimit = expandAll ? 100_000 : 10;
   const hasActivity =
     statement.lines.length > 0 ||
-    statement.payroll.length > 0 ||
-    statement.deductions.length > 0 ||
+    statement.thriftFundings.length > 0 ||
+    statement.thriftInterest.length > 0 ||
+    statement.repayments.length > 0 ||
     statement.withdrawals.length > 0;
 
   return (
     <div className="flex flex-col gap-6 print:gap-4">
       <div className={printHeaderOnly ? "hidden print:block" : ""}>
-        <h1 className="text-xl font-bold">Account Statement</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-xl font-bold">Account Statement</h1>
+          {statement.sample ? <Badge variant="outline">Sample data</Badge> : null}
+        </div>
         <p className="text-sm">
           {statement.employee.name}
           {statement.employee.number ? ` · ${statement.employee.number}` : ""}
@@ -66,6 +70,12 @@ export function StatementDocument({
           {statement.organization.name} · {formatDate(statement.from)} to{" "}
           {formatDate(statement.to)}
         </p>
+        {statement.sample ? (
+          <p className="mt-1 text-xs text-amber-600">
+            This statement uses demonstration data. It is not a real savings or
+            payment record.
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -107,6 +117,53 @@ export function StatementDocument({
             </div>
             <p className="mt-1 text-xl font-bold text-primary">
               {formatCurrency(statement.closingBalance)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="print:border-0 print:shadow-none">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground">
+              Thrift Opening Balance
+            </p>
+            <p className="mt-1 text-xl font-bold">
+              {formatCurrency(statement.thrift.openingBalance)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="print:border-0 print:shadow-none">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground">
+              Thrift Contributions
+            </p>
+            <p className="mt-1 text-xl font-bold text-amber-600">
+              {formatCurrency(statement.thrift.contributions)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="print:border-0 print:shadow-none">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Interest Earned</p>
+              <Percent className="size-4 text-emerald-600" />
+            </div>
+            <p className="mt-1 text-xl font-bold text-emerald-600">
+              {formatCurrency(statement.thrift.interestEarned)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {statement.thrift.annualRate}% per annum
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="print:border-0 print:shadow-none">
+          <CardContent className="pt-6">
+            <p className="text-xs text-muted-foreground">
+              Thrift Closing Balance
+            </p>
+            <p className="mt-1 text-xl font-bold text-primary">
+              {formatCurrency(statement.thrift.closingBalance)}
             </p>
           </CardContent>
         </Card>
@@ -199,60 +256,133 @@ export function StatementDocument({
 
       <Card className="print:border-0 print:shadow-none">
         <CardHeader>
-          <CardTitle>Payroll Summary</CardTitle>
+          <CardTitle>Thrift Savings Interest</CardTitle>
         </CardHeader>
         <CardContent>
-          {statement.payroll.length === 0 ? (
+          {statement.thriftInterest.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No salary records in this period.
+              No interest posted in this period.
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead className="text-right">Gross</TableHead>
-                  <TableHead className="text-right">Other Deductions</TableHead>
-                  <TableHead className="text-right">Loan Deductions</TableHead>
-                  <TableHead className="text-right">Net</TableHead>
+                  <TableHead>Month</TableHead>
+                  <TableHead className="text-right">Opening</TableHead>
+                  <TableHead className="text-right">Contribution</TableHead>
+                  <TableHead className="text-right">Rate</TableHead>
+                  <TableHead className="text-right">Days</TableHead>
+                  <TableHead className="text-right">Interest</TableHead>
+                  <TableHead className="text-right">Closing</TableHead>
+                </TableRow>
+              </TableHeader>
+              <CollapsibleTableBody
+                columns={7}
+                itemLabel="months"
+                limit={rowLimit}
+              >
+                {statement.thriftInterest.map((record) => (
+                  <TableRow key={record.id}>
+                    <TableCell className="text-sm">
+                      <p className="font-medium">{record.periodLabel}</p>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        {record.reference || "—"}
+                      </p>
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      {formatCurrency(record.openingBalance)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      {formatCurrency(record.contributions)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      {record.annualRate}%
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      {record.eligibleDays}
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-medium text-emerald-600">
+                      {formatCurrency(record.interest)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-medium">
+                      {formatCurrency(record.closingBalance)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </CollapsibleTableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={5}>Total interest</TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(statement.thrift.interestEarned)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(statement.thrift.closingBalance)}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="print:border-0 print:shadow-none">
+        <CardHeader>
+          <CardTitle>Thrift Funding Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {statement.thriftFundings.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No thrift funding in this period.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Month</TableHead>
+                  <TableHead className="text-right">Funded</TableHead>
+                  <TableHead className="text-right">To Loan</TableHead>
+                  <TableHead className="text-right">To Savings</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Receipt</TableHead>
                 </TableRow>
               </TableHeader>
               <CollapsibleTableBody
                 columns={6}
-                itemLabel="payslips"
+                itemLabel="fundings"
                 limit={rowLimit}
               >
-                {statement.payroll.map((record) => (
+                {statement.thriftFundings.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="text-sm">
-                      <p className="font-medium">{record.periodName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {record.periodStart
-                          ? `${formatDate(record.periodStart)} – ${
-                              record.periodEnd
-                                ? formatDate(record.periodEnd)
-                                : ""
-                            }`
-                          : ""}
+                      <p className="font-medium">{record.periodLabel}</p>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        {record.reference || "—"}
                       </p>
                     </TableCell>
-                    <TableCell className="text-right text-sm">
-                      {formatCurrency(record.grossSalary)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-red-600">
-                      {formatCurrency(record.otherDeductions)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-red-600">
-                      {formatCurrency(record.loanDeductions)}
-                    </TableCell>
                     <TableCell className="text-right text-sm font-medium">
-                      {formatCurrency(record.netSalary)}
+                      {formatCurrency(record.amount)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      {formatCurrency(record.loanRepayment)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-amber-600">
+                      {formatCurrency(record.thriftCredit)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={statusVariant(record.status)}>
                         {record.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="print:hidden"
+                        render={<Link href={`/receipts/thrift/${record.id}`} />}
+                      >
+                        View
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -261,17 +391,15 @@ export function StatementDocument({
                 <TableRow>
                   <TableCell>Totals</TableCell>
                   <TableCell className="text-right">
-                    {formatCurrency(statement.payrollTotals.gross)}
+                    {formatCurrency(statement.thriftTotals.funded)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {formatCurrency(statement.payrollTotals.otherDeductions)}
+                    {formatCurrency(statement.thriftTotals.loanRepayment)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {formatCurrency(statement.payrollTotals.loanDeductions)}
+                    {formatCurrency(statement.thriftTotals.savings)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(statement.payrollTotals.net)}
-                  </TableCell>
+                  <TableCell />
                   <TableCell />
                 </TableRow>
               </TableFooter>
@@ -280,62 +408,50 @@ export function StatementDocument({
         </CardContent>
       </Card>
 
-      {statement.deductions.length > 0 && (
+      {statement.repayments.length > 0 && (
         <Card className="print:border-0 print:shadow-none">
           <CardHeader>
-            <CardTitle>Deduction Receipts</CardTitle>
+            <CardTitle>Loan Repayments</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead className="text-right">Expected</TableHead>
-                  <TableHead className="text-right">Deducted</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Method</TableHead>
                   <TableHead className="text-right">Receipt</TableHead>
                 </TableRow>
               </TableHeader>
               <CollapsibleTableBody
-                columns={6}
-                itemLabel="deductions"
+                columns={5}
+                itemLabel="repayments"
                 limit={rowLimit}
               >
-                {statement.deductions.map((record) => (
+                {statement.repayments.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="text-sm">
                       {formatDate(record.date)}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {record.periodName}
-                    </TableCell>
-                    <TableCell className="text-right text-sm">
-                      {formatCurrency(record.expectedAmount)}
+                      {record.productName}
                     </TableCell>
                     <TableCell className="text-right text-sm font-medium">
-                      {formatCurrency(record.actualAmount)}
+                      {formatCurrency(record.amount)}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(record.status)}>
-                        {record.status}
-                      </Badge>
+                    <TableCell className="text-sm capitalize">
+                      {record.paymentMethod.replace(/_/g, " ").toLowerCase()}
                     </TableCell>
                     <TableCell className="text-right">
-                      {record.actualAmount > 0 ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="print:hidden"
-                          render={
-                            <Link href={`/receipts/deduction/${record.id}`} />
-                          }
-                        >
-                          View
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="print:hidden"
+                        render={<Link href={`/receipts/repayment/${record.id}`} />}
+                      >
+                        View
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+﻿import { createClient } from "@/lib/supabase/server";
+import { isSampleEmployeeNumber } from "@/lib/demo";
 
 export interface ReportOptions {
   startDate?: string;
@@ -47,7 +48,6 @@ const loanAppStatuses = [
   "REJECTED",
 ];
 
-const deductionStatuses = ["PENDING", "PROCESSED", "PARTIAL", "FAILED", "WAIVED"];
 const withdrawalStatuses = [
   "PENDING",
   "REVIEW",
@@ -59,14 +59,13 @@ const withdrawalStatuses = [
 ];
 const txStatuses = ["POSTED", "REVERSED"];
 const employeeStatuses = ["Active", "Suspended", "Terminated", "On Leave"];
-const salaryStatuses = ["DRAFT", "APPROVED", "PAID"];
 
 export function listReportMetas(): ReportMeta[] {
   return [
     {
       key: "employee",
       title: "Employee Report",
-      description: "Full employee register with salary and employment details.",
+      description: "Full employee register with thrift and employment details.",
       dateLabel: "Date Joined",
       supportsStatus: true,
       statusOptions: employeeStatuses,
@@ -74,26 +73,39 @@ export function listReportMetas(): ReportMeta[] {
       supportsDepartment: true,
       supportsBranch: true,
       supportsEmployee: true,
-      currencyColumns: ["salary"],
+      currencyColumns: ["thriftAmount"],
     },
     {
-      key: "salary",
-      title: "Salary Report",
-      description: "Payslip records across periods.",
-      dateLabel: "Period",
+      key: "thrift",
+      title: "Thrift Funding Report",
+      description:
+        "Monthly employer thrift contributions and how each was split between loan repayment and savings.",
+      dateLabel: "Funding Month",
       supportsStatus: true,
-      statusOptions: salaryStatuses,
+      statusOptions: ["POSTED", "REVERSED"],
+      supportsProduct: false,
+      supportsDepartment: true,
+      supportsBranch: true,
+      supportsEmployee: true,
+      currencyColumns: ["amount", "loanRepayment", "thriftCredit"],
+    },
+    {
+      key: "thrift-interest",
+      title: "Thrift Interest Report",
+      description:
+        "Monthly interest credited to employee thrift savings, including opening balance, eligible days and closing balance.",
+      dateLabel: "Interest Month",
+      supportsStatus: true,
+      statusOptions: ["POSTED", "REVERSED"],
       supportsProduct: false,
       supportsDepartment: true,
       supportsBranch: true,
       supportsEmployee: true,
       currencyColumns: [
-        "basicSalary",
-        "allowances",
-        "grossSalary",
-        "loanDeductions",
-        "otherDeductions",
-        "netSalary",
+        "openingBalance",
+        "contributions",
+        "interest",
+        "closingBalance",
       ],
     },
     {
@@ -135,19 +147,6 @@ export function listReportMetas(): ReportMeta[] {
       currencyColumns: ["amount"],
     },
     {
-      key: "deduction",
-      title: "Deduction Report",
-      description: "Scheduled salary deductions with expected vs actual.",
-      dateLabel: "Period",
-      supportsStatus: true,
-      statusOptions: deductionStatuses,
-      supportsProduct: false,
-      supportsDepartment: true,
-      supportsBranch: true,
-      supportsEmployee: true,
-      currencyColumns: ["expectedAmount", "actualAmount", "shortfall", "remainingBalance"],
-    },
-    {
       key: "default",
       title: "Default Report",
       description: "Loans with overdue or late installments.",
@@ -162,7 +161,7 @@ export function listReportMetas(): ReportMeta[] {
     {
       key: "fund",
       title: "Fund Report",
-      description: "Movements in and out of the lending fund.",
+      description: "Movements in and out of the thrift pool.",
       dateLabel: "Date",
       supportsStatus: false,
       supportsProduct: false,
@@ -173,8 +172,8 @@ export function listReportMetas(): ReportMeta[] {
     },
     {
       key: "interest-income",
-      title: "Interest Income",
-      description: "Interest credited to the ledger.",
+      title: "Loan Interest Income",
+      description: "Interest earned from employee and member loans.",
       dateLabel: "Transaction Date",
       supportsStatus: false,
       supportsProduct: false,
@@ -352,7 +351,8 @@ export class ReportService {
         branch,
         employment_type,
         employment_status,
-        salary,
+        thrift_enabled,
+        thrift_amount,
         email,
         phone,
         date_joined
@@ -374,7 +374,8 @@ export class ReportService {
         jobTitle: r.position ?? "",
         employmentType: r.employment_type,
         employmentStatus: r.employment_status,
-        salary: Number(r.salary ?? 0),
+        thriftAmount: Number(r.thrift_amount ?? 0),
+        thriftEnabled: r.thrift_enabled ? "Yes" : "No",
         email: r.email ?? "",
         phone: r.phone ?? "",
         dateJoined: r.date_joined ?? "",
@@ -393,34 +394,41 @@ export class ReportService {
         { key: "jobTitle", label: "Job Title" },
         { key: "employmentType", label: "Type" },
         { key: "employmentStatus", label: "Status" },
-        { key: "salary", label: "Salary", format: "currency" },
+        { key: "thriftEnabled", label: "Thrift" },
+        { key: "thriftAmount", label: "Monthly Thrift", format: "currency" },
         { key: "email", label: "Email" },
         { key: "phone", label: "Phone" },
         { key: "dateJoined", label: "Joined", format: "date" },
       ],
       rows,
       totals: {
-        salary: rows.reduce((s, r) => s + Number(r.salary), 0),
+        thriftAmount: rows.reduce((s, r) => s + Number(r.thriftAmount), 0),
       },
     };
   }
 
-  private async salaryReport(opts: ReportOptions): Promise<ReportData> {
-    if (!this.orgId) return { key: "salary", title: "Salary Report", columns: [], rows: [], totals: {} };
+  private async thriftReport(opts: ReportOptions): Promise<ReportData> {
+    if (!this.orgId)
+      return {
+        key: "thrift",
+        title: "Thrift Funding Report",
+        columns: [],
+        rows: [],
+        totals: {},
+      };
 
     let query = this.supabase
-      .from("salary_records")
+      .from("thrift_fundings")
       .select(
         `
-        basic_salary,
-        allowances,
-        gross_salary,
-        other_deductions,
-        loan_deductions,
-        net_salary,
+        id,
+        period_month,
+        amount,
+        loan_repayment_applied,
+        thrift_credit,
         status,
-        employees(employee_number, first_name, last_name, department, branch),
-        salary_periods(name, payment_date)
+        reference,
+        employees:employee_id(employee_number, first_name, last_name, department, branch)
       `
       )
       .eq("organization_id", this.orgId);
@@ -437,58 +445,141 @@ export class ReportService {
           last_name: string;
           department: string | null;
           branch: string | null;
-        };
-        const period = r.salary_periods as unknown as {
-          name: string;
-          payment_date: string;
-        };
+        } | null;
         return {
-          periodName: period?.name ?? "",
-          paymentDate: period?.payment_date ?? "",
+          periodMonth: r.period_month,
           employeeNumber: emp?.employee_number ?? "",
           employeeName: emp ? fullName(emp.first_name, emp.last_name) : "",
           department: emp?.department ?? "",
           branch: emp?.branch ?? "",
-          basicSalary: Number(r.basic_salary ?? 0),
-          allowances: Number(r.allowances ?? 0),
-          grossSalary: Number(r.gross_salary ?? 0),
-          loanDeductions: Number(r.loan_deductions ?? 0),
-          otherDeductions: Number(r.other_deductions ?? 0),
-          netSalary: Number(r.net_salary ?? 0),
+          amount: Number(r.amount ?? 0),
+          loanRepayment: Number(r.loan_repayment_applied ?? 0),
+          thriftCredit: Number(r.thrift_credit ?? 0),
           status: r.status,
+          reference: r.reference ?? "",
+          sample: isSampleEmployeeNumber(emp?.employee_number) ? "Yes" : "No",
         };
       })
       .filter(employeeMatch(opts.department, opts.branch, opts.employee))
-      .filter((r) => inDateRange(r.paymentDate, opts.startDate, opts.endDate));
+      .filter((r) => inDateRange(r.periodMonth, opts.startDate, opts.endDate));
 
     return {
-      key: "salary",
-      title: "Salary Report",
+      key: "thrift",
+      title: "Thrift Funding Report",
       columns: [
-        { key: "periodName", label: "Period" },
-        { key: "paymentDate", label: "Payment Date", format: "date" },
+        { key: "periodMonth", label: "Funding Month", format: "date" },
         { key: "employeeNumber", label: "Employee #" },
         { key: "employeeName", label: "Name" },
         { key: "department", label: "Department" },
         { key: "branch", label: "Branch" },
-        { key: "basicSalary", label: "Basic", format: "currency" },
-        { key: "allowances", label: "Allowances", format: "currency" },
-        { key: "grossSalary", label: "Gross", format: "currency" },
-        { key: "loanDeductions", label: "Loan Deduction", format: "currency" },
-        { key: "otherDeductions", label: "Other Deductions", format: "currency" },
-        { key: "netSalary", label: "Net", format: "currency" },
+        { key: "amount", label: "Funded", format: "currency" },
+        { key: "loanRepayment", label: "To Loan", format: "currency" },
+        { key: "thriftCredit", label: "To Savings", format: "currency" },
         { key: "status", label: "Status" },
+        { key: "reference", label: "Reference" },
+        { key: "sample", label: "Sample" },
       ],
       rows,
       totals: {
-        grossSalary: rows.reduce((s, r) => s + Number(r.grossSalary), 0),
-        netSalary: rows.reduce((s, r) => s + Number(r.netSalary), 0),
+        amount: rows.reduce((s, r) => s + Number(r.amount), 0),
+        loanRepayment: rows.reduce((s, r) => s + Number(r.loanRepayment), 0),
+        thriftCredit: rows.reduce((s, r) => s + Number(r.thriftCredit), 0),
       },
     };
   }
 
-  private async loanApplicationsReport(opts: ReportOptions): Promise<ReportData> {
-    if (!this.orgId) return { key: "loan-applications", title: "Loan Application Report", columns: [], rows: [], totals: {} };
+  private async thriftInterestReport(opts: ReportOptions): Promise<ReportData> {
+    if (!this.orgId)
+      return {
+        key: "thrift-interest",
+        title: "Thrift Interest Report",
+        columns: [],
+        rows: [],
+        totals: {},
+      };
+
+    let query = this.supabase
+      .from("thrift_interest_accruals")
+      .select(
+        `
+        id,
+        period_month,
+        opening_balance,
+        contributions,
+        annual_rate,
+        eligible_days,
+        interest_amount,
+        closing_balance,
+        status,
+        reference,
+        employees:employee_id(employee_number, first_name, last_name, department, branch)
+      `
+      )
+      .eq("organization_id", this.orgId);
+
+    if (opts.status) query = query.eq("status", opts.status);
+
+    const { data } = await query;
+
+    const rows = (data ?? [])
+      .map((r) => {
+        const emp = r.employees as unknown as {
+          employee_number: string;
+          first_name: string;
+          last_name: string;
+          department: string | null;
+          branch: string | null;
+        } | null;
+        return {
+          periodMonth: r.period_month,
+          employeeNumber: emp?.employee_number ?? "",
+          employeeName: emp ? fullName(emp.first_name, emp.last_name) : "",
+          department: emp?.department ?? "",
+          branch: emp?.branch ?? "",
+          openingBalance: Number(r.opening_balance ?? 0),
+          contributions: Number(r.contributions ?? 0),
+          annualRate: Number(r.annual_rate ?? 0),
+          eligibleDays: Number(r.eligible_days ?? 0),
+          interest: Number(r.interest_amount ?? 0),
+          closingBalance: Number(r.closing_balance ?? 0),
+          status: r.status,
+          reference: r.reference ?? "",
+          sample: isSampleEmployeeNumber(emp?.employee_number) ? "Yes" : "No",
+        };
+      })
+      .filter(employeeMatch(opts.department, opts.branch, opts.employee))
+      .filter((r) => inDateRange(r.periodMonth, opts.startDate, opts.endDate));
+
+    return {
+      key: "thrift-interest",
+      title: "Thrift Interest Report",
+      columns: [
+        { key: "periodMonth", label: "Interest Month", format: "date" },
+        { key: "employeeNumber", label: "Employee #" },
+        { key: "employeeName", label: "Name" },
+        { key: "department", label: "Department" },
+        { key: "branch", label: "Branch" },
+        { key: "openingBalance", label: "Opening", format: "currency" },
+        { key: "contributions", label: "Contribution", format: "currency" },
+        { key: "annualRate", label: "Rate %" },
+        { key: "eligibleDays", label: "Days" },
+        { key: "interest", label: "Interest", format: "currency" },
+        { key: "closingBalance", label: "Closing", format: "currency" },
+        { key: "status", label: "Status" },
+        { key: "reference", label: "Reference" },
+        { key: "sample", label: "Sample" },
+      ],
+      rows,
+      totals: {
+        openingBalance: rows.reduce((s, r) => s + Number(r.openingBalance), 0),
+        contributions: rows.reduce((s, r) => s + Number(r.contributions), 0),
+        interest: rows.reduce((s, r) => s + Number(r.interest), 0),
+        closingBalance: rows.reduce((s, r) => s + Number(r.closingBalance), 0),
+      },
+    };
+  }
+
+  private async loanApplicationsReport(opts: ReportOptions): Promise<ReportData> {    if (!this.orgId) return { key: "loan-applications", title: "Loan Application Report", columns: [], rows: [], totals: {} };
 
     let query = this.supabase
       .from("loan_applications")
@@ -650,10 +741,10 @@ export class ReportService {
             : maxDays > 90
               ? "90+ days"
               : maxDays > 60
-                ? "61–90 days"
+                ? "61â€“90 days"
                 : maxDays > 30
-                  ? "31–60 days"
-                  : "1–30 days";
+                  ? "31â€“60 days"
+                  : "1â€“30 days";
         return {
           employeeNumber: emp?.employee_number ?? "",
           employeeName: emp ? fullName(emp.first_name, emp.last_name) : "",
@@ -768,81 +859,6 @@ export class ReportService {
     };
   }
 
-  private async deductionReport(opts: ReportOptions): Promise<ReportData> {
-    if (!this.orgId) return { key: "deduction", title: "Deduction Report", columns: [], rows: [], totals: {} };
-
-    let query = this.supabase
-      .from("deduction_records")
-      .select(
-        `
-        expected_amount,
-        actual_amount,
-        shortfall,
-        remaining_balance,
-        status,
-        salary_periods(name, payment_date),
-        employees(employee_number, first_name, last_name, department, branch)
-      `
-      )
-      .eq("organization_id", this.orgId)
-      .order("created_at", { ascending: false });
-
-    if (opts.status) query = query.eq("status", opts.status);
-
-    const { data } = await query;
-
-    const rows = (data ?? [])
-      .map((r) => {
-        const period = r.salary_periods as unknown as { name: string; payment_date: string } | null;
-        const emp = r.employees as unknown as {
-          employee_number: string;
-          first_name: string;
-          last_name: string;
-          department: string | null;
-          branch: string | null;
-        } | null;
-        return {
-          periodName: period?.name ?? "",
-          paymentDate: period?.payment_date ?? "",
-          employeeNumber: emp?.employee_number ?? "",
-          employeeName: emp ? fullName(emp.first_name, emp.last_name) : "",
-          department: emp?.department ?? "",
-          branch: emp?.branch ?? "",
-          expectedAmount: Number(r.expected_amount ?? 0),
-          actualAmount: Number(r.actual_amount ?? 0),
-          shortfall: Number(r.shortfall ?? 0),
-          remainingBalance: Number(r.remaining_balance ?? 0),
-          status: r.status,
-        };
-      })
-      .filter(employeeMatch(opts.department, opts.branch, opts.employee))
-      .filter((r) => inDateRange(r.paymentDate, opts.startDate, opts.endDate));
-
-    return {
-      key: "deduction",
-      title: "Deduction Report",
-      columns: [
-        { key: "periodName", label: "Period" },
-        { key: "paymentDate", label: "Payment Date", format: "date" },
-        { key: "employeeNumber", label: "Employee #" },
-        { key: "employeeName", label: "Name" },
-        { key: "department", label: "Department" },
-        { key: "branch", label: "Branch" },
-        { key: "expectedAmount", label: "Expected", format: "currency" },
-        { key: "actualAmount", label: "Actual", format: "currency" },
-        { key: "shortfall", label: "Shortfall", format: "currency" },
-        { key: "remainingBalance", label: "Remaining", format: "currency" },
-        { key: "status", label: "Status" },
-      ],
-      rows,
-      totals: {
-        expectedAmount: rows.reduce((s, r) => s + Number(r.expectedAmount), 0),
-        actualAmount: rows.reduce((s, r) => s + Number(r.actualAmount), 0),
-        shortfall: rows.reduce((s, r) => s + Number(r.shortfall), 0),
-      },
-    };
-  }
-
   private async defaultReport(opts: ReportOptions): Promise<ReportData> {
     if (!this.orgId) return { key: "default", title: "Default Report", columns: [], rows: [], totals: {} };
 
@@ -881,7 +897,7 @@ export class ReportService {
         const emp = app?.employees ?? null;
         const due = r.due_date ?? "";
         const daysOverdue = due ? Math.floor((new Date(today).getTime() - new Date(due).getTime()) / 86400000) : 0;
-        const aging = daysOverdue > 90 ? "90+ days" : daysOverdue > 60 ? "61–90 days" : daysOverdue > 30 ? "31–60 days" : "1–30 days";
+        const aging = daysOverdue > 90 ? "90+ days" : daysOverdue > 60 ? "61â€“90 days" : daysOverdue > 30 ? "31â€“60 days" : "1â€“30 days";
         return {
           employeeNumber: emp?.employee_number ?? "",
           employeeName: emp ? fullName(emp.first_name, emp.last_name) : "",
@@ -966,7 +982,7 @@ export class ReportService {
   }
 
   private async interestIncomeReport(opts: ReportOptions): Promise<ReportData> {
-    if (!this.orgId) return { key: "interest-income", title: "Interest Income", columns: [], rows: [], totals: {} };
+    if (!this.orgId) return { key: "interest-income", title: "Loan Interest Income", columns: [], rows: [], totals: {} };
 
     const { data } = await this.supabase
       .from("ledger_entries")
@@ -1001,7 +1017,7 @@ export class ReportService {
 
     return {
       key: "interest-income",
-      title: "Interest Income",
+      title: "Loan Interest Income",
       columns: [
         { key: "date", label: "Date", format: "date" },
         { key: "reference", label: "Reference" },
@@ -1197,16 +1213,16 @@ export class ReportService {
     switch (key) {
       case "employee":
         return this.employeeReport(opts);
-      case "salary":
-        return this.salaryReport(opts);
+      case "thrift":
+        return this.thriftReport(opts);
+      case "thrift-interest":
+        return this.thriftInterestReport(opts);
       case "loan-applications":
         return this.loanApplicationsReport(opts);
       case "loan-portfolio":
         return this.loanPortfolioReport(opts);
       case "repayments":
         return this.repaymentReport(opts);
-      case "deduction":
-        return this.deductionReport(opts);
       case "default":
         return this.defaultReport(opts);
       case "fund":

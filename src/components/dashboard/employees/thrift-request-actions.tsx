@@ -10,14 +10,16 @@ import { Check, Loader2, X } from "lucide-react";
 export function ThriftRequestActions({
   id,
   status,
+  canApprove = false,
 }: {
   id: string;
   status: string;
+  canApprove?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  if (status !== "PENDING") return null;
+  if (status !== "PENDING" || !canApprove) return null;
 
   function act(approve: boolean) {
     startTransition(async () => {

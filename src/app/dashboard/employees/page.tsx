@@ -51,7 +51,9 @@ export default async function EmployeesPage({
         </div>
         {profile?.organization_id ? (
           <div className="flex flex-wrap items-center gap-2">
-            <ThriftReleaseAllButton />
+            {profile.role === "ORGANIZATION_OWNER" ? (
+              <ThriftReleaseAllButton />
+            ) : null}
             <InviteLinkButton
               organizationId={profile.organization_id}
               kind="employee"

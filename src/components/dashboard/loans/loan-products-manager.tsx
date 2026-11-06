@@ -32,14 +32,13 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import {
   INTEREST_METHODS,
@@ -68,8 +67,6 @@ type ProductFormState = {
   repaymentFrequency: (typeof REPETITION_FREQUENCIES)[number];
   processingFee: number;
   insuranceFee: number;
-  maximumSalaryDeductionPercentage: number;
-  minimumSalary: number;
   minimumEmploymentPeriodMonths: number;
   guarantorRequired: boolean;
   collateralRequired: boolean;
@@ -86,8 +83,6 @@ const emptyProductForm: ProductFormState = {
   repaymentFrequency: "MONTHLY",
   processingFee: 0,
   insuranceFee: 0,
-  maximumSalaryDeductionPercentage: 30,
-  minimumSalary: 0,
   minimumEmploymentPeriodMonths: 0,
   guarantorRequired: false,
   collateralRequired: false,
@@ -106,8 +101,6 @@ function productToForm(product: LoanProduct): ProductFormState {
       product.repayment_frequency as (typeof REPETITION_FREQUENCIES)[number],
     processingFee: product.processing_fee,
     insuranceFee: product.insurance_fee,
-    maximumSalaryDeductionPercentage: product.maximum_salary_deduction_percentage,
-    minimumSalary: product.minimum_salary,
     minimumEmploymentPeriodMonths: product.minimum_employment_period_months,
     guarantorRequired: product.guarantor_required,
     collateralRequired: product.collateral_required,
@@ -144,8 +137,6 @@ export function LoanProductsManager({
         ? {
             ...emptyProductForm,
             name: MEMBER_LOAN_PRODUCT_NAME,
-            maximumSalaryDeductionPercentage: 0,
-            minimumSalary: 0,
             minimumEmploymentPeriodMonths: 0,
           }
         : emptyProductForm
@@ -188,10 +179,6 @@ export function LoanProductsManager({
       repaymentFrequency: form.repaymentFrequency,
       processingFee: form.processingFee,
       insuranceFee: form.insuranceFee,
-      maximumSalaryDeductionPercentage: memberScope
-        ? 0
-        : form.maximumSalaryDeductionPercentage,
-      minimumSalary: memberScope ? 0 : form.minimumSalary,
       minimumEmploymentPeriodMonths: memberScope
         ? 0
         : form.minimumEmploymentPeriodMonths,
@@ -327,13 +314,12 @@ export function LoanProductsManager({
                 <TableHead>Amount Range</TableHead>
                 <TableHead>Interest</TableHead>
                 <TableHead>Duration</TableHead>
-                <TableHead>Max Deduction</TableHead>
                 <TableHead>Requirements</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-[60px]" />
               </TableRow>
             </TableHeader>
-            <CollapsibleTableBody columns={8} itemLabel="products">
+            <CollapsibleTableBody columns={7} itemLabel="products">
               {visibleProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
@@ -363,11 +349,6 @@ export function LoanProductsManager({
                     </div>
                   </TableCell>
                   <TableCell className="text-sm">{product.duration_months} mo</TableCell>
-                  <TableCell className="text-sm">
-                    {memberScope
-                      ? "—"
-                      : `${product.maximum_salary_deduction_percentage}%`}
-                  </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       {product.guarantor_required && (
@@ -564,38 +545,16 @@ export function LoanProductsManager({
                 </div>
 
                 {!isMemberProduct ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Max Deduction % of Salary *</Label>
-                      <Input
-                        type="number"
-                        value={form.maximumSalaryDeductionPercentage}
-                        onChange={(e) =>
-                          set("maximumSalaryDeductionPercentage", Number(e.target.value))
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Minimum Salary (₦)</Label>
-                      <Input
-                        type="number"
-                        value={form.minimumSalary}
-                        onChange={(e) => set("minimumSalary", Number(e.target.value))}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Min Employment (Months)</Label>
-                      <Input
-                        type="number"
-                        value={form.minimumEmploymentPeriodMonths}
-                        onChange={(e) =>
-                          set("minimumEmploymentPeriodMonths", Number(e.target.value))
-                        }
-                      />
-                    </div>
-                  </>
+                  <div className="space-y-2">
+                    <Label>Min Employment (Months)</Label>
+                    <Input
+                      type="number"
+                      value={form.minimumEmploymentPeriodMonths}
+                      onChange={(e) =>
+                        set("minimumEmploymentPeriodMonths", Number(e.target.value))
+                      }
+                    />
+                  </div>
                 ) : null}
 
                 <div className="flex items-center justify-between rounded-lg border p-3">

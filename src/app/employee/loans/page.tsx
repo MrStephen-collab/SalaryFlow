@@ -80,10 +80,10 @@ export default async function EmployeeLoansPage() {
       {eligible ? (
         <p className="text-xs text-muted-foreground">
           {loanLimit > 0
-            ? `Thrift-backed loan limit: ${naira(loanLimit)} (2× your ${naira(
+            ? `Thrift-backed loan limit: ${naira(loanLimit)} (3× your ${naira(
                 thriftBalance
-              )} thrift savings).`
-            : "Save in thrift to unlock a loan — your loan limit is 2× your thrift savings."}
+              )} thrift savings). Your monthly repayment must fit within your monthly thrift amount.`
+            : "Save in thrift to unlock a loan — your limit is 3× your thrift savings."}
         </p>
       ) : null}
 

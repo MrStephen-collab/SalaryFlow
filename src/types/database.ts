@@ -1,4 +1,4 @@
-// Types for the SalaryFlow Supabase schema.
+﻿// Types for the SalaryFlow Supabase schema.
 // Regenerate with `supabase gen types typescript` once the project is linked.
 
 export type Json =
@@ -141,66 +141,6 @@ export interface Database {
         };
         Relationships: [];
       };
-      deduction_records: {
-        Row: {
-          actual_amount: number
-          created_at: string
-          deduction_type: string
-          employee_id: string
-          expected_amount: number
-          id: string
-          loan_application_id: string | null
-          notes: string | null
-          organization_id: string
-          processed_at: string | null
-          reference: string
-          remaining_balance: number
-          salary_period_id: string
-          schedule_id: string | null
-          shortfall: number
-          status: string
-          updated_at: string
-        };
-        Insert: {
-          actual_amount: number
-          created_at: string
-          deduction_type: string
-          employee_id: string
-          expected_amount: number
-          id: string
-          loan_application_id?: string | null
-          notes?: string | null
-          organization_id: string
-          processed_at?: string | null
-          reference: string
-          remaining_balance: number
-          salary_period_id: string
-          schedule_id?: string | null
-          shortfall: number
-          status: string
-          updated_at: string
-        };
-        Update: {
-          actual_amount?: number
-          created_at?: string
-          deduction_type?: string
-          employee_id?: string
-          expected_amount?: number
-          id?: string
-          loan_application_id?: string | null
-          notes?: string | null
-          organization_id?: string
-          processed_at?: string | null
-          reference?: string
-          remaining_balance?: number
-          salary_period_id?: string
-          schedule_id?: string | null
-          shortfall?: number
-          status?: string
-          updated_at?: string
-        };
-        Relationships: [];
-      };
       departments: {
         Row: {
           active: boolean
@@ -261,7 +201,6 @@ export interface Database {
           other_names: string | null
           phone: string
           position: string | null
-          salary: number
           state: string | null
           termination_date: string | null
           updated_at: string
@@ -293,7 +232,6 @@ export interface Database {
           other_names?: string | null
           phone: string
           position?: string | null
-          salary: number
           state?: string | null
           termination_date?: string | null
           updated_at: string
@@ -325,7 +263,6 @@ export interface Database {
           other_names?: string | null
           phone?: string
           position?: string | null
-          salary?: number
           state?: string | null
           termination_date?: string | null
           updated_at?: string
@@ -649,10 +586,8 @@ export interface Database {
           interest_method: string
           interest_rate: number
           maximum_amount: number
-          maximum_salary_deduction_percentage: number
           minimum_amount: number
           minimum_employment_period_months: number
-          minimum_salary: number
           name: string
           organization_id: string
           processing_fee: number
@@ -671,10 +606,8 @@ export interface Database {
           interest_method: string
           interest_rate: number
           maximum_amount: number
-          maximum_salary_deduction_percentage: number
           minimum_amount: number
           minimum_employment_period_months: number
-          minimum_salary: number
           name: string
           organization_id: string
           processing_fee: number
@@ -693,10 +626,8 @@ export interface Database {
           interest_method?: string
           interest_rate?: number
           maximum_amount?: number
-          maximum_salary_deduction_percentage?: number
           minimum_amount?: number
           minimum_employment_period_months?: number
-          minimum_salary?: number
           name?: string
           organization_id?: string
           processing_fee?: number
@@ -801,9 +732,8 @@ export interface Database {
           created_at: string
           default_interest_method: string
           default_interest_rate: number | null
-          salary_payment_day: number | null
-          auto_disburse_salaries: boolean
           savings_min_membership_months: number
+          thrift_interest_rate: number
           member_loan_multiplier: number
           member_loan_interest_rate: number
           member_loan_collateral_required: boolean
@@ -813,12 +743,9 @@ export interface Database {
           guarantor_required: boolean
           id: string
           max_loan_amount: number | null
-          max_salary_deduction_percentage: number
           max_tenure: number
           min_employment_period_months: number
-          min_salary: number
           organization_id: string
-          salary_cycle: string
           updated_at: string
           withdrawals_enabled: boolean
         };
@@ -827,10 +754,10 @@ export interface Database {
           created_at: string
           default_interest_method: string
           default_interest_rate?: number | null
+          thrift_interest_rate?: number
           guarantor_required: boolean
           id: string
           max_loan_amount?: number | null
-          max_salary_deduction_percentage: number
           max_tenure: number
           member_loan_interest_rate?: number
           member_loan_collateral_required?: boolean
@@ -839,9 +766,7 @@ export interface Database {
           member_loan_multiplier?: number
           member_savings_withdrawals_enabled?: boolean
           min_employment_period_months: number
-          min_salary: number
           organization_id: string
-          salary_cycle: string
           updated_at: string
           withdrawals_enabled: boolean
         };
@@ -850,15 +775,13 @@ export interface Database {
           created_at?: string
           default_interest_method?: string
           default_interest_rate?: number | null
+          thrift_interest_rate?: number
           guarantor_required?: boolean
           id?: string
           max_loan_amount?: number | null
-          max_salary_deduction_percentage?: number
           max_tenure?: number
           min_employment_period_months?: number
-          min_salary?: number
           organization_id?: string
-          salary_cycle?: string
           updated_at?: string
           withdrawals_enabled?: boolean
         };
@@ -993,171 +916,6 @@ export interface Database {
           id?: string
           is_system?: boolean
           name?: string
-        };
-        Relationships: [];
-      };
-      salary_import_rows: {
-        Row: {
-          allowances: number | null
-          basic_salary: number | null
-          created_at: string
-          employee_name: string | null
-          employee_number: string | null
-          error_message: string | null
-          id: string
-          import_id: string
-          other_deductions: number | null
-          row_status: string
-        };
-        Insert: {
-          allowances?: number | null
-          basic_salary?: number | null
-          created_at: string
-          employee_name?: string | null
-          employee_number?: string | null
-          error_message?: string | null
-          id: string
-          import_id: string
-          other_deductions?: number | null
-          row_status: string
-        };
-        Update: {
-          allowances?: number | null
-          basic_salary?: number | null
-          created_at?: string
-          employee_name?: string | null
-          employee_number?: string | null
-          error_message?: string | null
-          id?: string
-          import_id?: string
-          other_deductions?: number | null
-          row_status?: string
-        };
-        Relationships: [];
-      };
-      salary_imports: {
-        Row: {
-          created_at: string
-          duplicate_rows: number
-          filename: string
-          id: string
-          imported_by: string | null
-          invalid_rows: number
-          organization_id: string
-          salary_period_id: string | null
-          status: string
-          total_rows: number
-          valid_rows: number
-        };
-        Insert: {
-          created_at: string
-          duplicate_rows: number
-          filename: string
-          id: string
-          imported_by?: string | null
-          invalid_rows: number
-          organization_id: string
-          salary_period_id?: string | null
-          status: string
-          total_rows: number
-          valid_rows: number
-        };
-        Update: {
-          created_at?: string
-          duplicate_rows?: number
-          filename?: string
-          id?: string
-          imported_by?: string | null
-          invalid_rows?: number
-          organization_id?: string
-          salary_period_id?: string | null
-          status?: string
-          total_rows?: number
-          valid_rows?: number
-        };
-        Relationships: [];
-      };
-      salary_periods: {
-        Row: {
-          created_at: string
-          end_date: string
-          id: string
-          name: string
-          organization_id: string
-          payment_date: string
-          start_date: string
-          status: string
-          updated_at: string
-        };
-        Insert: {
-          created_at: string
-          end_date: string
-          id: string
-          name: string
-          organization_id: string
-          payment_date: string
-          start_date: string
-          status: string
-          updated_at: string
-        };
-        Update: {
-          created_at?: string
-          end_date?: string
-          id?: string
-          name?: string
-          organization_id?: string
-          payment_date?: string
-          start_date?: string
-          status?: string
-          updated_at?: string
-        };
-        Relationships: [];
-      };
-      salary_records: {
-        Row: {
-          allowances: number
-          basic_salary: number
-          created_at: string
-          employee_id: string
-          gross_salary: number
-          id: string
-          loan_deductions: number
-          net_salary: number
-          organization_id: string
-          other_deductions: number
-          salary_period_id: string
-          status: string
-          updated_at: string
-        };
-        Insert: {
-          allowances: number
-          basic_salary: number
-          created_at: string
-          employee_id: string
-          gross_salary: number
-          id: string
-          loan_deductions: number
-          net_salary: number
-          organization_id: string
-          other_deductions: number
-          salary_period_id: string
-          status: string
-          updated_at: string
-        };
-        Update: {
-          allowances?: number
-          basic_salary?: number
-          created_at?: string
-          employee_id?: string
-          gross_salary?: number
-          id?: string
-          loan_deductions?: number
-          net_salary?: number
-          organization_id?: string
-          other_deductions?: number
-          salary_period_id?: string
-          status?: string
-          updated_at?: string
         };
         Relationships: [];
       };

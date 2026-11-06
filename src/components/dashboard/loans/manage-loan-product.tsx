@@ -21,8 +21,6 @@ export type LoanProduct = {
   repayment_frequency: string;
   processing_fee: number;
   insurance_fee: number;
-  maximum_salary_deduction_percentage: number;
-  minimum_salary: number;
   minimum_employment_period_months: number;
   guarantor_required: boolean;
   collateral_required: boolean;

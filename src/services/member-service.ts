@@ -677,8 +677,6 @@ export class MemberService {
           repayment_frequency: "MONTHLY",
           processing_fee: 0,
           insurance_fee: 0,
-          maximum_salary_deduction_percentage: 30,
-          minimum_salary: 0,
           minimum_employment_period_months: 0,
           guarantor_required: false,
           collateral_required: Boolean(

@@ -20,7 +20,13 @@ import { ArrowLeft } from "lucide-react";
 import { EmployeeForm } from "@/components/dashboard/employees/employee-form";
 import { NinVerification } from "@/components/nin/nin-verification";
 import { ThriftReleaseButton } from "@/components/dashboard/employees/thrift-release-button";
+import { FundThriftButton } from "@/components/dashboard/employees/fund-thrift-button";
+import { ThriftAmountEditor } from "@/components/dashboard/employees/thrift-amount-editor";
 import { LedgerService } from "@/services/ledger-service";
+import { currentPeriodMonth } from "@/services/thrift-service";
+import { getProfile } from "@/lib/auth";
+import { isSampleEmployeeNumber } from "@/lib/demo";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: "Employee Profile",
@@ -74,7 +80,6 @@ type EmployeeRow = {
   confirmation_date: string | null;
   termination_date: string | null;
   branch_id: string | null;
-  salary: number | null;
   thrift_enabled: boolean | null;
   thrift_amount: number | null;
   organization_id: string;
@@ -119,6 +124,20 @@ export default async function EmployeeProfilePage({
       ).getThriftBalance(employeeRow.id)
     : 0;
 
+  const periodMonth = currentPeriodMonth();
+  const { data: currentFunding } = await createAdminClient()
+    .from("thrift_fundings")
+    .select("id")
+    .eq("employee_id", employeeRow.id)
+    .eq("period_month", periodMonth)
+    .maybeSingle();
+
+  const profile = await getProfile();
+  const canFund =
+    profile?.role === "ORGANIZATION_OWNER" ||
+    profile?.role === "ORGANIZATION_ADMIN";
+  const canRelease = profile?.role === "ORGANIZATION_OWNER";
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -132,9 +151,14 @@ export default async function EmployeeProfilePage({
             <ArrowLeft className="size-4" />
             Back to employees
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {employeeRow.first_name} {employeeRow.last_name}
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">
+              {employeeRow.first_name} {employeeRow.last_name}
+            </h1>
+            {isSampleEmployeeNumber(employeeRow.employee_number) ? (
+              <Badge variant="outline">Sample data</Badge>
+            ) : null}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {employeeRow.position ?? "No position set"} · {employeeRow.employee_number}
           </p>
@@ -161,7 +185,6 @@ export default async function EmployeeProfilePage({
               employment_type: employeeRow.employment_type,
               employment_status: employeeRow.employment_status,
               date_joined: employeeRow.date_joined,
-              salary: employeeRow.salary ?? 0,
               thrift_enabled: employeeRow.thrift_enabled ?? false,
               thrift_amount: employeeRow.thrift_amount ?? 0,
               branch_id: employeeRow.branch_id,
@@ -188,12 +211,67 @@ export default async function EmployeeProfilePage({
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">{employeeRow.job_title ?? "—"}</p>
-            {employeeRow.salary && (
-              <p className="mt-1 text-lg font-semibold">
-                {naira(employeeRow.salary)}
-                <span className="text-xs font-normal text-muted-foreground"> / mo</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="thrift-savings">
+        <CardHeader>
+          <CardTitle className="text-base">Thrift Savings</CardTitle>
+          <CardDescription>
+            Employer-funded monthly savings. Each funding settles an active loan
+            instalment first, then adds the remainder to savings. Only the
+            chairman can release savings into the withdrawable wallet.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs text-muted-foreground">Thrift Balance</p>
+              <p className="text-lg font-semibold text-primary">
+                {naira(thriftBalance)}
               </p>
-            )}
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">
+                Monthly Thrift Amount
+              </p>
+              {canFund ? (
+                <ThriftAmountEditor
+                  employeeId={employeeRow.id}
+                  employeeName={`${employeeRow.first_name} ${employeeRow.last_name}`}
+                  amount={Number(employeeRow.thrift_amount) || 0}
+                  enabled={Boolean(employeeRow.thrift_enabled)}
+                  className="mt-1 justify-start"
+                />
+              ) : (
+                <p className="mt-1 text-lg font-semibold">
+                  {employeeRow.thrift_enabled
+                    ? naira(Number(employeeRow.thrift_amount) || 0)
+                    : "Off"}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                Set to 0 to switch thrift off for future funding.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {canFund ? (
+              <FundThriftButton
+                employeeId={employeeRow.id}
+                periodMonth={periodMonth}
+                amount={Number(employeeRow.thrift_amount) || 0}
+                funded={Boolean(currentFunding)}
+                enabled={Boolean(employeeRow.thrift_enabled)}
+              />
+            ) : null}
+            {canRelease ? (
+              <ThriftReleaseButton
+                employeeId={employeeRow.id}
+                disabled={!employeeRow.thrift_enabled || thriftBalance <= 0}
+              />
+            ) : null}
           </div>
         </CardContent>
       </Card>
@@ -238,7 +316,6 @@ export default async function EmployeeProfilePage({
               label="Termination Date"
               value={employeeRow.termination_date}
             />
-            <Field label="Monthly Salary" value={naira(employeeRow.salary ?? 0)} />
           </CardContent>
         </Card>
       </div>
@@ -257,38 +334,6 @@ export default async function EmployeeProfilePage({
             nin={employeeRow.nin}
             documentUrl={employeeRow.nin_document_url}
             status={employeeRow.nin_status}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Thrift Savings</CardTitle>
-          <CardDescription>
-            Voluntary savings set aside from salary after loan deductions. Only
-            the chairman can release it into the withdrawable wallet.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <p className="text-xs text-muted-foreground">Thrift Balance</p>
-              <p className="text-lg font-semibold text-primary">
-                {naira(thriftBalance)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Agreed per Salary</p>
-              <p className="text-sm font-medium">
-                {employeeRow.thrift_enabled
-                  ? naira(employeeRow.thrift_amount ?? 0)
-                  : "Not activated"}
-              </p>
-            </div>
-          </div>
-          <ThriftReleaseButton
-            employeeId={employeeRow.id}
-            disabled={!employeeRow.thrift_enabled || thriftBalance <= 0}
           />
         </CardContent>
       </Card>

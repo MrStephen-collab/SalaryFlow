@@ -30,15 +30,12 @@ import {
   BookOpen,
   Building2,
   ChevronDown,
-  ClipboardCheck,
   Contact,
-  FileText,
   HandCoins,
   LayoutDashboard,
   LineChart,
   MapPin,
   Megaphone,
-  Percent,
   PiggyBank,
   Settings,
   ShieldAlert,
@@ -112,7 +109,7 @@ const employerNavGroups: NavGroup[] = [
         icon: ShieldAlert,
       },
       {
-        title: "Thrift Requests",
+        title: "Thrift Savings",
         href: "/dashboard/employees/thrift",
         icon: PiggyBank,
       },
@@ -160,34 +157,13 @@ const employerNavGroups: NavGroup[] = [
     ],
   },
   {
-    id: "payroll",
-    label: "Payroll",
-    items: [
-      {
-        title: "Salary",
-        href: "/dashboard/salary",
-        icon: FileText,
-      },
-      {
-        title: "Deductions",
-        href: "/dashboard/deductions",
-        icon: Percent,
-      },
-      {
-        title: "Reconciliation",
-        href: "/dashboard/deductions/reconciliation",
-        icon: ClipboardCheck,
-      },
-    ],
-  },
-  {
     id: "finance",
     label: "Finance",
     items: [
       {
-        title: "Ledger",
-        href: "/dashboard/ledger",
-        icon: BookOpen,
+        title: "Funds",
+        href: "/dashboard/funds",
+        icon: PiggyBank,
       },
       {
         title: "Withdrawals",
@@ -195,9 +171,9 @@ const employerNavGroups: NavGroup[] = [
         icon: Banknote,
       },
       {
-        title: "Funds",
-        href: "/dashboard/funds",
-        icon: PiggyBank,
+        title: "Ledger",
+        href: "/dashboard/ledger",
+        icon: BookOpen,
       },
     ],
   },

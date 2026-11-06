@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { FundService } from "@/services/fund-service";
 import { PaymentService } from "@/services/payment-service";
 import { gatewayStatus } from "@/services/payment-provider";
@@ -13,6 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { PiggyBank } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -65,18 +68,27 @@ export default async function FundsPage({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Fund Management</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Fund your salary pool online and track every movement
+            Fund your thrift pool online. Use Fund Thrift Pool to cover employee
+            loan disbursement, or Fund Employee Thrift to credit employees&apos;
+            thrift savings.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <FundWalletDialog gatewayReady={gateway.collections} />
+          <Button
+            variant="outline"
+            render={<Link href="/dashboard/employees/thrift" />}
+          >
+            <PiggyBank className="size-4" />
+            Fund Employee Thrift
+          </Button>
           <FundMemberLoanPoolDialog gatewayReady={gateway.collections} />
         </div>
       </div>
 
       {params.payment === "success" && (
         <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-900">
-          Payment confirmed. Your salary pool has been credited
+          Payment confirmed. Your thrift pool has been credited
           {params.amount ? ` with ${naira(Number(params.amount))}` : ""}.
         </div>
       )}
@@ -98,7 +110,7 @@ export default async function FundsPage({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total Lending Funds</CardDescription>
+            <CardDescription>Total Funds</CardDescription>
             <CardTitle className="text-2xl text-primary">
               {naira(totalBalance)}
             </CardTitle>
@@ -125,7 +137,7 @@ export default async function FundsPage({
           <CardContent className="py-12 text-center">
             <p className="text-sm font-medium">No fund accounts</p>
             <p className="text-sm text-muted-foreground">
-              Create a fund account to start tracking your lending pool.
+              Create a fund account to start tracking your thrift pool.
             </p>
           </CardContent>
         </Card>

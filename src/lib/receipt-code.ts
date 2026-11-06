@@ -1,18 +1,18 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export const RECEIPT_TYPES = ["repayment", "deduction", "withdrawal"] as const;
+export const RECEIPT_TYPES = ["repayment", "thrift", "withdrawal"] as const;
 
 export type ReceiptType = (typeof RECEIPT_TYPES)[number];
 
 export const RECEIPT_TYPE_LABELS: Record<ReceiptType, string> = {
   repayment: "Loan Repayment Receipt",
-  deduction: "Salary Deduction Receipt",
+  thrift: "Thrift Funding Receipt",
   withdrawal: "Withdrawal Receipt",
 };
 
 const RECEIPT_PREFIXES: Record<ReceiptType, string> = {
   repayment: "R",
-  deduction: "D",
+  thrift: "T",
   withdrawal: "W",
 };
 

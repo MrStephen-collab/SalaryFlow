@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { INTEREST_METHODS } from "./loan";
 
-export const SALARY_CYCLES = ["weekly", "biweekly", "monthly"] as const;
 export const APPROVAL_WORKFLOWS = ["one_level", "two_level"] as const;
 export const CURRENCIES = ["NGN", "USD", "GBP", "GHS", "KES", "ZAR"] as const;
 
@@ -26,12 +25,6 @@ export const organizationSchema = z.object({
 export type OrganizationValues = z.infer<typeof organizationSchema>;
 
 export const organizationSettingsSchema = z.object({
-  salary_cycle: z.enum(SALARY_CYCLES),
-  max_salary_deduction_percentage: z.coerce
-    .number()
-    .nonnegative()
-    .max(100, "Cannot exceed 100%"),
-  min_salary: z.coerce.number().nonnegative("Minimum salary cannot be negative"),
   min_employment_period_months: z.coerce
     .number()
     .int()
@@ -56,14 +49,11 @@ export const organizationSettingsSchema = z.object({
   guarantor_required: z.boolean().default(false),
   approval_workflow: z.enum(APPROVAL_WORKFLOWS),
   withdrawals_enabled: z.boolean().default(false),
-  salary_payment_day: z.coerce
+  thrift_interest_rate: z.coerce
     .number()
-    .int()
-    .min(1, "Choose a day between 1 and 28")
-    .max(28, "Choose a day between 1 and 28")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-  auto_disburse_salaries: z.boolean().default(false),
+    .min(0)
+    .max(100, "Rate cannot exceed 100%")
+    .default(5),
   savings_min_membership_months: z.coerce.number().int().min(0).max(60).default(6),
   member_loan_multiplier: z.coerce.number().min(1).max(10).default(2),
   member_savings_withdrawals_enabled: z.boolean().default(true),

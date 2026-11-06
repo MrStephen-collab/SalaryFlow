@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { organizationSchema, organizationSettingsSchema, CURRENCIES, SALARY_CYCLES, APPROVAL_WORKFLOWS } from "@/schemas/settings";
+import { organizationSchema, organizationSettingsSchema, CURRENCIES, APPROVAL_WORKFLOWS } from "@/schemas/settings";
 import { INTEREST_METHODS } from "@/schemas/loan";
 import { ORGANIZATION_TYPES } from "@/config/constants";
 import { NIGERIA_STATES, getLgasForState } from "@/config/nigeria";
@@ -39,9 +39,6 @@ export function OnboardingForm() {
   });
 
   const [settings, setSettings] = useState({
-    salary_cycle: "monthly",
-    max_salary_deduction_percentage: "30",
-    min_salary: "0",
     min_employment_period_months: "0",
     max_loan_amount: "",
     default_interest_rate: "",
@@ -333,45 +330,6 @@ export function OnboardingForm() {
         {step === 1 && (
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Salary Cycle</Label>
-              <Select
-                value={settings.salary_cycle}
-                onValueChange={(v) => setSetting("salary_cycle", v)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SALARY_CYCLES.map((cycle) => (
-                    <SelectItem key={cycle} value={cycle}>
-                      {cycle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Max Deduction (%)</Label>
-              <Input
-                type="number"
-                value={settings.max_salary_deduction_percentage}
-                onChange={(e) =>
-                  setSetting("max_salary_deduction_percentage", e.target.value)
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Min Salary (NGN)</Label>
-              <Input
-                type="number"
-                value={settings.min_salary}
-                onChange={(e) => setSetting("min_salary", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label>Min Employment (months)</Label>
               <Input
                 type="number"
@@ -468,7 +426,7 @@ export function OnboardingForm() {
               <div>
                 <p className="text-sm font-medium">Enable withdrawals</p>
                 <p className="text-xs text-muted-foreground">
-                  Allow employees to request payroll advances
+                  Allow employees to withdraw from their wallet
                 </p>
               </div>
               <input
@@ -504,24 +462,6 @@ export function OnboardingForm() {
               <span className="col-span-2 font-medium">{organization.currency}</span>
             </div>
             <div className="my-2 h-px bg-border" />
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-muted-foreground">Salary Cycle</span>
-              <span className="col-span-2 font-medium capitalize">
-                {settings.salary_cycle}
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-muted-foreground">Max Deduction</span>
-              <span className="col-span-2 font-medium">
-                {settings.max_salary_deduction_percentage}%
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-muted-foreground">Min Salary</span>
-              <span className="col-span-2 font-medium">
-                ₦{Number(settings.min_salary).toLocaleString()}
-              </span>
-            </div>
             <div className="grid grid-cols-3 gap-2">
               <span className="text-muted-foreground">Max Tenure</span>
               <span className="col-span-2 font-medium">

@@ -1,7 +1,7 @@
 /**
  * Payment provider abstraction.
  *
- * Collections (money coming in) are used to fund an organization's salary
+ * Collections (money coming in) are used to fund an organization's thrift
  * pool and to top up external members' savings. Transfers (money going out)
  * are used to settle employee/member withdrawals.
  *

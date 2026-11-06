@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { SuperAdminService } from "@/services/super-admin-service";
 import { requireSuperAdmin } from "@/lib/auth";
 import { EnrollOrganizationForm } from "@/components/super-admin/enroll-organization-form";
+import { EditOrganizationDialog } from "@/components/super-admin/edit-organization-dialog";
+import { DeleteOrganizationButton } from "@/components/super-admin/delete-organization-button";
 
 export const metadata: Metadata = {
   title: "Organizations | SalaryFlow Admin",
@@ -60,13 +62,14 @@ export default async function OrganizationsPage() {
                 <TableHead>Plan</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <CollapsibleTableBody columns={8} itemLabel="organizations">
+            <CollapsibleTableBody columns={9} itemLabel="organizations">
               {organizations.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="py-8 text-center text-muted-foreground"
                   >
                     No organizations yet
@@ -96,6 +99,15 @@ export default async function OrganizationsPage() {
                     </TableCell>
                     <TableCell>
                       {new Date(org.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <EditOrganizationDialog organization={org} />
+                        <DeleteOrganizationButton
+                          organizationId={org.id}
+                          organizationName={org.name}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

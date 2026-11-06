@@ -1,6 +1,7 @@
 import { cache as reactCache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isSampleEmployeeNumber } from "@/lib/demo";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -22,27 +23,26 @@ export interface StatementLine {
   balance: number;
 }
 
-export interface PayrollLine {
+export interface ThriftFundingLine {
   id: string;
-  periodName: string;
-  periodStart: string | null;
-  periodEnd: string | null;
-  grossSalary: number;
-  otherDeductions: number;
-  loanDeductions: number;
-  netSalary: number;
-  status: string;
-}
-
-export interface DeductionLine {
-  id: string;
-  periodName: string;
-  expectedAmount: number;
-  actualAmount: number;
-  shortfall: number;
+  periodMonth: string;
+  periodLabel: string;
+  amount: number;
+  loanRepayment: number;
+  thriftCredit: number;
   status: string;
   date: string;
   reference: string;
+}
+
+export interface RepaymentLine {
+  id: string;
+  date: string;
+  amount: number;
+  paymentMethod: string;
+  reference: string;
+  productName: string;
+  notes: string | null;
 }
 
 export interface WithdrawalLine {
@@ -53,6 +53,20 @@ export interface WithdrawalLine {
   date: string;
   bankName: string;
   masked: string;
+}
+
+export interface ThriftInterestLine {
+  id: string;
+  periodMonth: string;
+  periodLabel: string;
+  openingBalance: number;
+  contributions: number;
+  annualRate: number;
+  eligibleDays: number;
+  interest: number;
+  closingBalance: number;
+  reference: string;
+  status: string;
 }
 
 export interface StatementData {
@@ -73,20 +87,32 @@ export interface StatementData {
   closingBalance: number;
   totalCredits: number;
   totalDebits: number;
-  payrollTotals: {
-    gross: number;
-    otherDeductions: number;
-    loanDeductions: number;
-    net: number;
+  thriftTotals: {
+    funded: number;
+    loanRepayment: number;
+    savings: number;
   };
+  thrift: {
+    openingBalance: number;
+    closingBalance: number;
+    contributions: number;
+    interestEarned: number;
+    annualRate: number;
+  };
+  thriftInterest: ThriftInterestLine[];
+  sample: boolean;
   lines: StatementLine[];
-  payroll: PayrollLine[];
-  deductions: DeductionLine[];
+  thriftFundings: ThriftFundingLine[];
+  repayments: RepaymentLine[];
   withdrawals: WithdrawalLine[];
 }
 
 function isoDay(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function round2(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function validDay(value: string | undefined) {
@@ -169,7 +195,7 @@ export class StatementService {
 
     if (!employee) return null;
 
-    const [organizationResult, accountsResult, salaryResult, deductionResult, withdrawalResult] =
+    const [organizationResult, accountsResult, thriftResult, repaymentResult, withdrawalResult, interestResult] =
       await Promise.all([
         this.admin
           .from("organizations")
@@ -178,42 +204,43 @@ export class StatementService {
           .maybeSingle(),
         this.admin
           .from("financial_accounts")
-          .select("id")
-          .eq("employee_id", this.employeeId)
-          .eq("account_type", "AVAILABLE_BALANCE"),
+          .select("id, account_type")
+          .eq("employee_id", this.employeeId),
         this.admin
-          .from("salary_records")
+          .from("thrift_fundings")
           .select(
             `
             id,
-            gross_salary,
-            other_deductions,
-            loan_deductions,
-            net_salary,
-            status,
-            created_at,
-            salary_periods:salary_period_id(name, start_date, end_date, payment_date)
-          `
-          )
-          .eq("employee_id", this.employeeId)
-          .order("created_at", { ascending: false }),
-        this.admin
-          .from("deduction_records")
-          .select(
-            `
-            id,
-            expected_amount,
-            actual_amount,
-            shortfall,
+            period_month,
+            amount,
+            loan_repayment_applied,
+            thrift_credit,
             status,
             reference,
-            processed_at,
-            created_at,
-            salary_periods:salary_period_id(name, payment_date, end_date)
+            created_at
           `
           )
           .eq("employee_id", this.employeeId)
-          .order("created_at", { ascending: false }),
+          .order("period_month", { ascending: false }),
+        this.admin
+          .from("loan_repayments")
+          .select(
+            `
+            id,
+            amount,
+            payment_method,
+            reference_number,
+            notes,
+            recorded_at,
+            created_at,
+            loan_applications!inner(
+              employee_id,
+              loan_products:loan_product_id(name)
+            )
+          `
+          )
+          .eq("loan_applications.employee_id", this.employeeId)
+          .order("recorded_at", { ascending: false }),
         this.admin
           .from("withdrawal_requests")
           .select(
@@ -231,9 +258,32 @@ export class StatementService {
           )
           .eq("employee_id", this.employeeId)
           .order("created_at", { ascending: false }),
+        this.admin
+          .from("thrift_interest_accruals")
+          .select(
+            `
+            id,
+            period_month,
+            opening_balance,
+            contributions,
+            annual_rate,
+            eligible_days,
+            interest_amount,
+            closing_balance,
+            reference,
+            status
+          `
+          )
+          .eq("employee_id", this.employeeId)
+          .order("period_month", { ascending: false }),
       ]);
 
-    const accountIds = (accountsResult.data ?? []).map((account) => account.id);
+    const walletAccountIds = (accountsResult.data ?? [])
+      .filter((account) => account.account_type === "AVAILABLE_BALANCE")
+      .map((account) => account.id);
+    const thriftAccountIds = (accountsResult.data ?? [])
+      .filter((account) => account.account_type === "THRIFT")
+      .map((account) => account.id);
 
     let entries: {
       id: string;
@@ -244,7 +294,7 @@ export class StatementService {
       ledger_transactions: unknown;
     }[] = [];
 
-    if (accountIds.length > 0) {
+    if (walletAccountIds.length > 0) {
       const { data } = await this.admin
         .from("ledger_entries")
         .select(
@@ -263,7 +313,7 @@ export class StatementService {
           )
         `
         )
-        .in("financial_account_id", accountIds);
+        .in("financial_account_id", walletAccountIds);
 
       entries = (data ?? []) as typeof entries;
     }
@@ -330,71 +380,108 @@ export class StatementService {
       });
     }
 
-    const payroll: PayrollLine[] = (salaryResult.data ?? [])
+    // Thrift savings ledger summary: opening/closing balance and the interest
+    // credited inside the selected period. These entries live on a separate
+    // financial account from the withdrawable wallet.
+    let thriftOpeningBalance = 0;
+    let thriftClosingBalance = 0;
+    let thriftInterestEarned = 0;
+
+    if (thriftAccountIds.length > 0) {
+      const { data: thriftEntries } = await this.admin
+        .from("ledger_entries")
+        .select(
+          `
+          id,
+          debit,
+          credit,
+          created_at,
+          ledger_transactions!inner(transaction_date, transaction_type, status)
+        `
+        )
+        .in("financial_account_id", thriftAccountIds)
+        .neq("ledger_transactions.status", "REVERSED");
+
+      const thriftMovements = (thriftEntries ?? [])
+        .map((entry) => {
+          const transaction = unwrap(
+            entry.ledger_transactions as unknown as {
+              transaction_date: string | null;
+              transaction_type: string | null;
+            }
+          );
+          return {
+            date: dayOf(transaction?.transaction_date) || dayOf(entry.created_at),
+            debit: Number(entry.debit) || 0,
+            credit: Number(entry.credit) || 0,
+            type: transaction?.transaction_type ?? "",
+          };
+        })
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      let runningOpening = 0;
+      let runningClosing = 0;
+      for (const movement of thriftMovements) {
+        const net = movement.credit - movement.debit;
+        if (movement.date < rangeStart) {
+          runningOpening += net;
+        }
+        if (movement.date <= rangeEnd) {
+          runningClosing += net;
+          if (
+            movement.date >= rangeStart &&
+            movement.type === "THRIFT_INTEREST"
+          ) {
+            thriftInterestEarned += movement.credit;
+          }
+        }
+      }
+      thriftOpeningBalance = runningOpening;
+      thriftClosingBalance = runningClosing;
+    }
+
+    const thriftFundings: ThriftFundingLine[] = (thriftResult.data ?? [])
       .map((record) => {
-        const period = unwrap(
-          record.salary_periods as unknown as Embedded<{
-            name: string | null;
-            start_date: string | null;
-            end_date: string | null;
-            payment_date: string | null;
-          }>
-        );
+        const periodMonth = dayOf(record.period_month);
+        const periodLabel = periodMonth
+          ? new Date(`${periodMonth}T00:00:00Z`).toLocaleDateString("en-GB", {
+              month: "long",
+              year: "numeric",
+              timeZone: "UTC",
+            })
+          : "Thrift funding";
 
         return {
           id: record.id,
-          periodName: period?.name ?? "Salary period",
-          periodStart: period?.start_date ?? null,
-          periodEnd: period?.end_date ?? null,
-          date:
-            dayOf(period?.payment_date) ||
-            dayOf(period?.end_date) ||
-            dayOf(record.created_at),
-          grossSalary: Number(record.gross_salary) || 0,
-          otherDeductions: Number(record.other_deductions) || 0,
-          loanDeductions: Number(record.loan_deductions) || 0,
-          netSalary: Number(record.net_salary) || 0,
+          periodMonth,
+          periodLabel,
+          amount: Number(record.amount) || 0,
+          loanRepayment: Number(record.loan_repayment_applied) || 0,
+          thriftCredit: Number(record.thrift_credit) || 0,
           status: record.status,
+          date: periodMonth || dayOf(record.created_at),
+          reference: record.reference ?? "",
         };
       })
-      .filter((record) => record.date >= rangeStart && record.date <= rangeEnd)
-      .map((record) => ({
-        id: record.id,
-        periodName: record.periodName,
-        periodStart: record.periodStart,
-        periodEnd: record.periodEnd,
-        grossSalary: record.grossSalary,
-        otherDeductions: record.otherDeductions,
-        loanDeductions: record.loanDeductions,
-        netSalary: record.netSalary,
-        status: record.status,
-      }));
+      .filter((record) => record.date >= rangeStart && record.date <= rangeEnd);
 
-    const deductions: DeductionLine[] = (deductionResult.data ?? [])
+    const repayments: RepaymentLine[] = (repaymentResult.data ?? [])
       .map((record) => {
-        const period = unwrap(
-          record.salary_periods as unknown as Embedded<{
-            name: string | null;
-            payment_date: string | null;
-            end_date: string | null;
+        const loan = unwrap(
+          record.loan_applications as unknown as Embedded<{
+            loan_products: Embedded<{ name: string | null }>;
           }>
         );
+        const product = unwrap(loan?.loan_products);
 
         return {
           id: record.id,
-          periodName: period?.name ?? "Payroll deduction",
-          expectedAmount: Number(record.expected_amount) || 0,
-          actualAmount: Number(record.actual_amount) || 0,
-          shortfall: Number(record.shortfall) || 0,
-          status: record.status,
-          // Date the deduction belongs to the payroll period, not the day the
-          // backfill was posted, so period-filtered statements include it.
-          date:
-            dayOf(period?.end_date) ||
-            dayOf(period?.payment_date) ||
-            dayOf(record.processed_at) ||
-            dayOf(record.created_at),
-          reference: record.reference ?? "",
+          date: dayOf(record.recorded_at) || dayOf(record.created_at),
+          amount: Number(record.amount) || 0,
+          paymentMethod: record.payment_method ?? "",
+          reference: record.reference_number ?? "",
+          productName: product?.name ?? "Loan",
+          notes: record.notes ?? null,
         };
       })
       .filter((record) => record.date >= rangeStart && record.date <= rangeEnd);
@@ -423,16 +510,54 @@ export class StatementService {
       })
       .filter((record) => record.date >= rangeStart && record.date <= rangeEnd);
 
-    const payrollTotals = payroll.reduce(
+    const thriftTotals = thriftFundings.reduce(
       (totals, record) => {
-        totals.gross += record.grossSalary;
-        totals.otherDeductions += record.otherDeductions;
-        totals.loanDeductions += record.loanDeductions;
-        totals.net += record.netSalary;
+        totals.funded += record.amount;
+        totals.loanRepayment += record.loanRepayment;
+        totals.savings += record.thriftCredit;
         return totals;
       },
-      { gross: 0, otherDeductions: 0, loanDeductions: 0, net: 0 }
+      { funded: 0, loanRepayment: 0, savings: 0 }
     );
+
+    const accrualMonthEnd = (periodMonth: string) => {
+      const [year, month] = periodMonth.split("-").map(Number);
+      const day = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      return `${periodMonth.slice(0, 7)}-${String(day).padStart(2, "0")}`;
+    };
+
+    const thriftInterest: ThriftInterestLine[] = (interestResult.data ?? [])
+      .map((record) => {
+        const periodMonth = dayOf(record.period_month);
+        const periodLabel = periodMonth
+          ? new Date(`${periodMonth}T00:00:00Z`).toLocaleDateString("en-GB", {
+              month: "long",
+              year: "numeric",
+              timeZone: "UTC",
+            })
+          : "Interest";
+        return {
+          id: record.id,
+          periodMonth,
+          periodLabel,
+          openingBalance: Number(record.opening_balance) || 0,
+          contributions: Number(record.contributions) || 0,
+          annualRate: Number(record.annual_rate) || 0,
+          eligibleDays: Number(record.eligible_days) || 0,
+          interest: Number(record.interest_amount) || 0,
+          closingBalance: Number(record.closing_balance) || 0,
+          reference: record.reference ?? "",
+          status: record.status ?? "POSTED",
+        };
+      })
+      .filter(
+        (record) =>
+          record.periodMonth <= rangeEnd &&
+          accrualMonthEnd(record.periodMonth) >= rangeStart
+      );
+
+    const thriftAnnualRate =
+      thriftInterest[0]?.annualRate ?? 5;
 
     const employeeName = [
       employee.first_name,
@@ -460,10 +585,19 @@ export class StatementService {
       closingBalance: balance,
       totalCredits,
       totalDebits,
-      payrollTotals,
+      thriftTotals,
+      thrift: {
+        openingBalance: round2(thriftOpeningBalance),
+        closingBalance: round2(thriftClosingBalance),
+        contributions: round2(thriftTotals.savings),
+        interestEarned: round2(thriftInterestEarned),
+        annualRate: thriftAnnualRate,
+      },
+      thriftInterest,
+      sample: isSampleEmployeeNumber(employee.employee_number),
       lines,
-      payroll,
-      deductions,
+      thriftFundings,
+      repayments,
       withdrawals,
     } satisfies StatementData;
   }

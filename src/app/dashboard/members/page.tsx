@@ -26,12 +26,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowDownToLine, HandCoins, Users } from "lucide-react";
+import { NameSearch } from "@/components/dashboard/name-search";
 
 export const metadata: Metadata = {
   title: "Members",
 };
 
-export default async function MembersPage() {
+export default async function MembersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const service = await MemberService.createForStaff();
   const profile = await getProfile();
   const settingsService = await SettingsService.create();
@@ -39,6 +45,17 @@ export default async function MembersPage() {
     service.listMembers(),
     settingsService.getSettings(),
   ]);
+
+  const term = (q ?? "").trim().toLowerCase();
+  const filteredMembers = term
+    ? members.filter((member) =>
+        `${member.first_name ?? ""} ${member.last_name ?? ""} ${
+          member.member_number ?? ""
+        } ${member.email ?? ""}`
+          .toLowerCase()
+          .includes(term)
+      )
+    : members;
 
   const pendingApprovals = members.filter(
     (member) => member.status !== "ACTIVE"
@@ -80,6 +97,10 @@ export default async function MembersPage() {
         </div>
       </div>
 
+      <div className="flex justify-end">
+        <NameSearch placeholder="Search member name, number or email…" />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
@@ -103,13 +124,17 @@ export default async function MembersPage() {
         </Card>
       </div>
 
-      {members.length === 0 ? (
+      {filteredMembers.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
             <Users className="size-8 text-muted-foreground" />
-            <p className="text-sm font-medium">No external members yet</p>
+            <p className="text-sm font-medium">
+              {term ? "No matching members" : "No external members yet"}
+            </p>
             <p className="text-sm text-muted-foreground">
-              Add a member to let them start saving towards a loan.
+              {term
+                ? "No member matches that name, number or email."
+                : "Add a member to let them start saving towards a loan."}
             </p>
           </CardContent>
         </Card>
@@ -128,7 +153,7 @@ export default async function MembersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {members.map((member) => (
+              {filteredMembers.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">
                     {member.first_name} {member.last_name}

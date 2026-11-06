@@ -40,8 +40,6 @@ interface Product {
   repayment_frequency: string;
   processing_fee: number;
   insurance_fee: number;
-  maximum_salary_deduction_percentage: number;
-  minimum_salary: number;
   minimum_employment_period_months: number;
   guarantor_required: boolean;
   collateral_required: boolean;
@@ -77,8 +75,6 @@ export function EditProductDialog({
     repaymentFrequency: product.repayment_frequency as (typeof REPETITION_FREQUENCIES)[number],
     processingFee: product.processing_fee,
     insuranceFee: product.insurance_fee,
-    maximumSalaryDeductionPercentage: product.maximum_salary_deduction_percentage,
-    minimumSalary: product.minimum_salary,
     minimumEmploymentPeriodMonths: product.minimum_employment_period_months,
     guarantorRequired: product.guarantor_required,
     collateralRequired: product.collateral_required,
@@ -100,8 +96,6 @@ export function EditProductDialog({
         repaymentFrequency: form.repaymentFrequency,
         processingFee: form.processingFee,
         insuranceFee: form.insuranceFee,
-        maximumSalaryDeductionPercentage: form.maximumSalaryDeductionPercentage,
-        minimumSalary: form.minimumSalary,
         minimumEmploymentPeriodMonths: form.minimumEmploymentPeriodMonths,
         guarantorRequired: form.guarantorRequired,
         collateralRequired: form.collateralRequired,
@@ -258,46 +252,19 @@ export function EditProductDialog({
           </div>
 
           {!isMemberProduct ? (
-            <>
-              <div className="space-y-2">
-                <Label>Max Deduction % of Salary</Label>
-                <Input
-                  type="number"
-                  value={form.maximumSalaryDeductionPercentage}
-                  onChange={(e) =>
-                    set(
-                      "maximumSalaryDeductionPercentage",
-                      Number(e.target.value)
-                    )
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Minimum Salary (₦)</Label>
-                <Input
-                  type="number"
-                  value={form.minimumSalary}
-                  onChange={(e) =>
-                    set("minimumSalary", Number(e.target.value))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Min Employment (Months)</Label>
-                <Input
-                  type="number"
-                  value={form.minimumEmploymentPeriodMonths}
-                  onChange={(e) =>
-                    set(
-                      "minimumEmploymentPeriodMonths",
-                      Number(e.target.value)
-                    )
-                  }
-                />
-              </div>
-            </>
+            <div className="space-y-2">
+              <Label>Min Employment (Months)</Label>
+              <Input
+                type="number"
+                value={form.minimumEmploymentPeriodMonths}
+                onChange={(e) =>
+                  set(
+                    "minimumEmploymentPeriodMonths",
+                    Number(e.target.value)
+                  )
+                }
+              />
+            </div>
           ) : null}
 
           <div className="flex items-center justify-between rounded-lg border p-3">

@@ -148,7 +148,7 @@ export default async function LoanApplicationDetailPage({
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Monthly Deduction</CardDescription>
+            <CardDescription>Monthly Repayment</CardDescription>
             <CardTitle className="text-xl">
               {naira(application.monthly_deduction)}
             </CardTitle>
@@ -208,12 +208,6 @@ export default async function LoanApplicationDetailPage({
               <span className="text-muted-foreground">Department</span>
               <span className="font-medium">
                 {application.employeeDepartment || "—"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Salary</span>
-              <span className="font-medium">
-                {naira(application.employeeSalary)}
               </span>
             </div>
           </CardContent>

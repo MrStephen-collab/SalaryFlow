@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmployeePortalService } from "@/services/employee-portal-service";
+import { ThriftService } from "@/services/thrift-service";
+import { ThriftInterestService } from "@/services/thrift-interest-service";
 import { thriftBackedLoanLimit } from "@/lib/loan-eligibility";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,13 +51,16 @@ export default async function EmployeeHomePage() {
     redirect("/employee/profile");
   }
 
-  const [employee, history, availableBalance, activeLoan, thriftBalance] =
+  const [employee, availableBalance, activeLoan, thriftBalance, thriftSummary, interest] =
     await Promise.all([
       service.getEmployee(),
-      service.getSalaryHistory(),
       service.getAvailableBalance(),
       service.getActiveLoan(),
       service.getThriftBalance(),
+      ThriftService.create().then((thrift) => thrift.getMySummary()),
+      ThriftInterestService.create().then((thriftInterest) =>
+        thriftInterest.getMySummary()
+      ),
     ]);
 
   if (!employee) {
@@ -70,14 +75,18 @@ export default async function EmployeeHomePage() {
     );
   }
 
-  const salary = history[0]?.grossSalary ?? (Number(employee.salary) || 0);
+  const thriftAmount = Number(employee.thrift_amount) || 0;
+  const recentFundings = thriftSummary?.fundings.slice(0, 6) ?? [];
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Welcome, {employee.first_name}
-        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">
+            Welcome, {employee.first_name}
+          </h1>
+          {interest?.sample ? <Badge variant="outline">Sample data</Badge> : null}
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {employee.department ?? "Employee"} · {employee.employee_number} ·{" "}
           {employee.employment_status}
@@ -86,35 +95,26 @@ export default async function EmployeeHomePage() {
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
         <StatCard
-          title="Salary"
-          value={naira(salary)}
-          description="Monthly gross pay"
-          href="/employee/salary"
+          title="Thrift Amount"
+          value={naira(thriftAmount)}
+          description={
+            employee.thrift_enabled
+              ? "Funded by your employer monthly"
+              : "Not activated"
+          }
+          href="/employee/profile"
           icon={Banknote}
           accent="blue"
           delay={0}
         />
         <StatCard
-          title="Wallet"
-          value={naira(availableBalance)}
-          description="Only withdrawable balance"
-          href="/employee/withdrawals"
-          icon={Wallet}
-          accent="emerald"
-          delay={80}
-        />
-        <StatCard
           title="Thrift Savings"
           value={naira(thriftBalance)}
-          description={
-            employee.thrift_enabled
-              ? `${naira(employee.thrift_amount ?? 0)} per salary`
-              : "Not activated"
-          }
+          description="Your accumulated savings"
           href="/employee/money"
           icon={PiggyBank}
           accent="amber"
-          delay={160}
+          delay={80}
         />
         <StatCard
           title="Active Loan"
@@ -123,45 +123,27 @@ export default async function EmployeeHomePage() {
           href="/employee/loans"
           icon={HandCoins}
           accent="violet"
+          delay={160}
+        />
+        <StatCard
+          title="Wallet"
+          value={naira(availableBalance)}
+          description="Only withdrawable balance"
+          href="/employee/withdrawals"
+          icon={Wallet}
+          accent="emerald"
           delay={240}
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="animate-fade-up" style={{ animationDelay: "280ms" }}>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-base">Wallet</CardTitle>
-              <CardDescription>
-                Only money in the wallet can be withdrawn.
-              </CardDescription>
-            </div>
-            <Badge variant="default">Available</Badge>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Wallet balance</p>
-              <p className="text-2xl font-bold text-emerald-600">
-                {naira(availableBalance)}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" render={<Link href="/employee/money" />}>
-                View money
-              </Button>
-              <Button render={<Link href="/employee/withdrawals" />}>
-                Withdraw
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="animate-fade-up" style={{ animationDelay: "360ms" }}>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base">Thrift Savings</CardTitle>
               <CardDescription>
-                Voluntary savings from your salary after loan deductions.
+                Your monthly thrift funding is applied to any active loan
+                instalment first; the remainder grows your savings.
               </CardDescription>
             </div>
             <Badge variant={employee.thrift_enabled ? "default" : "secondary"}>
@@ -182,18 +164,18 @@ export default async function EmployeeHomePage() {
                   {naira(thriftBackedLoanLimit(thriftBalance))}
                 </span>
               </p>
-              <p className="text-xs">2× your thrift savings.</p>
+              <p className="text-xs">3× your thrift savings.</p>
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
         <Card className="animate-fade-up" style={{ animationDelay: "320ms" }}>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base">Active Loan</CardTitle>
-              <CardDescription>Your current loan position</CardDescription>
+              <CardDescription>
+                Repaid automatically from your monthly thrift funding
+              </CardDescription>
             </div>
             {activeLoan && <Badge>{activeLoan.productName}</Badge>}
           </CardHeader>
@@ -202,7 +184,7 @@ export default async function EmployeeHomePage() {
               <div className="grid gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">Next Deduction</p>
+                    <p className="text-xs text-muted-foreground">Next Funding</p>
                     <p className="text-lg font-bold">
                       {formatDate(activeLoan.nextPaymentDate)}
                       {activeLoan.nextPaymentDue != null && (
@@ -248,6 +230,115 @@ export default async function EmployeeHomePage() {
           </CardContent>
         </Card>
 
+        <Card className="animate-fade-up" style={{ animationDelay: "340ms" }}>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Thrift Interest Growth</CardTitle>
+              <CardDescription>
+                Monthly interest on your opening thrift balance at{" "}
+                {interest?.annualRate ?? 5}% per annum.
+              </CardDescription>
+            </div>
+            {interest?.sample ? (
+              <Badge variant="outline">Sample</Badge>
+            ) : (
+              <Badge variant="secondary">
+                {interest?.annualRate ?? 5}% p.a.
+              </Badge>
+            )}
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  Interest this year
+                </p>
+                <p className="mt-1 text-lg font-bold text-emerald-600">
+                  {naira(interest?.ytdInterest ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  Projected {interest?.currentMonthLabel ?? "this month"}
+                </p>
+                <p className="mt-1 text-lg font-bold">
+                  {naira(interest?.currentProjection ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  Lifetime interest
+                </p>
+                <p className="mt-1 text-lg font-bold">
+                  {naira(interest?.lifetimeInterest ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Last posted</p>
+                <p className="mt-1 text-lg font-bold">
+                  {interest?.lastAccrual
+                    ? naira(interest.lastAccrual.interest)
+                    : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {interest?.lastAccrual?.periodLabel ?? "Nothing yet"}
+                </p>
+              </div>
+            </div>
+            {interest && interest.months.length > 0 ? (
+              <div className="flex flex-col gap-1 border-t pt-2">
+                {interest.months.slice(0, 3).map((month) => (
+                  <div
+                    key={month.id}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="text-muted-foreground">
+                      {month.periodLabel}
+                    </span>
+                    <span className="font-medium text-emerald-600">
+                      +{naira(month.interest)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="border-t pt-2 text-xs text-muted-foreground">
+                Interest starts after your first full month of thrift savings.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card className="animate-fade-up" style={{ animationDelay: "360ms" }}>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Wallet</CardTitle>
+              <CardDescription>
+                Only money in the wallet can be withdrawn.
+              </CardDescription>
+            </div>
+            <Badge variant="default">Available</Badge>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Wallet balance</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {naira(availableBalance)}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" render={<Link href="/employee/money" />}>
+                View money
+              </Button>
+              <Button render={<Link href="/employee/withdrawals" />}>
+                Withdraw
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="animate-fade-up" style={{ animationDelay: "400ms" }}>
           <CardHeader>
             <CardTitle className="text-base">Quick Actions</CardTitle>
@@ -257,11 +348,11 @@ export default async function EmployeeHomePage() {
               Apply for Loan
               <ArrowRight className="size-4" />
             </Button>
-            <Button variant="outline" render={<Link href="/employee/salary" />}>
-              View Salary
-            </Button>
             <Button variant="outline" render={<Link href="/employee/money" />}>
               Account Statement
+            </Button>
+            <Button variant="outline" render={<Link href="/employee/money" />}>
+              View thrift savings
             </Button>
             <Button variant="outline" render={<Link href="/employee/withdrawals" />}>
               Withdraw
@@ -270,38 +361,44 @@ export default async function EmployeeHomePage() {
         </Card>
       </div>
 
-      {history.length > 0 && (
+      {recentFundings.length > 0 && (
         <Card className="animate-fade-up" style={{ animationDelay: "480ms" }}>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-base">Latest Payslip</CardTitle>
-              <CardDescription>{history[0].periodName}</CardDescription>
+              <CardTitle className="text-base">Recent Thrift Funding</CardTitle>
+              <CardDescription>
+                Every employer contribution and how it was applied.
+              </CardDescription>
             </div>
-            <Badge variant="secondary">{history[0].periodStatus || "slip"}</Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              render={<Link href="/employee/money" />}
+            >
+              View all
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Gross</span>
-              <span>{naira(history[0].grossSalary)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Loan Deduction</span>
-              <span className="text-red-600">
-                -{naira(history[0].loanDeductions)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Other Deductions</span>
-              <span className="text-red-600">
-                -{naira(history[0].otherDeductions)}
-              </span>
-            </div>
-            <div className="flex justify-between border-t pt-1 font-medium">
-              <span>Net Pay</span>
-              <span className="text-lg font-bold text-primary">
-                {naira(history[0].netSalary)}
-              </span>
-            </div>
+          <CardContent className="space-y-3">
+            {recentFundings.map((funding) => (
+              <div
+                key={funding.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm"
+              >
+                <div>
+                  <p className="font-medium">{funding.periodLabel}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {funding.reference}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold">{naira(funding.amount)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Loan {naira(funding.loanRepayment)} · Savings{" "}
+                    {naira(funding.thriftCredit)}
+                  </p>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}

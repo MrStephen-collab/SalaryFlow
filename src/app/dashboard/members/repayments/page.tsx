@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowLeft } from "lucide-react";
+import { NameSearch } from "@/components/dashboard/name-search";
 
 export const metadata: Metadata = {
   title: "Member Repayments",
@@ -34,9 +35,23 @@ function naira(amount: number) {
   }).format(amount);
 }
 
-export default async function MemberRepaymentsPage() {
+export default async function MemberRepaymentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const service = await MemberService.createForStaff();
   const repayments = await service.listMemberRepayments();
+
+  const term = (q ?? "").trim().toLowerCase();
+  const filtered = term
+    ? repayments.filter((item) =>
+        `${item.memberName ?? ""} ${item.memberNumber ?? ""}`
+          .toLowerCase()
+          .includes(term)
+      )
+    : repayments;
 
   const total = repayments.reduce((sum, item) => sum + item.amount, 0);
 
@@ -57,6 +72,10 @@ export default async function MemberRepaymentsPage() {
           Instalments paid on member loans — principal rebuilds savings, interest
           is loan income.
         </p>
+      </div>
+
+      <div className="flex justify-end">
+        <NameSearch placeholder="Search member name or number…" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -82,9 +101,11 @@ export default async function MemberRepaymentsPage() {
           <CardDescription>Paid member loan instalments</CardDescription>
         </CardHeader>
         <CardContent>
-          {repayments.length === 0 ? (
+          {filtered.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No member repayments recorded yet.
+              {term
+                ? "No member matches that name or number."
+                : "No member repayments recorded yet."}
             </p>
           ) : (
             <div className="rounded-md border">
@@ -100,7 +121,7 @@ export default async function MemberRepaymentsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {repayments.map((item) => (
+                  {filtered.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="text-sm">
                         {item.paidAt

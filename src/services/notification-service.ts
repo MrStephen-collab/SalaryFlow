@@ -15,8 +15,7 @@ export type NotificationTone = "info" | "success" | "warning" | "danger";
 export type NotificationCategory =
   | "loan"
   | "withdrawal"
-  | "payroll"
-  | "deduction"
+  | "thrift"
   | "approval"
   | "system";
 
@@ -313,7 +312,7 @@ export class NotificationService {
     const admin = createAdminClient();
     const items: NotificationItem[] = [];
 
-    const [loans, withdrawals, deductions, schedules] = await Promise.all([
+    const [loans, withdrawals, fundings, schedules] = await Promise.all([
       admin
         .from("loan_applications")
         .select(
@@ -337,17 +336,12 @@ export class NotificationService {
         .order("updated_at", { ascending: false })
         .limit(20),
       admin
-        .from("deduction_records")
+        .from("thrift_fundings")
         .select(
-          `
-          id, status, expected_amount, actual_amount, shortfall, processed_at,
-          created_at, reference,
-          salary_periods:salary_period_id(name)
-        `
+          "id, period_month, amount, loan_repayment_applied, thrift_credit, reference, created_at"
         )
         .eq("employee_id", this.employeeId)
-        .in("status", ["PROCESSED", "PARTIAL", "FAILED"])
-        .order("processed_at", { ascending: false })
+        .order("period_month", { ascending: false })
         .limit(20),
       admin
         .from("loan_schedules")
@@ -460,42 +454,31 @@ export class NotificationService {
       });
     }
 
-    for (const deduction of deductions.data ?? []) {
-      const period = unwrap(
-        deduction.salary_periods as unknown as Embedded<{ name: string | null }>
-      );
-      const actual = Number(deduction.actual_amount) || 0;
-      if (deduction.status === "PROCESSED") {
-        items.push({
-          id: `deduction-processed-${deduction.id}`,
-          title: "Salary deduction processed",
-          description: `${naira(actual)} was deducted${period?.name ? ` from ${period.name}` : ""} towards your loan.`,
-          href: `/receipts/deduction/${deduction.id}`,
-          createdAt: timestamp(deduction.processed_at, deduction.created_at),
-          tone: "info",
-          category: "deduction",
-          amount: actual,
-          reference: deduction.reference ?? undefined,
-        });
-      } else {
-        const shortfall = Number(deduction.shortfall) || 0;
-        items.push({
-          id: `deduction-short-${deduction.id}`,
-          title:
-            deduction.status === "FAILED"
-              ? "Salary deduction failed"
-              : "Partial salary deduction",
-          description: `${naira(actual)} of ${naira(Number(deduction.expected_amount) || 0)} was deducted${
-            shortfall > 0 ? ` · shortfall ${naira(shortfall)}` : ""
-          }.`,
-          href: "/employee/statement",
-          createdAt: timestamp(deduction.processed_at, deduction.created_at),
-          tone: "warning",
-          category: "deduction",
-          amount: actual,
-          reference: deduction.reference ?? undefined,
-        });
-      }
+    for (const funding of fundings.data ?? []) {
+      const amount = Number(funding.amount) || 0;
+      const toLoan = Number(funding.loan_repayment_applied) || 0;
+      const toSavings = Number(funding.thrift_credit) || 0;
+      const periodLabel = new Date(
+        `${funding.period_month}T00:00:00Z`
+      ).toLocaleDateString("en-GB", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+
+      items.push({
+        id: `thrift-funded-${funding.id}`,
+        title: "Thrift savings funded",
+        description: `${naira(amount)} funded for ${periodLabel} · ${naira(
+          toLoan
+        )} to your loan and ${naira(toSavings)} to savings.`,
+        href: "/employee/money",
+        createdAt: timestamp(funding.created_at),
+        tone: "success",
+        category: "thrift",
+        amount,
+        reference: funding.reference ?? undefined,
+      });
     }
 
     for (const schedule of schedules.data ?? []) {
@@ -564,7 +547,6 @@ export class NotificationService {
     const [
       applications,
       withdrawals,
-      shortfalls,
       schedules,
       settlementRequests,
       thriftRequests,
@@ -593,18 +575,6 @@ export class NotificationService {
         .eq("organization_id", this.orgId)
         .in("status", ["PENDING", "REVIEW"])
         .order("created_at", { ascending: false })
-        .limit(10),
-      admin
-        .from("deduction_records")
-        .select(
-          `
-          id, status, actual_amount, expected_amount, shortfall, processed_at, created_at,
-          employees:employee_id(first_name, last_name)
-        `
-        )
-        .eq("organization_id", this.orgId)
-        .in("status", ["PARTIAL", "FAILED"])
-        .order("processed_at", { ascending: false })
         .limit(10),
       admin
         .from("loan_schedules")
@@ -694,34 +664,6 @@ export class NotificationService {
         category: "approval",
         amount: Number(withdrawal.amount) || 0,
         reference: withdrawal.reference ?? undefined,
-      });
-    }
-
-    for (const deduction of shortfalls.data ?? []) {
-      const employee = unwrap(
-        deduction.employees as unknown as Embedded<{
-          first_name: string | null;
-          last_name: string | null;
-        }>
-      );
-      const name = employee
-        ? `${employee.first_name ?? ""} ${employee.last_name ?? ""}`.trim()
-        : "An employee";
-
-      items.push({
-        id: `shortfall-${deduction.id}`,
-        title:
-          deduction.status === "FAILED"
-            ? "Deduction failed"
-            : "Deduction shortfall",
-        description: `${name}: ${naira(Number(deduction.actual_amount) || 0)} of ${naira(
-          Number(deduction.expected_amount) || 0
-        )} deducted · shortfall ${naira(Number(deduction.shortfall) || 0)}.`,
-        href: "/dashboard/deductions",
-        createdAt: timestamp(deduction.processed_at, deduction.created_at),
-        tone: "warning",
-        category: "deduction",
-        amount: Number(deduction.shortfall) || 0,
       });
     }
 

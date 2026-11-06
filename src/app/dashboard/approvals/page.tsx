@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MemberService } from "@/services/member-service";
 import { LoanService } from "@/services/loan-service";
+import { ThriftService } from "@/services/thrift-service";
 import { WithdrawalService } from "@/services/withdrawal-service";
 import {
   Card,
@@ -42,18 +43,21 @@ function statusVariant(status: string) {
 }
 
 export default async function ApprovalsPage() {
-  const [memberService, loanService, withdrawalService] = await Promise.all([
-    MemberService.createForStaff(),
-    LoanService.create(),
-    WithdrawalService.create(),
-  ]);
+  const [memberService, loanService, withdrawalService, thriftService] =
+    await Promise.all([
+      MemberService.createForStaff(),
+      LoanService.create(),
+      WithdrawalService.create(),
+      ThriftService.create(),
+    ]);
 
-  const [members, memberApplications, applications, withdrawals] =
+  const [members, memberApplications, applications, withdrawals, thriftRequests] =
     await Promise.all([
       memberService.listMembers(),
       memberService.listMemberApplications(),
       loanService.listApplications(),
       withdrawalService.listWithdrawals(),
+      thriftService.listRequests(),
     ]);
 
   const pendingMemberships = members.filter(
@@ -67,6 +71,9 @@ export default async function ApprovalsPage() {
   );
   const pendingWithdrawals = withdrawals.filter((withdrawal) =>
     ["PENDING", "REVIEW"].includes(withdrawal.status)
+  );
+  const pendingThriftRequests = thriftRequests.filter(
+    (request) => request.status === "PENDING"
   );
 
   const sections = [
@@ -127,6 +134,20 @@ export default async function ApprovalsPage() {
       })),
       action: "Review withdrawals",
     },
+    {
+      title: "Thrift release requests",
+      description: "Employee thrift payouts awaiting chairman approval",
+      href: "/dashboard/employees/thrift",
+      count: pendingThriftRequests.length,
+      items: pendingThriftRequests.map((request) => ({
+        id: request.id,
+        primary: request.employeeName,
+        secondary: request.employeeNumber,
+        amount: request.amount,
+        status: request.status,
+      })),
+      action: "Review thrift requests",
+    },
   ];
 
   const total = sections.reduce((sum, section) => sum + section.count, 0);
@@ -136,8 +157,8 @@ export default async function ApprovalsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Pending Approvals</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {total} item{total === 1 ? "" : "s"} waiting across members, loans and
-          withdrawals.
+          {total} item{total === 1 ? "" : "s"} waiting across members, loans,
+          withdrawals and thrift.
         </p>
       </div>
 

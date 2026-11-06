@@ -20,12 +20,12 @@ async function siteUrl() {
 export async function startOrganizationFunding(amount: number) {
   const base = await siteUrl();
   const funds = await FundService.create();
-  const pool = await funds.getOrCreateSalaryPool();
+  const pool = await funds.getOrCreateThriftPool();
 
   if (pool.error || !pool.id) {
     return {
       ok: false as const,
-      error: pool.error ?? "Could not prepare the Salary Pool",
+      error: pool.error ?? "Could not prepare the Thrift Pool",
     };
   }
 

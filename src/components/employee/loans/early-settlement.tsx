@@ -172,8 +172,8 @@ export function EarlySettlementCard({
         <p className="text-xs text-muted-foreground">
           The quote is based on {quote.installmentsOutstanding} remaining
           instalment{quote.installmentsOutstanding === 1 ? "" : "s"} as of
-          today. Final amount may change if a deduction is processed in the
-          meantime.
+          today. Final amount may change if a thrift funding repayment is posted
+          in the meantime.
         </p>
       </CardContent>
     </Card>

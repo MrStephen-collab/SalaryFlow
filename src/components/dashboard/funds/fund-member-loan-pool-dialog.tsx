@@ -111,8 +111,8 @@ export function FundMemberLoanPoolDialog({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              This pool is used only for member loan disbursements. Salary
-              payments continue to use the salary pool.
+              This pool is used only for member loan disbursements. Employee
+              loans use the Thrift Pool.
             </p>
           </div>
         )}

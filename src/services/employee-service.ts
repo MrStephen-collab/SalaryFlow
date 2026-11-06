@@ -373,8 +373,7 @@ export class EmployeeService {
         employment_type: data.employmentType,
         employment_status: data.employmentStatus,
         date_joined: data.dateJoined,
-        salary: Number(data.salary) || 0,
-        thrift_enabled: Boolean(data.thriftEnabled),
+        thrift_enabled: Boolean(data.thriftEnabled) && (Number(data.thriftAmount) || 0) > 0,
         thrift_amount: Number(data.thriftAmount) || 0,
         branch_id: data.branchId || null,
       })
@@ -442,7 +441,6 @@ export class EmployeeService {
       employmentType: "employment_type",
       employmentStatus: "employment_status",
       dateJoined: "date_joined",
-      salary: "salary",
       thriftEnabled: "thrift_enabled",
       thriftAmount: "thrift_amount",
       branchId: "branch_id",
@@ -462,16 +460,38 @@ export class EmployeeService {
       updateData[dbField] = value === "" ? null : value;
     }
 
-    if (updateData.salary !== undefined && updateData.salary !== null) {
-      updateData.salary = Number(updateData.salary) || 0;
-    }
-
     if (updateData.thrift_amount !== undefined && updateData.thrift_amount !== null) {
       updateData.thrift_amount = Number(updateData.thrift_amount) || 0;
+
+      const { data: activeLoans } = await this.supabase
+        .from("loan_applications")
+        .select("monthly_deduction")
+        .eq("employee_id", id)
+        .eq("organization_id", profile.organization_id)
+        .in("status", ["ACTIVE", "DISBURSED"]);
+
+      const monthlyRepayment =
+        Math.round(
+          (activeLoans ?? []).reduce(
+            (sum, loan) => sum + (Number(loan.monthly_deduction) || 0),
+            0
+          ) * 100
+        ) / 100;
+      if (monthlyRepayment > 0 && Number(updateData.thrift_amount) < monthlyRepayment) {
+        throw new Error(
+          `This employee's active loan repayments total ${monthlyRepayment.toLocaleString(
+            "en-NG",
+            { style: "currency", currency: "NGN" }
+          )} per month. Their thrift amount cannot be lower than that.`
+        );
+      }
     }
 
     if (updateData.thrift_enabled !== undefined) {
       updateData.thrift_enabled = Boolean(updateData.thrift_enabled);
+    }
+    if (updateData.thrift_amount === 0) {
+      updateData.thrift_enabled = false;
     }
 
     const { error } = await this.supabase

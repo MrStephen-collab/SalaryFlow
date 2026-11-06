@@ -58,16 +58,16 @@ export function FundWalletDialog({ gatewayReady }: { gatewayReady: boolean }) {
         render={
           <Button>
             <CreditCard className="size-4" />
-            Fund Salary Pool
+            Fund Thrift Pool
           </Button>
         }
       />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Fund Salary Pool</DialogTitle>
+          <DialogTitle>Fund Thrift Pool</DialogTitle>
           <DialogDescription>
-            Pay into your organization&apos;s pool with card, bank transfer or USSD.
-            Salaries are paid automatically from this balance on your payroll day.
+            Top up the pool that backs employee loan disbursement. To credit
+            employees&apos; thrift savings instead, use the Thrift Savings page.
           </DialogDescription>
         </DialogHeader>
 

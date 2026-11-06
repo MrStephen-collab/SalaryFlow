@@ -4,7 +4,7 @@ import {
   ClipboardCheck,
   FileText,
   HandCoins,
-  Percent,
+  PiggyBank,
 } from "lucide-react";
 import type { NotificationCategory, NotificationTone } from "@/services/notification-service";
 
@@ -18,8 +18,7 @@ const TONE_CLASSES: Record<NotificationTone, string> = {
 const CATEGORY_ICONS: Record<NotificationCategory, typeof Banknote> = {
   loan: HandCoins,
   withdrawal: Banknote,
-  payroll: FileText,
-  deduction: Percent,
+  thrift: PiggyBank,
   approval: ClipboardCheck,
   system: Building2,
 };

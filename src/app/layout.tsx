@@ -19,22 +19,22 @@ const siteUrl =
   "https://salaryflow-two.vercel.app";
 
 const description =
-  "Manage employee loans, salary deductions, repayments and financial accounts from one simple platform.";
+  "Manage employer-funded thrift savings, employee loans, repayments and financial accounts from one simple platform.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: "SalaryFlow",
   title: {
-    default: "SalaryFlow | Salary-Based Employee Finance",
+    default: "SalaryFlow | Thrift Savings & Employee Finance",
     template: "%s | SalaryFlow",
   },
   description,
   keywords: [
     "SalaryFlow",
     "employee finance",
-    "salary loans",
-    "payroll deductions",
-    "salary advance",
+    "thrift savings",
+    "employee loans",
+    "savings-backed loans",
     "loan management",
   ],
   icons: {
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "SalaryFlow",
     url: "/",
-    title: "SalaryFlow | Salary-Based Employee Finance",
+    title: "SalaryFlow | Thrift Savings & Employee Finance",
     description,
     images: [
       {
@@ -76,7 +76,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SalaryFlow | Salary-Based Employee Finance",
+    title: "SalaryFlow | Thrift Savings & Employee Finance",
     description,
     images: ["/brand/og-image.png"],
   },

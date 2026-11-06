@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NameSearch } from "@/components/dashboard/name-search";
 
 export const metadata: Metadata = {
   title: "Loan Applications",
@@ -50,11 +51,20 @@ function naira(amount: number) {
 export default async function LoanApplicationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string }>;
 }) {
-  const { status: filterStatus } = await searchParams;
+  const { status: filterStatus, q } = await searchParams;
   const service = await LoanService.create();
   const applications = await service.listApplications(filterStatus, "EMPLOYEE");
+
+  const term = (q ?? "").trim().toLowerCase();
+  const filteredApplications = term
+    ? applications.filter((app) =>
+        `${app.employeeName ?? ""} ${app.employeeNumber ?? ""}`
+          .toLowerCase()
+          .includes(term)
+      )
+    : applications;
 
   return (
     <div className="flex flex-col gap-6">
@@ -67,37 +77,44 @@ export default async function LoanApplicationsPage({
         </div>
       </div>
 
-      <Tabs defaultValue={filterStatus ?? "all"}>
-        <TabsList>
-          <TabsTrigger value="all" render={<Link href="/dashboard/loans/applications" />}>
-            All
-          </TabsTrigger>
-          <TabsTrigger value="SUBMITTED" render={<Link href="/dashboard/loans/applications?status=SUBMITTED" />}>
-            Submitted
-          </TabsTrigger>
-          <TabsTrigger value="APPROVED" render={<Link href="/dashboard/loans/applications?status=APPROVED" />}>
-            Approved
-          </TabsTrigger>
-          <TabsTrigger value="ACTIVE" render={<Link href="/dashboard/loans/applications?status=ACTIVE" />}>
-            Active
-          </TabsTrigger>
-          <TabsTrigger value="COMPLETED" render={<Link href="/dashboard/loans/applications?status=COMPLETED" />}>
-            Completed
-          </TabsTrigger>
-          <TabsTrigger value="REJECTED" render={<Link href="/dashboard/loans/applications?status=REJECTED" />}>
-            Rejected
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <Tabs defaultValue={filterStatus ?? "all"}>
+          <TabsList>
+            <TabsTrigger value="all" render={<Link href="/dashboard/loans/applications" />}>
+              All
+            </TabsTrigger>
+            <TabsTrigger value="SUBMITTED" render={<Link href="/dashboard/loans/applications?status=SUBMITTED" />}>
+              Submitted
+            </TabsTrigger>
+            <TabsTrigger value="APPROVED" render={<Link href="/dashboard/loans/applications?status=APPROVED" />}>
+              Approved
+            </TabsTrigger>
+            <TabsTrigger value="ACTIVE" render={<Link href="/dashboard/loans/applications?status=ACTIVE" />}>
+              Active
+            </TabsTrigger>
+            <TabsTrigger value="COMPLETED" render={<Link href="/dashboard/loans/applications?status=COMPLETED" />}>
+              Completed
+            </TabsTrigger>
+            <TabsTrigger value="REJECTED" render={<Link href="/dashboard/loans/applications?status=REJECTED" />}>
+              Rejected
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <NameSearch placeholder="Search employee name or number…" />
+      </div>
 
-      {applications.length === 0 ? (
+      {filteredApplications.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-sm font-medium">No applications found</p>
+            <p className="text-sm font-medium">
+              {term ? "No matching applications" : "No applications found"}
+            </p>
             <p className="text-sm text-muted-foreground">
-              {filterStatus
-                ? `No applications with status "${filterStatus}"`
-                : "Loan applications will appear here"}
+              {term
+                ? "No employee matches that name or number."
+                : filterStatus
+                  ? `No applications with status "${filterStatus}"`
+                  : "Loan applications will appear here"}
             </p>
           </CardContent>
         </Card>
@@ -117,7 +134,7 @@ export default async function LoanApplicationsPage({
               </TableRow>
             </TableHeader>
             <CollapsibleTableBody columns={8} itemLabel="applications">
-              {applications.map((app) => (
+              {filteredApplications.map((app) => (
                 <TableRow key={app.id}>
                   <TableCell>
                     <div>

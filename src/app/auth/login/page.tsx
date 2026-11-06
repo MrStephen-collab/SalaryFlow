@@ -21,8 +21,8 @@ export default async function LoginPage({
   const params = await searchParams;
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <div className="mb-8 flex flex-col items-center text-center">
+    <div className="flex min-h-screen flex-col items-center justify-start px-4 pt-8 pb-12 sm:pt-12">
+      <div className="mb-6 flex flex-col items-center text-center">
         <h1>
           <SalaryFlowLogo size="md" animated />
         </h1>

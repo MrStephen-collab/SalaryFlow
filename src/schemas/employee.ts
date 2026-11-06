@@ -60,13 +60,6 @@ export const createEmployeeSchema = z.object({
     "On Leave",
   ]),
   dateJoined: z.string().min(1, "Date joined is required"),
-  salary: z
-    .union([
-      z.number(),
-      z.string().regex(/^\d*(\.\d{0,2})?$/, "Enter a valid salary amount"),
-    ])
-    .optional()
-    .or(z.literal("")),
   thriftEnabled: z.boolean().optional(),
   thriftAmount: z
     .union([
@@ -80,18 +73,5 @@ export const createEmployeeSchema = z.object({
 
 export const updateEmployeeSchema = createEmployeeSchema.partial();
 
-export const employeeImportSchema = z.object({
-  rows: z.array(
-    z.object({
-      employeeNumber: z.string(),
-      fullName: z.string(),
-      basicSalary: z.number(),
-      allowances: z.number().default(0),
-      otherDeductions: z.number().default(0),
-    })
-  ),
-});
-
 export type CreateEmployeeValues = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeValues = z.infer<typeof updateEmployeeSchema>;
-export type EmployeeImportValues = z.infer<typeof employeeImportSchema>;

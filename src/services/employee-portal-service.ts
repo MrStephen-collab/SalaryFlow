@@ -16,7 +16,6 @@ interface EmployeeRow {
   employment_type: string;
   employment_status: string;
   date_joined: string | null;
-  salary: number;
   nin: string | null;
   nin_document_url: string | null;
   nin_status: string;
@@ -26,7 +25,6 @@ interface EmployeeRow {
 
 export interface PortalDashboard {
   employee: EmployeeRow;
-  salary: number;
   availableBalance: number;
   activeLoan: {
     id: string;
@@ -94,66 +92,6 @@ export class EmployeePortalService {
     return (data as EmployeeRow | null) ?? null;
   }
 
-  async getSalaryHistory() {
-    if (!this.employeeId) return [];
-
-    const admin = createAdminClient();
-    const { data } = await admin
-      .from("salary_records")
-      .select(
-        `
-        id,
-        basic_salary,
-        allowances,
-        gross_salary,
-        other_deductions,
-        loan_deductions,
-        net_salary,
-        status,
-        created_at,
-        salary_periods(name, start_date, end_date, status)
-      `
-      )
-      .eq("employee_id", this.employeeId)
-      .order("created_at", { ascending: false });
-
-    return (data ?? []).map((row) => {
-      const period = row.salary_periods as unknown as {
-        name: string;
-        start_date: string;
-        end_date: string;
-        status: string;
-      } | null;
-      return {
-        id: row.id,
-        basicSalary: Number(row.basic_salary ?? 0),
-        allowances: Number(row.allowances ?? 0),
-        grossSalary: Number(row.gross_salary ?? 0),
-        otherDeductions: Number(row.other_deductions ?? 0),
-        loanDeductions: Number(row.loan_deductions ?? 0),
-        netSalary: Number(row.net_salary ?? 0),
-        status: row.status,
-        periodName: period?.name ?? "",
-        periodStatus: period?.status ?? "",
-        periodStartDate: period?.start_date ?? "",
-        periodEndDate: period?.end_date ?? "",
-      };
-    });
-  }
-
-  async listPeriods() {
-    if (!this.orgId) return [];
-
-    const admin = createAdminClient();
-    const { data } = await admin
-      .from("salary_periods")
-      .select("id, name, start_date, status")
-      .eq("organization_id", this.orgId)
-      .order("start_date", { ascending: false });
-
-    return data ?? [];
-  }
-
   async getAvailableBalance(): Promise<number> {
     if (!this.employeeId || !this.orgId) return 0;
 
@@ -178,6 +116,36 @@ export class EmployeePortalService {
     const { LedgerService } = await import("./ledger-service");
     const ledger = LedgerService.createForOrganization(this.orgId);
     return ledger.getThriftBalance(this.employeeId);
+  }
+
+  /** Full thrift savings ledger with a running balance, newest first. */
+  async getThriftLedger() {
+    if (!this.employeeId || !this.orgId) return [];
+
+    const { LedgerService } = await import("./ledger-service");
+    const ledger = LedgerService.createForOrganization(this.orgId);
+    const account = await ledger.ensureThriftAccount(this.employeeId);
+    if (!account?.id) return [];
+
+    const entries = await ledger.getFinancialAccountStatement(account.id);
+    const ascending = entries
+      .filter((entry) => entry.status !== "REVERSED")
+      .sort((a, b) => {
+        if (a.transaction_date === b.transaction_date) {
+          return a.id.localeCompare(b.id);
+        }
+        return a.transaction_date.localeCompare(b.transaction_date);
+      });
+
+    let balance = 0;
+    const withBalance = ascending.map((entry) => {
+      balance = Math.round(
+        (balance + (entry.credit || 0) - (entry.debit || 0)) * 100
+      ) / 100;
+      return { ...entry, balance };
+    });
+
+    return withBalance.reverse();
   }
 
   async getTransactions() {
@@ -251,7 +219,7 @@ export class EmployeePortalService {
 
     const rows = data ?? [];
     const loanIds = rows.map((row) => row.id as string);
-    let paidByLoan = new Map<string, number>();
+    const paidByLoan = new Map<string, number>();
 
     if (loanIds.length > 0) {
       const { data: schedules } = await admin
@@ -300,7 +268,11 @@ export class EmployeePortalService {
 
     const admin = createAdminClient();
     const [{ data: employee }, { data: products }] = await Promise.all([
-      admin.from("employees").select("date_joined").eq("id", this.employeeId).maybeSingle(),
+      admin
+        .from("employees")
+        .select("date_joined, thrift_enabled, thrift_amount")
+        .eq("id", this.employeeId)
+        .maybeSingle(),
       admin
         .from("loan_products")
         .select("name, minimum_employment_period_months")
@@ -315,7 +287,7 @@ export class EmployeePortalService {
 
     // Eligibility comes from the loan products; the least demanding active
     // product is what the portal page uses as the general gate.
-    const requiredMonths =
+    const productRequiredMonths =
       employeeProducts.length > 0
         ? Math.min(
             ...employeeProducts.map(
@@ -323,6 +295,14 @@ export class EmployeePortalService {
             )
           )
         : 0;
+
+    // Once an employee has an active monthly thrift, the employer funds their
+    // loan from it, so the employment-period gate no longer applies.
+    const thriftSetUp =
+      Boolean(employee?.thrift_enabled) &&
+      (Number(employee?.thrift_amount) || 0) > 0;
+    const requiredMonths = thriftSetUp ? 0 : productRequiredMonths;
+
     const dateJoined = (employee?.date_joined as string | null) ?? null;
 
     let monthsWorked = 0;
@@ -340,6 +320,8 @@ export class EmployeePortalService {
 
     return {
       requiredMonths,
+      productRequiredMonths,
+      thriftSetUp,
       monthsWorked,
       remainingMonths,
       eligible: remainingMonths === 0,

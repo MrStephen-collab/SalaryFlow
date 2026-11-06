@@ -1,6 +1,6 @@
 export const APP_NAME = "SalaryFlow";
 export const APP_DESCRIPTION =
-  "Salary-based employee finance SaaS platform";
+  "Employer-funded thrift savings and employee finance platform";
 
 export const CURRENCY = {
   code: "NGN",
@@ -57,14 +57,6 @@ export const LOAN_STATUSES = [
 ] as const;
 
 export const INTEREST_METHODS = ["FLAT", "REDUCING_BALANCE", "AMORTIZED"] as const;
-
-export const SALARY_PERIOD_STATUSES = [
-  "DRAFT",
-  "PROCESSING",
-  "APPROVED",
-  "PAID",
-  "CLOSED",
-] as const;
 
 export const REPAYMENT_STATUSES = [
   "UPCOMING",

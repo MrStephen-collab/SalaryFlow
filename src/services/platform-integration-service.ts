@@ -34,7 +34,10 @@ export class PlatformIntegrationService {
 
     let role: string | null = null;
     if (user) {
-      const { data: profile } = await supabase
+      // Read the role with the service client so RLS cannot hide the platform
+      // owner's profile (super admins have no organization membership).
+      const admin = createAdminClient();
+      const { data: profile } = await admin
         .from("user_profiles")
         .select("role")
         .eq("user_id", user.id)
@@ -50,10 +53,51 @@ export class PlatformIntegrationService {
     const { data } = await admin
       .from("platform_integrations")
       .select("key, category, label, value, is_secret, updated_at")
+      .neq("key", "maintenance_mode")
       .order("category", { ascending: true })
       .order("key", { ascending: true });
 
     return (data ?? []) as IntegrationRow[];
+  }
+
+  async getMaintenanceMode(): Promise<boolean> {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("audit_logs")
+      .select("after_data")
+      .eq("action", "platform.maintenance_mode")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!data?.after_data || typeof data.after_data !== "object") return false;
+    return (data.after_data as { enabled?: boolean }).enabled === true;
+  }
+
+  async setMaintenanceMode(enabled: boolean) {
+    if (!this.userId) return { ok: false as const, error: "Unauthorized" };
+    if (this.role !== "SUPER_ADMIN") {
+      return {
+        ok: false as const,
+        error: "Only the platform owner can change maintenance mode",
+      };
+    }
+
+    const admin = createAdminClient();
+    const { error } = await admin.from("audit_logs").insert({
+      id: crypto.randomUUID(),
+      organization_id: null,
+      user_id: this.userId,
+      action: "platform.maintenance_mode",
+      entity_type: "platform",
+      entity_id: null,
+      before_data: null,
+      after_data: { enabled },
+      created_at: new Date().toISOString(),
+    });
+
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, enabled };
   }
 
   async save(values: Record<string, string>) {

@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   ArrowDownToLine,
   Bell,
-  FileText,
   HandCoins,
   Home,
   LayoutDashboard,
@@ -26,7 +25,7 @@ const NAVS: Record<"dashboard" | "member" | "employee", NavItem[]> = {
   dashboard: [
     { title: "Home", href: "/dashboard", icon: LayoutDashboard },
     { title: "Loans", href: "/dashboard/loans", icon: HandCoins },
-    { title: "Salary", href: "/dashboard/salary", icon: FileText },
+    { title: "Thrift", href: "/dashboard/employees/thrift", icon: PiggyBank },
     { title: "Funds", href: "/dashboard/funds", icon: PiggyBank },
     { title: "Alerts", href: "/dashboard/notifications", icon: Bell },
     { title: "Settings", href: "/dashboard/settings", icon: Settings },

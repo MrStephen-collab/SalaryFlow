@@ -43,13 +43,7 @@ interface LoanProduct {
   duration_months: number;
   processing_fee: number;
   insurance_fee: number;
-  maximum_salary_deduction_percentage: number;
   active: boolean;
-}
-
-interface Employee {
-  id: string;
-  salary: number;
 }
 
 function naira(amount: number) {
@@ -62,11 +56,11 @@ function naira(amount: number) {
 
 export function ApplyLoanForm({
   products,
-  employee,
+  thriftAmount,
   thriftBalance,
 }: {
   products: LoanProduct[];
-  employee: Employee;
+  thriftAmount: number;
   thriftBalance: number;
 }) {
   const router = useRouter();
@@ -95,11 +89,8 @@ export function ApplyLoanForm({
         })
       : null;
 
-  const maxDeduction =
-    employee.salary *
-    ((selectedProduct?.maximum_salary_deduction_percentage ?? 30) / 100);
-  const exceedsDeduction =
-    calculation && calculation.monthlyPayment > maxDeduction;
+  const exceedsMonthlyThrift =
+    calculation != null && calculation.monthlyPayment > thriftAmount + 0.0001;
 
   const handleSubmit = () => {
     if (!productId || !selectedProduct) {
@@ -113,8 +104,8 @@ export function ApplyLoanForm({
     if (amount > thriftLimit) {
       toast.error(
         thriftLimit <= 0
-          ? "You need thrift savings before you can apply. Your loan limit is 2× your thrift savings."
-          : `Your loan limit is ${naira(thriftLimit)} (2× your thrift savings).`
+          ? "You need thrift savings before you can apply. Your loan limit is 3× your thrift savings."
+          : `Your loan limit is ${naira(thriftLimit)} (3× your thrift savings).`
       );
       return;
     }
@@ -136,6 +127,16 @@ export function ApplyLoanForm({
     }
     if (duration <= 0) {
       toast.error("Enter a valid duration");
+      return;
+    }
+    if (calculation && calculation.monthlyPayment > thriftAmount + 0.0001) {
+      toast.error(
+        `The monthly repayment of ${naira(
+          calculation.monthlyPayment
+        )} is more than your monthly thrift amount of ${naira(
+          thriftAmount
+        )}. Ask your admin to increase your thrift amount, or choose a smaller amount or longer duration.`
+      );
       return;
     }
 
@@ -217,7 +218,7 @@ export function ApplyLoanForm({
                         {selectedProduct.duration_months} months.
                         <span className="mt-1 block">
                           Your thrift-backed limit:{" "}
-                          <strong>{naira(thriftLimit)}</strong> (2× your{" "}
+                          <strong>{naira(thriftLimit)}</strong> (3× your{" "}
                           {naira(thriftBalance)} thrift savings).
                         </span>
                       </AlertDescription>
@@ -228,7 +229,7 @@ export function ApplyLoanForm({
                         <AlertCircle className="size-4" />
                         <AlertDescription>
                           You have no thrift savings yet. Save in thrift to
-                          unlock a loan — your limit is twice your thrift
+                          unlock a loan — your limit is three times your thrift
                           savings.
                         </AlertDescription>
                       </Alert>
@@ -300,7 +301,8 @@ export function ApplyLoanForm({
                     amount <= 0 ||
                     duration <= 0 ||
                     effectiveMax <= 0 ||
-                    exceedsThriftLimit
+                    exceedsThriftLimit ||
+                    exceedsMonthlyThrift
                   }
                   className="w-full"
                 >
@@ -325,7 +327,7 @@ export function ApplyLoanForm({
                 </div>
                 <div className="rounded-lg border p-4">
                   <p className="text-xs text-muted-foreground">
-                    Thrift-backed Limit (2× savings)
+                    Thrift-backed Limit (3× savings)
                   </p>
                   <p className="text-lg font-bold">{naira(thriftLimit)}</p>
                   <p className="text-xs text-muted-foreground">
@@ -361,14 +363,12 @@ export function ApplyLoanForm({
                 </div>
               )}
 
-              {employee.salary > 0 && (
-                <div className="rounded-lg border p-4">
-                  <p className="text-xs text-muted-foreground">
-                    Max Monthly Deduction ({selectedProduct?.maximum_salary_deduction_percentage}%)
-                  </p>
-                  <p className="text-sm font-medium">{naira(maxDeduction)}</p>
-                </div>
-              )}
+              <div className="rounded-lg border p-4">
+                <p className="text-xs text-muted-foreground">
+                  Monthly Thrift Amount (repayment ceiling)
+                </p>
+                <p className="text-sm font-medium">{naira(thriftAmount)}</p>
+              </div>
 
               {exceedsThriftLimit && amount > 0 && (
                 <Alert variant="destructive">
@@ -381,22 +381,24 @@ export function ApplyLoanForm({
                 </Alert>
               )}
 
-              {exceedsDeduction && (
+              {exceedsMonthlyThrift && (
                 <Alert variant="destructive">
                   <AlertCircle className="size-4" />
                   <AlertDescription>
-                    Monthly payment of {naira(calculation.monthlyPayment)} exceeds
-                    the maximum allowed deduction of {naira(maxDeduction)}.
+                    Monthly payment of {naira(calculation.monthlyPayment)} is
+                    more than your monthly thrift amount of {naira(thriftAmount)}.
+                    Ask your admin to increase your thrift amount, or choose a
+                    smaller amount or longer duration.
                   </AlertDescription>
                 </Alert>
               )}
 
-              {!exceedsDeduction && calculation.monthlyPayment > 0 && (
+              {!exceedsMonthlyThrift && calculation.monthlyPayment > 0 && (
                 <Alert>
                   <CheckCircle2 className="size-4" />
                   <AlertDescription>
-                    Monthly payment of {naira(calculation.monthlyPayment)} is
-                    within the allowed deduction limit.
+                    Monthly payment of {naira(calculation.monthlyPayment)} fits
+                    inside your monthly thrift amount.
                   </AlertDescription>
                 </Alert>
               )}

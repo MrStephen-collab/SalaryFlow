@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { releaseAllThriftToWallets } from "@/app/dashboard/employees/thrift-actions";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Loader2, PiggyBank } from "lucide-react";
 
 /** Chairman-only bulk action: release every enabled employee's thrift savings. */
@@ -37,13 +38,22 @@ export function ThriftReleaseAllButton() {
   }
 
   return (
-    <Button variant="outline" onClick={releaseAll} disabled={isPending}>
-      {isPending ? (
-        <Loader2 className="size-4 animate-spin" />
-      ) : (
-        <PiggyBank className="size-4" />
-      )}
-      {isPending ? "Releasing…" : "Release all thrift"}
-    </Button>
+    <ConfirmDialog
+      trigger={
+        <Button variant="outline" disabled={isPending}>
+          {isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <PiggyBank className="size-4" />
+          )}
+          {isPending ? "Releasing…" : "Release all thrift"}
+        </Button>
+      }
+      title="Release every employee's thrift?"
+      description="Every employee with a thrift balance, including former employees, will have it moved into their withdrawable wallet. This cannot be undone from the app."
+      confirmLabel="Release all"
+      destructive
+      onConfirm={releaseAll}
+    />
   );
 }

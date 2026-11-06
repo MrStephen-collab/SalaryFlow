@@ -5,6 +5,7 @@ import { LoanCalculationService } from "./loan-calculation-service";
 import type { InterestMethod } from "./loan-calculation-service";
 import { recordAudit } from "./audit-service";
 import { LedgerService } from "./ledger-service";
+import { FundService } from "./fund-service";
 import { thriftBackedLoanLimit } from "@/lib/loan-eligibility";
 import { isMemberLoanProduct } from "@/lib/loan-products";
 
@@ -100,7 +101,7 @@ export class LoanService {
     return data;
   }
 
-  /** Thrift-backed employee loan limit: 2× the employee's thrift savings. */
+  /** Thrift-backed employee loan limit: 3× the employee's thrift savings. */
   async getThriftLoanLimit(employeeId: string) {
     if (!this.orgId) return { thriftBalance: 0, loanLimit: 0 };
 
@@ -130,9 +131,6 @@ export class LoanService {
         repayment_frequency: values.repaymentFrequency,
         processing_fee: values.processingFee ?? 0,
         insurance_fee: values.insuranceFee ?? 0,
-        maximum_salary_deduction_percentage:
-          values.maximumSalaryDeductionPercentage,
-        minimum_salary: values.minimumSalary ?? 0,
         minimum_employment_period_months:
           values.minimumEmploymentPeriodMonths ?? 0,
         guarantor_required: values.guarantorRequired ?? false,
@@ -181,11 +179,6 @@ export class LoanService {
       updateData.processing_fee = values.processingFee;
     if (values.insuranceFee !== undefined)
       updateData.insurance_fee = values.insuranceFee;
-    if (values.maximumSalaryDeductionPercentage !== undefined)
-      updateData.maximum_salary_deduction_percentage =
-        values.maximumSalaryDeductionPercentage;
-    if (values.minimumSalary !== undefined)
-      updateData.minimum_salary = values.minimumSalary;
     if (values.minimumEmploymentPeriodMonths !== undefined)
       updateData.minimum_employment_period_months =
         values.minimumEmploymentPeriodMonths;
@@ -351,7 +344,7 @@ export class LoanService {
       .select(
         `
         *,
-        employees:employee_id(employee_number, first_name, last_name, department, salary, date_joined),
+        employees:employee_id(employee_number, first_name, last_name, department, date_joined),
         members:member_id(first_name, last_name, member_number),
         loan_products:loan_product_id(name, interest_method, interest_rate, duration_months, processing_fee, insurance_fee)
       `
@@ -368,7 +361,6 @@ export class LoanService {
           first_name: string;
           last_name: string;
           department: string | null;
-          salary: number;
           date_joined: string;
         }
       | null;
@@ -405,7 +397,6 @@ export class LoanService {
       employeeDepartment: data.member_id
         ? "External member"
         : emp?.department ?? "",
-      employeeSalary: data.member_id ? 0 : emp?.salary ?? 0,
       productName: product?.name ?? "Unknown",
     };
   }
@@ -453,14 +444,20 @@ export class LoanService {
     const admin = createAdminClient();
     const { data: employee } = await admin
       .from("employees")
-      .select("date_joined")
+      .select("date_joined, thrift_enabled, thrift_amount")
       .eq("id", employeeId)
       .eq("organization_id", this.orgId)
       .maybeSingle();
 
     const requiredMonths = Number(product.minimum_employment_period_months ?? 0);
 
-    if (requiredMonths > 0 && employee?.date_joined) {
+    // A funded thrift is the security for the loan, so employees who have set
+    // it up are not blocked by the product's employment-period requirement.
+    const thriftSetUp =
+      Boolean(employee?.thrift_enabled) &&
+      (Number(employee?.thrift_amount) || 0) > 0;
+
+    if (!thriftSetUp && requiredMonths > 0 && employee?.date_joined) {
       const start = new Date(employee.date_joined);
       const now = new Date();
       let monthsWorked =
@@ -476,14 +473,14 @@ export class LoanService {
       }
     }
 
-    // Thrift-backed limit: employees may borrow up to 2× their thrift savings.
+    // Thrift-backed limit: employees may borrow up to 3× their thrift savings.
     const { thriftBalance, loanLimit } = await this.getThriftLoanLimit(employeeId);
     if (amount > loanLimit) {
       return {
         error:
           thriftBalance <= 0
-            ? "You have no thrift savings yet. Your loan limit is 2× your thrift savings, so save in thrift to unlock a loan."
-            : `Your loan limit is ${naira(loanLimit)} (2× your ${naira(
+            ? "You have no thrift savings yet. Your loan limit is 3× your thrift savings, so save in thrift to unlock a loan."
+            : `Your loan limit is ${naira(loanLimit)} (3× your ${naira(
                 thriftBalance
               )} thrift savings). Reduce the amount or save more in thrift.`,
       };
@@ -497,6 +494,38 @@ export class LoanService {
       processingFee: product.processing_fee,
       insuranceFee: product.insurance_fee,
     });
+
+    // The employer settles the loan from the monthly thrift funding, so the
+    // instalment must fit inside the employee's agreed monthly thrift amount.
+    const thriftAmount = Number(employee?.thrift_amount) || 0;
+    const { data: existingLoans } = await admin
+      .from("loan_applications")
+      .select("monthly_deduction")
+      .eq("employee_id", employeeId)
+      .eq("organization_id", this.orgId)
+      .in("status", [
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "APPROVED",
+        "READY_FOR_DISBURSEMENT",
+        "DISBURSED",
+        "ACTIVE",
+      ]);
+
+    const committedMonthly = (existingLoans ?? []).reduce(
+      (sum, loan) => sum + (Number(loan.monthly_deduction) || 0),
+      0
+    );
+
+    if (committedMonthly + calculation.monthlyPayment > thriftAmount + 0.0001) {
+      return {
+        error: `Your total monthly repayment would be ${naira(
+          committedMonthly + calculation.monthlyPayment
+        )}, which is more than your monthly thrift amount of ${naira(
+          thriftAmount
+        )}. Increase your thrift amount with your admin, or choose a smaller amount or longer duration.`,
+      };
+    }
 
     const { data: application, error } = await this.supabase
       .from("loan_applications")
@@ -546,7 +575,7 @@ export class LoanService {
 
     const { data: existing } = await this.supabase
       .from("loan_applications")
-      .select("status, employee_id, member_id, amount")
+      .select("status, employee_id, member_id, amount, monthly_deduction")
       .eq("id", applicationId)
       .eq("organization_id", this.orgId)
       .single();
@@ -566,7 +595,48 @@ export class LoanService {
         return {
           error: `This application exceeds the employee's current thrift-backed limit of ${naira(
             loanLimit
-          )} (2× their ${naira(thriftBalance)} thrift savings).`,
+          )} (3× their ${naira(thriftBalance)} thrift savings).`,
+        };
+      }
+
+      const { data: employee } = await this.supabase
+        .from("employees")
+        .select("thrift_amount")
+        .eq("id", existing.employee_id as string)
+        .eq("organization_id", this.orgId)
+        .maybeSingle();
+
+      const thriftAmount = Number(employee?.thrift_amount) || 0;
+      const { data: otherLoans } = await this.supabase
+        .from("loan_applications")
+        .select("monthly_deduction")
+        .eq("employee_id", existing.employee_id as string)
+        .eq("organization_id", this.orgId)
+        .neq("id", applicationId)
+        .in("status", [
+          "SUBMITTED",
+          "UNDER_REVIEW",
+          "APPROVED",
+          "READY_FOR_DISBURSEMENT",
+          "DISBURSED",
+          "ACTIVE",
+        ]);
+
+      const committedMonthly = (otherLoans ?? []).reduce(
+        (sum, loan) => sum + (Number(loan.monthly_deduction) || 0),
+        0
+      );
+
+      if (
+        committedMonthly + Number(existing.monthly_deduction) >
+        thriftAmount + 0.0001
+      ) {
+        return {
+          error: `The employee's total monthly repayment would be ${naira(
+            committedMonthly + Number(existing.monthly_deduction)
+          )}, which is more than their monthly thrift amount of ${naira(
+            thriftAmount
+          )}. Ask the employee to increase their thrift amount before approving.`,
         };
       }
     }
@@ -668,6 +738,30 @@ export class LoanService {
 
     if (!product) return { error: "Loan product not found" };
 
+    // Employee loans are disbursed from the Thrift Pool. The chairman must
+    // top it up when it cannot cover the loan amount.
+    const fund = await FundService.create();
+    const pool = await fund.getThriftPool();
+    if (!pool?.id) {
+      return {
+        error:
+          'No Thrift Pool found. Fund the Thrift Pool from Fund Management, then disburse this loan.',
+      };
+    }
+
+    const loanAmount = Number(existing.amount) || 0;
+    const poolBalance = await fund.fundAccountBalance(pool.id);
+    if (poolBalance < loanAmount) {
+      const shortfall = round2(loanAmount - poolBalance);
+      return {
+        error: `Thrift Pool is short by ${naira(
+          shortfall
+        )}. Available ${naira(poolBalance)}, required ${naira(
+          loanAmount
+        )}. Fund the Thrift Pool and try again.`,
+      };
+    }
+
     const calculation = LoanCalculationService.calculate({
       principal: existing.amount,
       annualInterestRate: product.interest_rate,
@@ -720,20 +814,15 @@ export class LoanService {
       return { error: `Loan disbursed but ledger error: ${ledgerResult.error}` };
     }
 
-    // Record fund movement against the first active fund account (if any)
-    const fund = await (await import("./fund-service")).FundService.create();
-    const fundAccounts = await fund.listFundAccounts();
-    const primaryFund = fundAccounts.find((f) => f.status === "ACTIVE");
-    if (primaryFund) {
-      await fund.recordMovement(
-        primaryFund.id,
-        "DISBURSEMENT",
-        existing.amount,
-        "OUT",
-        `Loan disbursement #${applicationId.slice(0, 8)}`,
-        applicationId
-      );
-    }
+    // Employee loans draw down the Thrift Pool.
+    await fund.recordMovement(
+      pool.id,
+      "DISBURSEMENT",
+      existing.amount,
+      "OUT",
+      `Loan disbursement #${applicationId.slice(0, 8)}`,
+      applicationId
+    );
 
     await this.audit(
       "loan.disbursed",
@@ -768,7 +857,7 @@ export class LoanService {
 
     const { data } = await this.supabase
       .from("employees")
-      .select("id, salary, first_name, last_name, employee_number")
+      .select("id, first_name, last_name, employee_number, thrift_amount")
       .eq("user_id", this.userId)
       .maybeSingle();
 
@@ -779,7 +868,7 @@ export class LoanService {
     applicationId: string,
     scheduleId: string,
     amount: number,
-    paymentMethod: string = "SALARY_DEDUCTION"
+    paymentMethod: string = "CASH"
   ) {
     if (!this.orgId || !this.userId) return { error: "Unauthorized" };
 

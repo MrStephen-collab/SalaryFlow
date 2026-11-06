@@ -5,9 +5,6 @@ import { recordAudit } from "./audit-service";
 export interface OrganizationSettingsRecord {
   id?: string;
   organization_id: string;
-  salary_cycle: string;
-  max_salary_deduction_percentage: number;
-  min_salary: number;
   min_employment_period_months: number;
   max_loan_amount: number | null;
   default_interest_rate: number | null;
@@ -16,8 +13,7 @@ export interface OrganizationSettingsRecord {
   guarantor_required: boolean;
   approval_workflow: string;
   withdrawals_enabled: boolean;
-  salary_payment_day?: number | null;
-  auto_disburse_salaries?: boolean;
+  thrift_interest_rate?: number;
   savings_min_membership_months?: number;
   member_loan_multiplier?: number;
   member_savings_withdrawals_enabled?: boolean;
@@ -204,21 +200,15 @@ export class SettingsService {
       organization_id: this.orgId,
     };
 
-    const stringKeys = [
-      "salary_cycle",
-      "default_interest_method",
-      "approval_workflow",
-    ];
+    const stringKeys = ["default_interest_method", "approval_workflow"];
     for (const key of stringKeys) {
       if (key in values) settingsData[key] = values[key];
     }
 
     const numericKeys = [
-      "max_salary_deduction_percentage",
-      "min_salary",
       "min_employment_period_months",
       "max_tenure",
-      "salary_payment_day",
+      "thrift_interest_rate",
       "savings_min_membership_months",
       "member_loan_multiplier",
       "member_loan_interest_rate",
@@ -247,7 +237,6 @@ export class SettingsService {
     const booleanKeys = [
       "guarantor_required",
       "withdrawals_enabled",
-      "auto_disburse_salaries",
       "member_savings_withdrawals_enabled",
       "member_loan_collateral_required",
     ];
@@ -262,8 +251,7 @@ export class SettingsService {
     // been applied. Fall back to the legacy column set so settings keep saving
     // on deployments that have not run it yet.
     const moneyPlatformColumns = [
-      "salary_payment_day",
-      "auto_disburse_salaries",
+      "thrift_interest_rate",
       "savings_min_membership_months",
       "member_loan_multiplier",
       "member_loan_interest_rate",
@@ -296,11 +284,9 @@ export class SettingsService {
       entityType: "settings",
       entityId: this.orgId,
       after: {
-        salaryCycle: settingsData.salary_cycle,
-        maxSalaryDeductionPercentage:
-          settingsData.max_salary_deduction_percentage,
         maxLoanAmount: settingsData.max_loan_amount,
         defaultInterestRate: settingsData.default_interest_rate,
+        thriftInterestRate: settingsData.thrift_interest_rate,
         defaultInterestMethod: settingsData.default_interest_method,
         maxTenure: settingsData.max_tenure,
         guarantorRequired: settingsData.guarantor_required,

@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Banknote,
   FileChartColumn,
   FileText,
   HandCoins,
@@ -20,9 +19,10 @@ import {
   TrendingUp,
   UserRound,
   Wallet,
-  Percent,
   ArrowDownToLine,
   Users,
+  PiggyBank,
+  Percent,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,11 +32,11 @@ export const metadata: Metadata = {
 
 const reportIcons: Record<string, LucideIcon> = {
   employee: Users,
-  salary: Banknote,
+  thrift: PiggyBank,
+  "thrift-interest": Percent,
   "loan-applications": FileText,
   "loan-portfolio": HandCoins,
   repayments: RefreshCw,
-  deduction: Percent,
   default: Landmark,
   fund: Wallet,
   "interest-income": TrendingUp,

@@ -49,7 +49,7 @@ export class SuperAdminService {
     const { data, error } = await this.admin
       .from("organizations")
       .select(
-        `id, name, type, email, currency, created_at,
+        `id, name, type, registration_number, email, phone, address, state, lga, currency, created_at,
          employees(count),
          subscriptions(status, subscription_plans(name))`
       )
@@ -63,7 +63,12 @@ export class SuperAdminService {
         id: org.id as string,
         name: org.name as string,
         type: org.type as string,
+        registration_number: (org.registration_number as string | null) ?? null,
         email: org.email as string,
+        phone: (org.phone as string | null) ?? null,
+        address: (org.address as string | null) ?? null,
+        state: (org.state as string | null) ?? null,
+        lga: (org.lga as string | null) ?? null,
         currency: org.currency as string,
         created_at: org.created_at as string,
         employeeCount: (org.employees?.[0]?.count as number) ?? 0,

@@ -6,8 +6,9 @@
  * given owner. Everything it writes is tagged so it can be removed again:
  *
  *   - employees      employee_number starts with DEMO- and email ends with
- *                    @salaryflow.local
+ *                    @salaryflow.local (DEMO-001 is "Demonstration Employee")
  *   - loans          purpose starts with DEMO-SEED
+ *   - thrift         funding and interest references start with DEMO-SEED
  *   - ledger         reference starts with DEMO-SEED-LGR-
  *   - repayments     reference_number starts with DEMO-SEED-RP-
  *   - bank accounts  account numbers start with 90
@@ -156,12 +157,12 @@ function buildEmployees(count) {
     const [firstName, gender] = FIRST_NAMES[index % FIRST_NAMES.length];
     const lastName = LAST_NAMES[(index * 5 + 3) % LAST_NAMES.length];
     const department = DEPARTMENTS[index % DEPARTMENTS.length];
-    const salary = 280000 + (index % 7) * 45000;
+    const isDemonstration = index === 0;
     employees.push({
       id: uuid(),
       employee_number: `${EMPLOYEE_PREFIX}${String(index + 1).padStart(3, "0")}`,
-      first_name: firstName,
-      last_name: lastName,
+      first_name: isDemonstration ? "Demonstration" : firstName,
+      last_name: isDemonstration ? "Employee" : lastName,
       email: `demo.${String(index + 1).padStart(3, "0")}@${EMAIL_DOMAIN}`,
       phone: `080${String(30000000 + index * 7919).slice(-8)}`,
       gender,
@@ -174,7 +175,8 @@ function buildEmployees(count) {
       employment_type: index % 9 === 0 ? "Contract" : "Full-time",
       employment_status: "Active",
       date_joined: `20${19 + (index % 6)}-0${(index % 9) + 1}-0${(index % 8) + 1}`,
-      salary,
+      thrift_enabled: true,
+      thrift_amount: isDemonstration ? 1000 : 1000 + (index % 5) * 500,
     });
   }
   return employees;
@@ -206,23 +208,11 @@ async function resolveContext() {
     .limit(1)
     .maybeSingle();
 
-  const { data: periods } = await admin
-    .from("salary_periods")
-    .select("id, name, start_date, end_date, payment_date")
-    .eq("organization_id", owner.organization_id)
-    .order("start_date", { ascending: false })
-    .limit(2);
-
-  if (!periods || periods.length === 0) {
-    throw new Error("Create at least one salary period before seeding");
-  }
-
   return {
     organizationId: owner.organization_id,
     organizationName: organization?.name ?? "Organization",
     ownerId: owner.user_id,
     branchId: branch?.id ?? null,
-    periods,
   };
 }
 
@@ -262,8 +252,15 @@ async function cleanup() {
     await admin.from("loan_schedules").delete().in("loan_application_id", loanIds);
   }
   if (employeeIds.length) {
-    await admin.from("deduction_records").delete().in("employee_id", employeeIds);
-    await admin.from("salary_records").delete().in("employee_id", employeeIds);
+    await admin
+      .from("thrift_interest_accruals")
+      .delete()
+      .in("employee_id", employeeIds);
+    await admin.from("thrift_fundings").delete().in("employee_id", employeeIds);
+    await admin
+      .from("thrift_release_requests")
+      .delete()
+      .in("employee_id", employeeIds);
     await admin.from("financial_accounts").delete().in("employee_id", employeeIds);
   }
   if (loanIds.length) {
@@ -301,16 +298,28 @@ async function ensureAccount(code, name, type, organizationId) {
 
 async function seed() {
   const context = await resolveContext();
-  const { organizationId, organizationName, ownerId, branchId, periods } = context;
+  const { organizationId, organizationName, ownerId, branchId } = context;
   const now = new Date();
 
   console.log(`Seeding demo data into "${organizationName}" (${organizationId})`);
 
+  // Keep the demonstration statement on the documented 5% annual rate.
+  await admin
+    .from("organization_settings")
+    .update({ thrift_interest_rate: 5 })
+    .eq("organization_id", organizationId);
+
   const accounts = {
-    fund: await ensureAccount("1000", "Lending Fund", "ASSET", organizationId),
+    fund: await ensureAccount("1000", "Thrift Pool", "ASSET", organizationId),
     receivable: await ensureAccount("1100", "Loan Receivable", "ASSET", organizationId),
     principal: await ensureAccount("2000", "Loan Principal", "LIABILITY", organizationId),
     interest: await ensureAccount("4000", "Interest Income", "INCOME", organizationId),
+    thriftInterestExpense: await ensureAccount(
+      "5200",
+      "Thrift Interest Expense",
+      "EXPENSE",
+      organizationId
+    ),
   };
 
   // --- employees --------------------------------------------------------
@@ -322,22 +331,40 @@ async function seed() {
   const { data: insertedEmployees, error: employeeError } = await admin
     .from("employees")
     .insert(employeeInserts)
-    .select("id, first_name, last_name, employee_number, department, salary");
+    .select("id, first_name, last_name, employee_number, department, thrift_amount");
   if (employeeError) throw new Error(`employees: ${employeeError.message}`);
 
-  const financialAccountRows = insertedEmployees.map((employee) => ({
-    id: uuid(),
-    organization_id: organizationId,
-    employee_id: employee.id,
-    account_type: "AVAILABLE_BALANCE",
-    currency: "NGN",
-    status: "ACTIVE",
-    created_at: iso(now),
-    updated_at: iso(now),
-  }));
-  const financialAccountByEmployee = new Map(
-    financialAccountRows.map((account) => [account.employee_id, account.id])
-  );
+  const financialAccountRows = [];
+  const financialAccountByEmployee = new Map();
+  const thriftAccountByEmployee = new Map();
+  for (const employee of insertedEmployees) {
+    const availableId = uuid();
+    const thriftId = uuid();
+    financialAccountRows.push(
+      {
+        id: availableId,
+        organization_id: organizationId,
+        employee_id: employee.id,
+        account_type: "AVAILABLE_BALANCE",
+        currency: "NGN",
+        status: "ACTIVE",
+        created_at: iso(now),
+        updated_at: iso(now),
+      },
+      {
+        id: thriftId,
+        organization_id: organizationId,
+        employee_id: employee.id,
+        account_type: "THRIFT",
+        currency: "NGN",
+        status: "ACTIVE",
+        created_at: iso(now),
+        updated_at: iso(now),
+      }
+    );
+    financialAccountByEmployee.set(employee.id, availableId);
+    thriftAccountByEmployee.set(employee.id, thriftId);
+  }
 
   // --- loan products ----------------------------------------------------
   const productSpecs = [
@@ -387,8 +414,6 @@ async function seed() {
         repayment_frequency: "MONTHLY",
         processing_fee: spec.processing_fee,
         insurance_fee: spec.insurance_fee,
-        maximum_salary_deduction_percentage: 30,
-        minimum_salary: 250000,
         minimum_employment_period_months: 6,
         guarantor_required: spec.name !== "Salary Advance",
         collateral_required: spec.name === "Asset Finance",
@@ -400,9 +425,6 @@ async function seed() {
   const productByName = new Map(products.map((product) => [product.name, product]));
 
   // --- loans ------------------------------------------------------------
-  const latestPeriod = periods[0];
-  const previousPeriod = periods[1] ?? null;
-
   const loanSpecs = [
     { employee: 0, product: "Salary Advance", amount: 300000, duration: 6, start: "2026-05-15", paid: 4, mode: "PROCESSED", status: "ACTIVE" },
     { employee: 1, product: "Salary Advance", amount: 450000, duration: 6, start: "2026-06-10", paid: 3, mode: "PROCESSED", status: "ACTIVE" },
@@ -432,13 +454,6 @@ async function seed() {
   const ledgerEntries = [];
   const repayments = [];
   const schedules = [];
-  const deductions = [];
-  const salaryAdjustments = new Map();
-
-  const addSalaryDeduction = (periodId, employeeId, amount) => {
-    const key = `${periodId}:${employeeId}`;
-    salaryAdjustments.set(key, round2((salaryAdjustments.get(key) ?? 0) + amount));
-  };
 
   const pushLedgerTransaction = ({ recordedAt, description, transactionType, entries }) => {
     const transactionId = uuid();
@@ -498,11 +513,11 @@ async function seed() {
       loan_application_id: loan.id,
       schedule_id: schedule.id,
       amount,
-      payment_method: "SALARY_DEDUCTION",
+      payment_method: "THRIFT_FUNDING",
       reference_number: reference,
       recorded_at: iso(recordedAt),
       recorded_by: ownerId,
-      notes: `${SEED_TAG} salary deduction`,
+      notes: `${SEED_TAG} thrift funding repayment`,
       created_at: iso(recordedAt),
     });
 
@@ -654,85 +669,23 @@ async function seed() {
       return schedule;
     });
 
-    // Previous-period deduction tied to the most recent paid instalment.
-    if (previousPeriod && spec.paid > 0) {
-      const paidSchedule = rows[spec.paid - 1];
-      deductions.push({
-        id: uuid(),
-        organization_id: organizationId,
-        salary_period_id: previousPeriod.id,
-        employee_id: employee.id,
-        loan_application_id: appId,
-        schedule_id: paidSchedule.id,
-        deduction_type: "LOAN",
-        expected_amount: paidSchedule.total_payment,
-        actual_amount: paidSchedule.total_payment,
-        shortfall: 0,
-        remaining_balance: paidSchedule.closing_balance,
-        reference: `${SEED_TAG}-DED-${uuid().slice(0, 8)}`,
-        status: "PROCESSED",
-        notes: `${SEED_TAG} processed deduction`,
-        processed_at: iso(new Date(`${paidSchedule.due_date}T12:00:00.000Z`)),
-        created_at: iso(new Date(`${paidSchedule.due_date}T08:00:00.000Z`)),
-        updated_at: iso(now),
-      });
-      addSalaryDeduction(previousPeriod.id, employee.id, paidSchedule.total_payment);
-    }
-
-    // Current-period deduction for the next unpaid instalment.
+    // Current-period repayment for the next unpaid instalment.
     if (spec.status !== "COMPLETED" && spec.mode !== "NONE") {
       const currentSchedule = rows[spec.paid];
-      if (currentSchedule) {
+      if (
+        currentSchedule &&
+        (spec.mode === "PROCESSED" || spec.mode === "PARTIAL")
+      ) {
         const expected = currentSchedule.total_payment;
-        let actual = 0;
-        let status = "PENDING";
-        let notes = `${SEED_TAG} pending deduction`;
-        if (spec.mode === "PROCESSED") {
-          actual = expected;
-          status = "PROCESSED";
-          notes = `${SEED_TAG} processed deduction`;
-          repaymentCounter += 1;
-          addRepayment({
-            loan,
-            schedule: currentSchedule,
-            amount: expected,
-            reference: `${SEED_TAG}-RP-${String(repaymentCounter).padStart(4, "0")}`,
-          });
-        } else if (spec.mode === "PARTIAL") {
-          actual = round2(expected * 0.6);
-          status = "PARTIAL";
-          notes = `Expected ₦${expected.toLocaleString()}, deducted ₦${actual.toLocaleString()}, shortfall ₦${round2(expected - actual).toLocaleString()}`;
-          repaymentCounter += 1;
-          addRepayment({
-            loan,
-            schedule: currentSchedule,
-            amount: actual,
-            reference: `${SEED_TAG}-RP-${String(repaymentCounter).padStart(4, "0")}`,
-          });
-        } else if (spec.mode === "FAILED") {
-          status = "FAILED";
-          notes = `${SEED_TAG} payroll did not deduct loan repayment`;
-        }
-        deductions.push({
-          id: uuid(),
-          organization_id: organizationId,
-          salary_period_id: latestPeriod.id,
-          employee_id: employee.id,
-          loan_application_id: appId,
-          schedule_id: currentSchedule.id,
-          deduction_type: "LOAN",
-          expected_amount: expected,
-          actual_amount: actual,
-          shortfall: round2(expected - actual),
-          remaining_balance: currentSchedule.closing_balance,
-          reference: `${SEED_TAG}-DED-${uuid().slice(0, 8)}`,
-          status,
-          notes,
-          processed_at: ["PROCESSED", "PARTIAL", "FAILED"].includes(status) ? iso(now) : null,
-          created_at: iso(new Date(`${latestPeriod.start_date}T08:00:00.000Z`)),
-          updated_at: iso(now),
+        const actual =
+          spec.mode === "PROCESSED" ? expected : round2(expected * 0.6);
+        repaymentCounter += 1;
+        addRepayment({
+          loan,
+          schedule: currentSchedule,
+          amount: actual,
+          reference: `${SEED_TAG}-RP-${String(repaymentCounter).padStart(4, "0")}`,
         });
-        if (actual > 0) addSalaryDeduction(latestPeriod.id, employee.id, actual);
       }
     }
 
@@ -768,31 +721,133 @@ async function seed() {
     }
   }
 
-  // --- salary records ---------------------------------------------------
-  const salaryPeriods = periods;
-  const salaryRows = [];
-  for (const employee of insertedEmployees) {
-    for (const period of salaryPeriods) {
-      const allowances = Math.round(Number(employee.salary) * 0.15);
-      const gross = Number(employee.salary) + allowances;
-      const otherDeductions = round2(gross * 0.07);
-      const loanDeductions = salaryAdjustments.get(`${period.id}:${employee.id}`) ?? 0;
-      salaryRows.push({
-        id: uuid(),
-        organization_id: organizationId,
-        employee_id: employee.id,
-        salary_period_id: period.id,
-        basic_salary: Number(employee.salary),
-        allowances,
-        gross_salary: gross,
-        other_deductions: otherDeductions,
-        loan_deductions: loanDeductions,
-        net_salary: round2(gross - otherDeductions - loanDeductions),
-        status: period.id === latestPeriod.id ? "DRAFT" : "PROCESSED",
-        created_at: iso(new Date(`${period.start_date}T09:00:00.000Z`)),
-        updated_at: iso(now),
-      });
-    }
+  // --- thrift savings and monthly interest ------------------------------
+  //
+  // The first demo employee is the "Demonstration Employee" used in the
+  // sample statement: ₦73,037.48 opening balance from August, 5% annual
+  // interest for September and October, plus a ₦1,000 October contribution.
+  const thriftFundingRows = [];
+  const thriftInterestRows = [];
+  const demonstration = insertedEmployees[0];
+  const demonstrationThriftAccount = thriftAccountByEmployee.get(
+    demonstration.id
+  );
+
+  const demoFundings = [
+    {
+      period: "2026-08-01",
+      amount: 73037.48,
+      recordedAt: "2026-08-31T10:00:00.000Z",
+      reference: `${SEED_TAG}-THRIFT-AUG`,
+    },
+    {
+      period: "2026-10-01",
+      amount: 1000,
+      recordedAt: "2026-10-01T09:00:00.000Z",
+      reference: `${SEED_TAG}-THRIFT-OCT`,
+    },
+  ];
+
+  for (const funding of demoFundings) {
+    thriftFundingRows.push({
+      id: uuid(),
+      organization_id: organizationId,
+      employee_id: demonstration.id,
+      period_month: funding.period,
+      amount: funding.amount,
+      loan_repayment_applied: 0,
+      thrift_credit: funding.amount,
+      reference: funding.reference,
+      status: "POSTED",
+      notes: `${SEED_TAG} sample thrift funding`,
+      funded_by: ownerId,
+      created_at: funding.recordedAt,
+      updated_at: funding.recordedAt,
+    });
+
+    pushLedgerTransaction({
+      recordedAt: new Date(funding.recordedAt),
+      description: `Thrift funding for ${funding.period.slice(0, 7)}`,
+      transactionType: "THRIFT_FUNDING",
+      entries: [
+        {
+          accountId: accounts.fund,
+          debit: funding.amount,
+          credit: 0,
+          description: "Thrift funding - pool",
+        },
+        {
+          financialAccountId: demonstrationThriftAccount,
+          debit: 0,
+          credit: funding.amount,
+          description: "Thrift funding - employee savings",
+        },
+      ],
+    });
+  }
+
+  const demoInterest = [
+    {
+      period: "2026-09-01",
+      opening: 73037.48,
+      contributions: 0,
+      days: 30,
+      interest: 300.15,
+      closing: 73337.63,
+      recordedAt: "2026-09-30T23:00:00.000Z",
+      reference: `${SEED_TAG}-THINT-SEP`,
+    },
+    {
+      period: "2026-10-01",
+      opening: 74337.63,
+      contributions: 1000,
+      days: 31,
+      interest: 315.68,
+      closing: 74653.31,
+      recordedAt: "2026-10-31T23:00:00.000Z",
+      reference: `${SEED_TAG}-THINT-OCT`,
+    },
+  ];
+
+  for (const interest of demoInterest) {
+    thriftInterestRows.push({
+      id: uuid(),
+      organization_id: organizationId,
+      employee_id: demonstration.id,
+      period_month: interest.period,
+      opening_balance: interest.opening,
+      contributions: interest.contributions,
+      annual_rate: 5,
+      eligible_days: interest.days,
+      interest_amount: interest.interest,
+      closing_balance: interest.closing,
+      reference: interest.reference,
+      status: "POSTED",
+      notes: `${SEED_TAG} sample interest`,
+      posted_by: ownerId,
+      created_at: interest.recordedAt,
+      updated_at: interest.recordedAt,
+    });
+
+    pushLedgerTransaction({
+      recordedAt: new Date(interest.recordedAt),
+      description: `Thrift interest for ${interest.period.slice(0, 7)}`,
+      transactionType: "THRIFT_INTEREST",
+      entries: [
+        {
+          accountId: accounts.thriftInterestExpense,
+          debit: interest.interest,
+          credit: 0,
+          description: "Thrift interest - expense",
+        },
+        {
+          financialAccountId: demonstrationThriftAccount,
+          debit: 0,
+          credit: interest.interest,
+          description: "Thrift interest - employee savings",
+        },
+      ],
+    });
   }
 
   // --- withdrawals and bank accounts ------------------------------------
@@ -931,8 +986,8 @@ async function seed() {
   await insertAll("loan_applications", loanInserts);
   await insertAll("loan_schedules", schedules);
   await insertAll("loan_repayments", repayments);
-  await insertAll("deduction_records", deductions);
-  await insertAll("salary_records", salaryRows);
+  await insertAll("thrift_fundings", thriftFundingRows);
+  await insertAll("thrift_interest_accruals", thriftInterestRows);
   await insertAll("ledger_transactions", ledgerTransactions);
   await insertAll("ledger_entries", ledgerEntries);
   await insertAll("fund_transactions", fundTransactions);
@@ -944,8 +999,8 @@ async function seed() {
     loans: loanInserts.length,
     schedules: schedules.length,
     repayments: repayments.length,
-    deductions: deductions.length,
-    salaryRecords: salaryRows.length,
+    thriftFundings: thriftFundingRows.length,
+    thriftInterest: thriftInterestRows.length,
     financialAccounts: financialAccountRows.length,
     ledgerTransactions: ledgerTransactions.length,
     ledgerEntries: ledgerEntries.length,

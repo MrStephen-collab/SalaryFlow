@@ -17,7 +17,7 @@ export default async function EmployeeNotificationsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
         <p className="text-sm text-muted-foreground">
-          Updates about your salary, loans, deductions and withdrawals.
+          Updates about your thrift savings, loans and withdrawals.
         </p>
       </div>
       <NotificationList items={items} />

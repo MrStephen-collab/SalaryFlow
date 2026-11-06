@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NameSearch } from "@/components/dashboard/name-search";
 
 export const metadata: Metadata = {
   title: "Repayments",
@@ -44,25 +45,32 @@ function scheduleStatusVariant(status: string) {
   }
 }
 
-const paymentMethods = [
-  "SALARY_DEDUCTION",
-  "BANK_TRANSFER",
-  "CASH",
-  "CARD",
-];
+const paymentMethods = ["THRIFT_FUNDING", "BANK_TRANSFER", "CASH", "CARD"];
 
 export default async function RepaymentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ method?: string }>;
+  searchParams: Promise<{ method?: string; q?: string }>;
 }) {
-  const { method } = await searchParams;
+  const { method, q } = await searchParams;
   const service = await LoanService.create();
 
   const [repayments, schedules] = await Promise.all([
     service.listRepayments(method),
     service.listOutstandingSchedules(),
   ]);
+
+  const term = (q ?? "").trim().toLowerCase();
+  const matches = (name?: string | null, number?: string | null) =>
+    !term ||
+    `${name ?? ""} ${number ?? ""}`.toLowerCase().includes(term);
+
+  const filteredRepayments = repayments.filter((repayment) =>
+    matches(repayment.employeeName, repayment.employeeNumber)
+  );
+  const filteredSchedules = schedules.filter((schedule) =>
+    matches(schedule.employeeName, schedule.employeeNumber)
+  );
 
   const now = new Date();
   const totals = repayments.reduce(
@@ -107,24 +115,27 @@ export default async function RepaymentsPage({
         </p>
       </div>
 
-      <Tabs defaultValue={method ?? "all"}>
-        <TabsList>
-          <TabsTrigger value="all" render={<Link href="/dashboard/repayments" />}>
-            All
-          </TabsTrigger>
-          {paymentMethods.map((m) => (
-            <TabsTrigger
-              key={m}
-              value={m}
-              render={
-                <Link href={`/dashboard/repayments?method=${m}`} />
-              }
-            >
-              {m.replace("_", " ")}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs defaultValue={method ?? "all"}>
+          <TabsList>
+            <TabsTrigger value="all" render={<Link href="/dashboard/repayments" />}>
+              All
             </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+            {paymentMethods.map((m) => (
+              <TabsTrigger
+                key={m}
+                value={m}
+                render={
+                  <Link href={`/dashboard/repayments?method=${m}`} />
+                }
+              >
+                {m.replace("_", " ")}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <NameSearch placeholder="Search employee name or number…" />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -162,13 +173,16 @@ export default async function RepaymentsPage({
         <h2 className="text-lg font-semibold tracking-tight">
           Repayment Records
         </h2>
-        {repayments.length === 0 ? (
+        {filteredRepayments.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-sm font-medium">No repayments recorded</p>
+              <p className="text-sm font-medium">
+                {term ? "No matching repayments" : "No repayments recorded"}
+              </p>
               <p className="text-sm text-muted-foreground">
-                Repayments are recorded automatically from salary deductions or
-                manually on loan applications.
+                {term
+                  ? "No employee matches that name or number."
+                  : "Repayments are recorded automatically from monthly thrift funding, or manually when a payment is received."}
               </p>
             </CardContent>
           </Card>
@@ -187,7 +201,7 @@ export default async function RepaymentsPage({
                 </TableRow>
               </TableHeader>
               <CollapsibleTableBody columns={7} itemLabel="repayments">
-                {repayments.map((repayment) => (
+                {filteredRepayments.map((repayment) => (
                   <TableRow key={repayment.id}>
                     <TableCell className="text-sm">
                       {new Date(repayment.recorded_at).toLocaleDateString("en-NG")}
@@ -254,12 +268,16 @@ export default async function RepaymentsPage({
         <h2 className="text-lg font-semibold tracking-tight">
           Outstanding Installments
         </h2>
-        {schedules.length === 0 ? (
+        {filteredSchedules.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-sm font-medium">No outstanding installments</p>
+              <p className="text-sm font-medium">
+                {term ? "No matching installments" : "No outstanding installments"}
+              </p>
               <p className="text-sm text-muted-foreground">
-                All active loan installments are up to date.
+                {term
+                  ? "No employee matches that name or number."
+                  : "All active loan installments are up to date."}
               </p>
             </CardContent>
           </Card>
@@ -278,7 +296,7 @@ export default async function RepaymentsPage({
                 </TableRow>
               </TableHeader>
               <CollapsibleTableBody columns={7} itemLabel="installments">
-                {schedules.map((schedule) => (
+                {filteredSchedules.map((schedule) => (
                   <TableRow key={schedule.id}>
                     <TableCell>
                       <div>

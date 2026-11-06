@@ -1,14 +1,6 @@
 "use server";
 
 import { ProfileService } from "@/services/profile-service";
-import { ThriftService } from "@/services/thrift-service";
-
-export async function updateMyThriftAmount(
-  amount: number
-): Promise<{ ok?: boolean; success?: string; error?: string }> {
-  const service = await ThriftService.create();
-  return service.updateMyThriftAmount(amount);
-}
 
 export async function changePassword(
   currentPassword: string,

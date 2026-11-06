@@ -127,7 +127,7 @@ export default async function VerifyReceiptPage({
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          {APP_NAME} · Salary-based employee finance
+          {APP_NAME} · Thrift savings & employee finance
         </p>
       </div>
     </div>

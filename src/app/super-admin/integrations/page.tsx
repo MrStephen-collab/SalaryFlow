@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireSuperAdmin } from "@/lib/auth";
 import { PlatformIntegrationService } from "@/services/platform-integration-service";
 import { IntegrationsForm } from "@/components/super-admin/integrations-form";
+import { MaintenanceModeCard } from "@/components/super-admin/maintenance-mode-card";
 import {
   Card,
   CardContent,
@@ -18,6 +19,7 @@ export default async function SuperAdminIntegrationsPage() {
   await requireSuperAdmin();
   const service = await PlatformIntegrationService.create();
   const rows = await service.list();
+  const maintenanceMode = await service.getMaintenanceMode();
 
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
@@ -32,6 +34,8 @@ export default async function SuperAdminIntegrationsPage() {
           can change them.
         </p>
       </div>
+
+      <MaintenanceModeCard enabled={maintenanceMode} />
 
       <Card>
         <CardHeader>

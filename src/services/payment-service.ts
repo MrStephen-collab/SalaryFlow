@@ -9,7 +9,7 @@ import { LedgerService } from "./ledger-service";
  * Gateway collections.
  *
  * Money can enter the platform in two ways:
- *   - ORGANIZATION_FUNDING: an organization tops up its salary pool.
+ *   - ORGANIZATION_FUNDING: an organization tops up its thrift pool.
  *   - SAVINGS_DEPOSIT: an external member tops up their savings wallet.
  *
  * Intents are recorded in payment_transactions before the payer leaves for the
@@ -60,7 +60,7 @@ function validateAmount(amount: number) {
 }
 
 export class PaymentService {
-  /** Start a salary-pool or member-loan-pool top-up for the organization. */
+  /** Start a thrift-pool or member-loan-pool top-up for the organization. */
   static async startOrganizationFunding(input: {
     amount: number;
     callbackUrl: string;
@@ -538,7 +538,7 @@ export class PaymentService {
         .from("fund_accounts")
         .insert({
           organization_id: intent.organization_id,
-          name: "Salary Pool",
+          name: "Thrift Pool",
           currency: "NGN",
           opening_balance: 0,
           status: "ACTIVE",
@@ -562,7 +562,7 @@ export class PaymentService {
 
     if (error) return { error: error.message };
 
-    return { reference: movementReference, message: "Salary pool funded" };
+    return { reference: movementReference, message: "Thrift pool topped up" };
   }
 
   private static async applySavingsDeposit(

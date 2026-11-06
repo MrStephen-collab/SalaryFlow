@@ -72,10 +72,6 @@ export async function completeOnboarding(
       .from("organization_settings")
       .insert({
         organization_id: organization.id,
-        salary_cycle: parsed.data.settings.salary_cycle,
-        max_salary_deduction_percentage:
-          parsed.data.settings.max_salary_deduction_percentage,
-        min_salary: parsed.data.settings.min_salary,
         min_employment_period_months:
           parsed.data.settings.min_employment_period_months,
         max_loan_amount: parsed.data.settings.max_loan_amount ?? null,

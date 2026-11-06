@@ -221,27 +221,26 @@ async function fetchRepayment(
   };
 }
 
-async function fetchDeduction(
+async function fetchThriftFunding(
   admin: AdminClient,
   id: string
 ): Promise<RawReceipt | null> {
   const { data } = await admin
-    .from("deduction_records")
+    .from("thrift_fundings")
     .select(
       `
       id,
       organization_id,
       employee_id,
-      expected_amount,
-      actual_amount,
-      shortfall,
+      period_month,
+      amount,
+      loan_repayment_applied,
+      thrift_credit,
       status,
       reference,
       notes,
-      processed_at,
       created_at,
-      employees:employee_id(employee_number, first_name, last_name),
-      salary_periods:salary_period_id(name)
+      employees:employee_id(employee_number, first_name, last_name)
     `
     )
     .eq("id", id)
@@ -252,22 +251,26 @@ async function fetchDeduction(
   const employee = unwrap(
     data.employees as unknown as Embedded<ReceiptEmployee>
   );
-  const period = unwrap(
-    data.salary_periods as unknown as Embedded<{ name: string | null }>
-  );
+
+  const periodLabel = new Date(
+    `${data.period_month}T00:00:00Z`
+  ).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 
   const details = [
+    { label: "Funding month", value: periodLabel },
     {
-      label: "Salary period",
-      value: period?.name ?? "Payroll deduction",
+      label: "Applied to loan",
+      value: money(Number(data.loan_repayment_applied) || 0),
     },
-    { label: "Expected amount", value: money(Number(data.expected_amount) || 0) },
+    {
+      label: "Added to savings",
+      value: money(Number(data.thrift_credit) || 0),
+    },
   ];
-
-  const shortfall = Number(data.shortfall) || 0;
-  if (shortfall > 0) {
-    details.push({ label: "Shortfall", value: money(shortfall) });
-  }
 
   if (data.notes) {
     details.push({ label: "Notes", value: data.notes });
@@ -281,13 +284,11 @@ async function fetchDeduction(
       ? `${employee.first_name ?? ""} ${employee.last_name ?? ""}`.trim()
       : "Employee",
     employeeNumber: employee?.employee_number ?? "",
-    amount: Number(data.actual_amount) || 0,
+    amount: Number(data.amount) || 0,
     status: data.status,
-    reference: data.reference ?? fallbackReference("DED", data.id),
-    issuedAt: data.processed_at ?? data.created_at,
-    description: period?.name
-      ? `Salary deduction — ${period.name}`
-      : "Salary deduction",
+    reference: data.reference ?? fallbackReference("THR", data.id),
+    issuedAt: data.created_at,
+    description: `Thrift funding — ${periodLabel}`,
     details,
   };
 }
@@ -386,8 +387,8 @@ async function fetchRawReceipt(
   switch (type) {
     case "repayment":
       return fetchRepayment(admin, id);
-    case "deduction":
-      return fetchDeduction(admin, id);
+    case "thrift":
+      return fetchThriftFunding(admin, id);
     case "withdrawal":
       return fetchWithdrawal(admin, id);
   }

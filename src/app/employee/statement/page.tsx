@@ -30,7 +30,7 @@ export default async function EmployeeStatementPage({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Statement</h1>
           <p className="text-sm text-muted-foreground">
-            Your account activity, payroll and receipts
+            Your account activity, thrift funding, interest and receipts
           </p>
         </div>
         <Card>
@@ -64,7 +64,7 @@ export default async function EmployeeStatementPage({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Statement</h1>
           <p className="text-sm text-muted-foreground">
-            Your account activity, payroll and receipts for the selected period
+            Your account activity, thrift funding, interest and receipts for the selected period
           </p>
         </div>
 

@@ -27,9 +27,9 @@ const employerFeatures = [
   },
   {
     icon: FileCheck2,
-    title: "Salary Deduction Engine",
+    title: "Thrift Funding Engine",
     description:
-      "Automatically calculate loan deductions from salary with configurable limits and reconciliation.",
+      "Record each employee's monthly thrift contribution and apply it to their savings and active loan automatically.",
   },
   {
     icon: Lock,
@@ -44,7 +44,7 @@ const employeeFeatures = [
     icon: Wallet,
     title: "Check Your Balance",
     description:
-      "See your salary, available balance, and every deduction from one simple dashboard.",
+      "See your thrift amount, thrift savings, active loan and wallet balance from one simple dashboard.",
   },
   {
     icon: Banknote,
@@ -109,11 +109,11 @@ export default function LandingPage() {
         <section className="py-16 text-center sm:py-24">
           <h1 className="mx-auto max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
             Give Your Employees Easier Access to{" "}
-            <span className="text-primary">Salary-Backed Finance</span>
+            <span className="text-primary">Thrift-Backed Finance</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Manage employee loans, salary deductions, repayments and financial
-            accounts from one simple platform.
+            Manage employer-funded thrift savings, employee loans, repayments
+            and financial accounts from one simple platform.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button size="lg" render={<Link href="/auth/register" />}>
@@ -132,7 +132,7 @@ export default function LandingPage() {
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
               Give employees structured financial support while maintaining
-              complete control over loan policies and salary deductions.
+              complete control over loan policies and monthly thrift funding.
             </p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -159,7 +159,7 @@ export default function LandingPage() {
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
               See what you qualify for, apply for a loan, track repayments and
-              understand every deduction from your salary.
+              understand every thrift contribution from your employer.
             </p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -204,7 +204,7 @@ export default function LandingPage() {
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
             Set up your organization and give your employees easier access to
-            salary-backed finance.
+            thrift-backed finance.
           </p>
           <Button size="lg" className="mt-8" render={<Link href="/auth/register" />}>
             Get Started <ArrowRight className="ml-2 h-4 w-4" />

@@ -304,58 +304,6 @@ export class LoanCalculationService {
     return schedule;
   }
 
-  static calculateEligibleLoanAmount(
-    salary: number,
-    maxDeductionPercentage: number,
-    effectiveRate: number,
-    durationMonths: number,
-    interestMethod: InterestMethod
-  ): number {
-    const maxMonthlyDeduction = salary * (maxDeductionPercentage / 100);
-
-    if (effectiveRate === 0 || durationMonths === 0) return 0;
-
-    switch (interestMethod) {
-      case "FLAT": {
-        // effectiveRate is treated as the flat total-rate fraction (e.g. 0.10)
-        const factor = 1 + effectiveRate;
-        return LoanCalculationService.round2(
-          (maxMonthlyDeduction * durationMonths) / factor
-        );
-      }
-      case "REDUCING_BALANCE": {
-        let low = 0;
-        let high = salary * durationMonths;
-        for (let iter = 0; iter < 50; iter++) {
-          const mid = (low + high) / 2;
-          const totalInterest =
-            LoanCalculationService.calculateReducingBalanceInterest(
-              mid,
-              effectiveRate,
-              durationMonths
-            );
-          const monthlyPayment = (mid + totalInterest) / durationMonths;
-          if (monthlyPayment > maxMonthlyDeduction) {
-            high = mid;
-          } else {
-            low = mid;
-          }
-        }
-        return LoanCalculationService.round2(low);
-      }
-      case "AMORTIZED": {
-        if (effectiveRate === 0) return maxMonthlyDeduction * durationMonths;
-        const principal =
-          maxMonthlyDeduction *
-          ((Math.pow(1 + effectiveRate, durationMonths) - 1) /
-            (effectiveRate * Math.pow(1 + effectiveRate, durationMonths)));
-        return LoanCalculationService.round2(principal);
-      }
-      default:
-        return 0;
-    }
-  }
-
   private static round2(n: number): number {
     return Math.round(n * 100) / 100;
   }

@@ -81,7 +81,7 @@ export function AnnouncementManager({
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           rows={2}
-          placeholder="e.g. Pay your loans on time to keep enjoying salary-backed loans."
+          placeholder="e.g. Pay your loans on time to keep enjoying thrift-backed loans."
         />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2 sm:w-56">

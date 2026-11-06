@@ -13,6 +13,8 @@ export interface LedgerEntryInput {
 export interface LedgerTransactionInput {
   description: string;
   transactionType: string;
+  /** Defaults to today. Use the period end when posting historical accruals. */
+  transactionDate?: string;
   entries: LedgerEntryInput[];
 }
 
@@ -102,7 +104,8 @@ export class LedgerService {
         organization_id: this.orgId,
         reference: txReference,
         description: input.description,
-        transaction_date: new Date().toISOString().split("T")[0],
+        transaction_date:
+          input.transactionDate ?? new Date().toISOString().split("T")[0],
         transaction_type: input.transactionType,
         status: "POSTED",
         created_by: this.userId,
@@ -272,13 +275,13 @@ export class LedgerService {
     if (!this.orgId) return;
 
     const defaults = [
-      { code: "1000", name: "Lending Fund", type: "ASSET" },
+      { code: "1000", name: "Thrift Pool", type: "ASSET" },
       { code: "1100", name: "Loan Receivable", type: "ASSET" },
       { code: "2000", name: "Loan Principal", type: "LIABILITY" },
       { code: "4000", name: "Interest Income", type: "INCOME" },
       { code: "4100", name: "Gateway & Other Income", type: "INCOME" },
-      { code: "5000", name: "Salary Expense", type: "EXPENSE" },
       { code: "5100", name: "Gateway Fees", type: "EXPENSE" },
+      { code: "5200", name: "Thrift Interest Expense", type: "EXPENSE" },
     ];
 
     const { data } = await this.supabase
@@ -370,7 +373,7 @@ export class LedgerService {
 
   /**
    * Credit a member's savings wallet and mirror the movement.
-   * Debit:  Lending Fund (cash received)   Credit: Member Savings wallet
+   * Debit:  Thrift Pool (cash received)   Credit: Member Savings wallet
    */
   async postSavingsDeposit(
     memberId: string,
@@ -399,7 +402,7 @@ export class LedgerService {
 
   /**
    * Debit a member's savings wallet (member withdrawal).
-   * Debit: Member Savings wallet   Credit: Lending Fund (cash paid out)
+   * Debit: Member Savings wallet   Credit: Thrift Pool (cash paid out)
    */
   async postSavingsWithdrawal(
     memberId: string,
@@ -499,7 +502,7 @@ export class LedgerService {
 
   /**
    * Debit a member's withdrawable wallet (cash paid out).
-   * Debit: Member wallet   Credit: Lending Fund
+   * Debit: Member wallet   Credit: Thrift Pool
    */
   async postMemberWalletWithdrawal(
     memberId: string,
@@ -527,42 +530,141 @@ export class LedgerService {
   }
 
   /**
-   * Move the agreed voluntary saving out of the salary wallet into the
-   * employee's thrift savings account.
-   * Debit: Employee wallet   Credit: Employee thrift savings
+   * Employer-funded thrift contribution. The employer withholds the agreed
+   * amount from the externally paid salary and records it here.
+   * Debit: Thrift Pool (cash received)   Credit: Employee thrift savings
    */
-  async postThriftContribution(
+  async postThriftFunding(
     employeeId: string,
-    runId: string,
-    amount: number
+    reference: string,
+    amount: number,
+    description = "Thrift funding from employer"
   ) {
-    const wallet = await this.ensureFinancialAccount(employeeId);
+    await this.ensureChartOfAccounts();
     const thrift = await this.ensureThriftAccount(employeeId);
+    const fund = await this.getAccountByCode("1000");
 
-    if (!wallet?.id || !thrift?.id) {
+    if (!thrift?.id) {
       return { error: "Could not open a thrift savings account for this employee" };
     }
 
     return this.postTransaction(
       {
-        description: "Thrift savings set aside from salary",
-        transactionType: "THRIFT_CONTRIBUTION",
+        description,
+        transactionType: "THRIFT_FUNDING",
         entries: [
           {
-            financialAccountId: wallet.id,
+            accountId: fund?.id,
             debit: amount,
             credit: 0,
-            description: "Thrift savings - from salary wallet",
+            description: `${description} - cash received`,
           },
           {
             financialAccountId: thrift.id,
             debit: 0,
             credit: amount,
-            description: "Thrift savings - employee savings",
+            description: `${description} - employee thrift savings`,
           },
         ],
       },
-      `SLF-THRIFT-${runId.slice(0, 8)}-${employeeId.slice(0, 8)}`
+      reference
+    );
+  }
+
+  /**
+   * Credit monthly interest to an employee's thrift savings.
+   * Debit: Thrift Interest Expense   Credit: Employee thrift savings
+   */
+  async postThriftInterest(
+    employeeId: string,
+    reference: string,
+    amount: number,
+    transactionDate: string,
+    description = "Thrift savings interest"
+  ) {
+    await this.ensureChartOfAccounts();
+    const thrift = await this.ensureThriftAccount(employeeId);
+    const expense = await this.getAccountByCode("5200");
+
+    if (!thrift?.id) {
+      return { error: "Thrift savings account not found" };
+    }
+
+    return this.postTransaction(
+      {
+        description,
+        transactionType: "THRIFT_INTEREST",
+        transactionDate,
+        entries: [
+          {
+            accountId: expense?.id,
+            debit: amount,
+            credit: 0,
+            description: `${description} - expense`,
+          },
+          {
+            financialAccountId: thrift.id,
+            debit: 0,
+            credit: amount,
+            description: `${description} - employee thrift savings`,
+          },
+        ],
+      },
+      reference
+    );
+  }
+
+  /**
+   * Settle a loan instalment from the employee's monthly thrift funding.
+   * Debit: Employee thrift savings
+   * Credit: Loan Principal / Interest Income
+   */
+  async postThriftLoanRepayment(
+    employeeId: string,
+    loanApplicationId: string,
+    amount: number,
+    principalPortion: number,
+    interestPortion: number,
+    reference: string
+  ) {
+    await this.ensureChartOfAccounts();
+    const thrift = await this.ensureThriftAccount(employeeId);
+    const principalAccount = await this.getAccountByCode("2000");
+    const interestAccount = await this.getAccountByCode("4000");
+
+    if (!thrift?.id) {
+      return { error: "Thrift savings account not found" };
+    }
+
+    const interest = Math.min(interestPortion, amount);
+    const principal = Math.round((amount - interest) * 100) / 100;
+
+    return this.postTransaction(
+      {
+        description: `Loan repayment ${loanApplicationId.slice(0, 8)} from thrift funding`,
+        transactionType: "THRIFT_LOAN_REPAYMENT",
+        entries: [
+          {
+            financialAccountId: thrift.id,
+            debit: amount,
+            credit: 0,
+            description: "Loan repayment - employee thrift savings",
+          },
+          {
+            accountId: principalAccount?.id,
+            debit: 0,
+            credit: principal,
+            description: "Loan repayment - principal",
+          },
+          {
+            accountId: interestAccount?.id,
+            debit: 0,
+            credit: interest,
+            description: "Loan repayment - interest",
+          },
+        ],
+      },
+      reference
     );
   }
 
@@ -603,35 +705,6 @@ export class LedgerService {
         ],
       },
       reference
-    );
-  }
-
-  /**
-   * Salary run credit: the org's salary expense becomes spendable employee
-   * balance. Cash has not left the organization yet - it leaves on withdrawal.
-   * Debit: Salary Expense   Credit: Employee Balance
-   */
-  async postSalaryDisbursement(
-    employeeId: string,
-    runId: string,
-    amount: number
-  ) {
-    await this.ensureChartOfAccounts();
-    const wallet = await this.ensureFinancialAccount(employeeId);
-    const expense = await this.getAccountByCode("5000");
-
-    if (!wallet?.id) return { error: "Could not open a wallet for this employee" };
-
-    return this.postTransaction(
-      {
-        description: `Salary disbursement ${runId.slice(0, 8)} - amount ${amount}`,
-        transactionType: "SALARY_DISBURSEMENT",
-        entries: [
-          { accountId: expense?.id, debit: amount, credit: 0, description: "Salary run - expense" },
-          { financialAccountId: wallet.id, debit: 0, credit: amount, description: "Salary run - employee wallet" },
-        ],
-      },
-      `SLF-SAL-${runId.slice(0, 8)}-${employeeId.slice(0, 8)}`
     );
   }
 
@@ -683,7 +756,7 @@ export class LedgerService {
    * Debit: Loan Receivable         (amount)
    * Credit: Employee Balance       (amount)  -- disbursed funds available to employee
    *
-   * The cash itself leaves the lending fund when the employee withdraws, which
+   * The cash itself leaves the Thrift Pool when the employee withdraws, which
    * is where the employee balance is debited against the fund.
    */
   async postLoanDisbursement(
@@ -713,7 +786,7 @@ export class LedgerService {
   /**
    * Post a withdrawal payout to the ledger.
    * Debit: Employee Balance  (amount)
-   * Credit: Lending Fund     (amount)
+   * Credit: Thrift Pool     (amount)
    */
   async postWithdrawal(
     employeeId: string,
@@ -726,7 +799,7 @@ export class LedgerService {
 
     const entries = [
       { financialAccountId: financialAccount?.id, debit: amount, credit: 0, description: "Withdrawal payout - employee balance" },
-      { accountId: fund?.id, debit: 0, credit: amount, description: "Withdrawal payout - lending fund" },
+      { accountId: fund?.id, debit: 0, credit: amount, description: "Withdrawal payout - thrift pool" },
     ].filter((e) => e.accountId || e.financialAccountId);
 
     return this.postTransaction(
@@ -740,8 +813,8 @@ export class LedgerService {
   }
 
   /**
-   * Post a loan repayment to the ledger.
-   * Debit: Lending Fund      (amount)   -- cash received via salary deduction
+   * Post a loan repayment received in cash to the ledger.
+   * Debit: Thrift Pool      (amount)   -- cash received
    * Credit: Loan Principal   (principal portion)
    * Credit: Interest Income  (interest portion)
    */
@@ -760,7 +833,7 @@ export class LedgerService {
     const interestAccount = await this.getAccountByCode("4000");
 
     const entries = [
-      { accountId: fund?.id, debit: amount, credit: 0, description: "Loan repayment - lending fund" },
+      { accountId: fund?.id, debit: amount, credit: 0, description: "Loan repayment - thrift pool" },
       { accountId: principalAccount?.id, debit: 0, credit: principalPortion, description: "Loan repayment - principal" },
       { accountId: interestAccount?.id, debit: 0, credit: interestPortion, description: "Loan repayment - interest" },
     ].filter((e) => e.accountId);
@@ -789,6 +862,78 @@ export class LedgerService {
 
     const totalCredit = (data ?? []).reduce((s, e) => s + (Number(e.credit) || 0), 0);
     const totalDebit = (data ?? []).reduce((s, e) => s + (Number(e.debit) || 0), 0);
+
+    return Math.round((totalCredit - totalDebit) * 100) / 100;
+  }
+
+  /** Thrift savings balance immediately before the supplied date (UTC). */
+  async getThriftBalanceBefore(employeeId: string, date: string) {
+    if (!this.orgId) return 0;
+    const account = await this.ensureThriftAccount(employeeId);
+    if (!account?.id) return 0;
+    return this.getFinancialAccountBalanceBefore(account.id, date);
+  }
+
+  /** Balance after every posted entry dated strictly before `date`. */
+  async getFinancialAccountBalanceBefore(
+    financialAccountId: string,
+    date: string
+  ): Promise<number> {
+    if (!this.orgId) return 0;
+
+    const { data } = await this.supabase
+      .from("ledger_entries")
+      .select(
+        "debit, credit, ledger_transactions!inner(transaction_date, status)"
+      )
+      .eq("financial_account_id", financialAccountId)
+      .lt("ledger_transactions.transaction_date", date)
+      .neq("ledger_transactions.status", "REVERSED");
+
+    const totalCredit = (data ?? []).reduce(
+      (s, e) => s + (Number(e.credit) || 0),
+      0
+    );
+    const totalDebit = (data ?? []).reduce(
+      (s, e) => s + (Number(e.debit) || 0),
+      0
+    );
+
+    return Math.round((totalCredit - totalDebit) * 100) / 100;
+  }
+
+  /** Thrift savings balance at the end of the supplied date (UTC). */
+  async getThriftBalanceAsOf(employeeId: string, date: string) {
+    if (!this.orgId) return 0;
+    const account = await this.ensureThriftAccount(employeeId);
+    if (!account?.id) return 0;
+    return this.getFinancialAccountBalanceAsOf(account.id, date);
+  }
+
+  /** Balance after every posted entry dated on or before `date`. */
+  async getFinancialAccountBalanceAsOf(
+    financialAccountId: string,
+    date: string
+  ): Promise<number> {
+    if (!this.orgId) return 0;
+
+    const { data } = await this.supabase
+      .from("ledger_entries")
+      .select(
+        "debit, credit, ledger_transactions!inner(transaction_date, status)"
+      )
+      .eq("financial_account_id", financialAccountId)
+      .lte("ledger_transactions.transaction_date", date)
+      .neq("ledger_transactions.status", "REVERSED");
+
+    const totalCredit = (data ?? []).reduce(
+      (s, e) => s + (Number(e.credit) || 0),
+      0
+    );
+    const totalDebit = (data ?? []).reduce(
+      (s, e) => s + (Number(e.debit) || 0),
+      0
+    );
 
     return Math.round((totalCredit - totalDebit) * 100) / 100;
   }
