@@ -220,12 +220,13 @@ export default async function ThriftSavingsPage({
                     <TableHead>Employee</TableHead>
                     <TableHead className="text-right">Opening</TableHead>
                     <TableHead className="text-right">Contribution</TableHead>
+                    <TableHead className="text-right">Released</TableHead>
                     <TableHead className="text-right">Days</TableHead>
                     <TableHead className="text-right">Interest</TableHead>
                     <TableHead className="text-right">Closing</TableHead>
                   </TableRow>
                 </TableHeader>
-                <CollapsibleTableBody columns={6} itemLabel="employees">
+                <CollapsibleTableBody columns={7} itemLabel="employees">
                   {interest.accruals.map((accrual) => (
                     <TableRow key={accrual.id}>
                       <TableCell>
@@ -244,6 +245,9 @@ export default async function ThriftSavingsPage({
                       </TableCell>
                       <TableCell className="text-right text-sm">
                         {naira(accrual.contributions)}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {naira(accrual.payouts)}
                       </TableCell>
                       <TableCell className="text-right text-sm">
                         {accrual.eligibleDays}

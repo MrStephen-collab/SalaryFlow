@@ -817,6 +817,7 @@ async function seed() {
       period_month: interest.period,
       opening_balance: interest.opening,
       contributions: interest.contributions,
+      payouts: 0,
       annual_rate: 5,
       eligible_days: interest.days,
       interest_amount: interest.interest,

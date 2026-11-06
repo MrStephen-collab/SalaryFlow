@@ -61,6 +61,7 @@ export interface ThriftInterestLine {
   periodLabel: string;
   openingBalance: number;
   contributions: number;
+  payouts: number;
   annualRate: number;
   eligibleDays: number;
   interest: number;
@@ -266,6 +267,7 @@ export class StatementService {
             period_month,
             opening_balance,
             contributions,
+            payouts,
             annual_rate,
             eligible_days,
             interest_amount,
@@ -542,6 +544,7 @@ export class StatementService {
           periodLabel,
           openingBalance: Number(record.opening_balance) || 0,
           contributions: Number(record.contributions) || 0,
+          payouts: Number(record.payouts) || 0,
           annualRate: Number(record.annual_rate) || 0,
           eligibleDays: Number(record.eligible_days) || 0,
           interest: Number(record.interest_amount) || 0,

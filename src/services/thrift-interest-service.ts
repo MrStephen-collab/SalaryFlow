@@ -47,6 +47,7 @@ export interface ThriftInterestAccrual {
   periodLabel: string;
   openingBalance: number;
   contributions: number;
+  payouts: number;
   annualRate: number;
   eligibleDays: number;
   interest: number;
@@ -67,6 +68,7 @@ export interface ThriftInterestOverview {
     interest: number;
     opening: number;
     contributions: number;
+    payouts: number;
     closing: number;
     posted: number;
     ytdInterest: number;
@@ -198,14 +200,45 @@ export class ThriftInterestService {
       )
     );
 
+    const { data: account } = await admin
+      .from("financial_accounts")
+      .select("id")
+      .eq("employee_id", employeeId)
+      .eq("account_type", "THRIFT")
+      .maybeSingle();
+
+    let payouts = 0;
+    if (account?.id) {
+      const { data: payoutEntries } = await admin
+        .from("ledger_entries")
+        .select(
+          "debit, ledger_transactions!inner(transaction_date, transaction_type, status)"
+        )
+        .eq("financial_account_id", account.id)
+        .eq("ledger_transactions.transaction_type", "THRIFT_PAYOUT")
+        .neq("ledger_transactions.status", "REVERSED")
+        .gte("ledger_transactions.transaction_date", periodMonth)
+        .lte("ledger_transactions.transaction_date", periodEnd(periodMonth));
+
+      payouts = round2(
+        (payoutEntries ?? []).reduce(
+          (sum, entry) => sum + (Number(entry.debit) || 0),
+          0
+        )
+      );
+    }
+
     // Balance immediately before the month starts, plus this month's
-    // contributions. This mirrors the statement breakdown used by the
-    // cooperative: opening = prior closing + month's savings contributions.
+    // contributions, less savings released during the month. This mirrors the
+    // statement breakdown and prevents released money from earning interest.
     const priorBalance = await ledger.getThriftBalanceBefore(
       employeeId,
       periodMonth
     );
-    const openingBalance = round2(priorBalance + contributions);
+    const openingBalance = Math.max(
+      0,
+      round2(priorBalance + contributions - payouts)
+    );
     const interest = round2(
       openingBalance * (annualRate / 100) * (eligibleDays / 365)
     );
@@ -214,6 +247,7 @@ export class ThriftInterestService {
     return {
       openingBalance,
       contributions,
+      payouts,
       annualRate,
       eligibleDays,
       interest,
@@ -279,6 +313,7 @@ export class ThriftInterestService {
         period_month: periodMonth,
         opening_balance: calculation.openingBalance,
         contributions: calculation.contributions,
+        payouts: calculation.payouts,
         annual_rate: calculation.annualRate,
         eligible_days: calculation.eligibleDays,
         interest_amount: calculation.interest,
@@ -321,6 +356,7 @@ export class ThriftInterestService {
         periodMonth,
         openingBalance: calculation.openingBalance,
         contributions: calculation.contributions,
+        payouts: calculation.payouts,
         annualRate: calculation.annualRate,
         eligibleDays: calculation.eligibleDays,
         interest: calculation.interest,
@@ -521,10 +557,39 @@ export class ThriftInterestService {
       accountId: string;
       openingBalance: number;
       contributions: number;
+      payouts: number;
       interest: number;
       closingBalance: number;
       reference: string;
     }> = [];
+
+    const payoutsByEmployee = new Map<string, number>();
+    for (const accountIds of chunk([...employeeByAccount.keys()])) {
+      const { data: payoutEntries } = await admin
+        .from("ledger_entries")
+        .select(
+          "financial_account_id, debit, ledger_transactions!inner(transaction_date, transaction_type, status)"
+        )
+        .in("financial_account_id", accountIds)
+        .eq("ledger_transactions.transaction_type", "THRIFT_PAYOUT")
+        .neq("ledger_transactions.status", "REVERSED")
+        .gte("ledger_transactions.transaction_date", periodMonth)
+        .lte("ledger_transactions.transaction_date", periodEnd(periodMonth));
+
+      for (const entry of payoutEntries ?? []) {
+        const employeeId = employeeByAccount.get(
+          entry.financial_account_id as string
+        );
+        if (!employeeId) continue;
+        payoutsByEmployee.set(
+          employeeId,
+          round2(
+            (payoutsByEmployee.get(employeeId) ?? 0) +
+              (Number(entry.debit) || 0)
+          )
+        );
+      }
+    }
 
     for (const employeeId of employeeIds) {
       if (existing.has(employeeId)) {
@@ -536,9 +601,15 @@ export class ThriftInterestService {
         skipped += 1;
         continue;
       }
-      const openingBalance = round2(
-        (openingByEmployee.get(employeeId) ?? 0) +
-          (contributions.get(employeeId) ?? 0)
+      const contributionsForEmployee = contributions.get(employeeId) ?? 0;
+      const payoutsForEmployee = payoutsByEmployee.get(employeeId) ?? 0;
+      const openingBalance = Math.max(
+        0,
+        round2(
+          (openingByEmployee.get(employeeId) ?? 0) +
+            contributionsForEmployee -
+            payoutsForEmployee
+        )
       );
       const interest = round2(
         openingBalance * (rate / 100) * (eligibleDays / 365)
@@ -551,7 +622,8 @@ export class ThriftInterestService {
         employeeId,
         accountId,
         openingBalance,
-        contributions: contributions.get(employeeId) ?? 0,
+        contributions: contributionsForEmployee,
+        payouts: payoutsForEmployee,
         interest,
         closingBalance: round2(openingBalance + interest),
         reference: `SLF-THINT-${employeeId}-${periodMonth
@@ -585,6 +657,7 @@ export class ThriftInterestService {
         period_month: periodMonth,
         opening_balance: candidate.openingBalance,
         contributions: candidate.contributions,
+        payouts: candidate.payouts,
         annual_rate: rate,
         eligible_days: eligibleDays,
         interest_amount: candidate.interest,
@@ -690,6 +763,9 @@ export class ThriftInterestService {
     const total = round2(
       candidates.reduce((sum, row) => sum + row.interest, 0)
     );
+    const totalPayouts = round2(
+      candidates.reduce((sum, row) => sum + row.payouts, 0)
+    );
 
     await recordAudit({
       organizationId: this.organizationId,
@@ -703,6 +779,7 @@ export class ThriftInterestService {
         skipped,
         failed: 0,
         total,
+        payouts: totalPayouts,
         rate,
       },
     });
@@ -809,7 +886,7 @@ export class ThriftInterestService {
         .select(
           `
           id, employee_id, period_month, opening_balance, contributions,
-          annual_rate, eligible_days, interest_amount, closing_balance,
+          payouts, annual_rate, eligible_days, interest_amount, closing_balance,
           reference, status, created_at,
           employees:employee_id(employee_number, first_name, last_name, department)
         `
@@ -846,6 +923,7 @@ export class ThriftInterestService {
         periodLabel: monthName(row.period_month as string),
         openingBalance: Number(row.opening_balance) || 0,
         contributions: Number(row.contributions) || 0,
+        payouts: Number(row.payouts) || 0,
         annualRate: Number(row.annual_rate) || 0,
         eligibleDays: Number(row.eligible_days) || 0,
         interest: Number(row.interest_amount) || 0,
@@ -877,6 +955,9 @@ export class ThriftInterestService {
         contributions: round2(
           accruals.reduce((sum, row) => sum + row.contributions, 0)
         ),
+        payouts: round2(
+          accruals.reduce((sum, row) => sum + row.payouts, 0)
+        ),
         closing: round2(
           accruals.reduce((sum, row) => sum + row.closingBalance, 0)
         ),
@@ -901,7 +982,7 @@ export class ThriftInterestService {
       .select(
         `
         id, employee_id, period_month, opening_balance, contributions,
-        annual_rate, eligible_days, interest_amount, closing_balance,
+        payouts, annual_rate, eligible_days, interest_amount, closing_balance,
         reference, status, created_at,
         employees:employee_id(employee_number, first_name, last_name, department)
       `
@@ -936,6 +1017,7 @@ export class ThriftInterestService {
         periodLabel: monthName(row.period_month as string),
         openingBalance: Number(row.opening_balance) || 0,
         contributions: Number(row.contributions) || 0,
+        payouts: Number(row.payouts) || 0,
         annualRate: Number(row.annual_rate) || 0,
         eligibleDays: Number(row.eligible_days) || 0,
         interest: Number(row.interest_amount) || 0,
@@ -973,7 +1055,7 @@ export class ThriftInterestService {
       admin
         .from("thrift_interest_accruals")
         .select(
-          "id, period_month, opening_balance, contributions, annual_rate, eligible_days, interest_amount, closing_balance, reference, status, created_at"
+          "id, period_month, opening_balance, contributions, payouts, annual_rate, eligible_days, interest_amount, closing_balance, reference, status, created_at"
         )
         .eq("employee_id", employee.id)
         .eq("status", "POSTED")
@@ -991,6 +1073,7 @@ export class ThriftInterestService {
       periodLabel: monthName(row.period_month as string),
       openingBalance: Number(row.opening_balance) || 0,
       contributions: Number(row.contributions) || 0,
+      payouts: Number(row.payouts) || 0,
       annualRate: Number(row.annual_rate) || 0,
       eligibleDays: Number(row.eligible_days) || 0,
       interest: Number(row.interest_amount) || 0,

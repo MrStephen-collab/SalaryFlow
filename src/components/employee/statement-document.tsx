@@ -270,6 +270,7 @@ export function StatementDocument({
                   <TableHead>Month</TableHead>
                   <TableHead className="text-right">Opening</TableHead>
                   <TableHead className="text-right">Contribution</TableHead>
+                  <TableHead className="text-right">Released</TableHead>
                   <TableHead className="text-right">Rate</TableHead>
                   <TableHead className="text-right">Days</TableHead>
                   <TableHead className="text-right">Interest</TableHead>
@@ -277,7 +278,7 @@ export function StatementDocument({
                 </TableRow>
               </TableHeader>
               <CollapsibleTableBody
-                columns={7}
+                columns={8}
                 itemLabel="months"
                 limit={rowLimit}
               >
@@ -296,6 +297,9 @@ export function StatementDocument({
                       {formatCurrency(record.contributions)}
                     </TableCell>
                     <TableCell className="text-right text-sm">
+                      {formatCurrency(record.payouts)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
                       {record.annualRate}%
                     </TableCell>
                     <TableCell className="text-right text-sm">
@@ -312,7 +316,7 @@ export function StatementDocument({
               </CollapsibleTableBody>
               <TableFooter>
                 <TableRow>
-                  <TableCell colSpan={5}>Total interest</TableCell>
+                  <TableCell colSpan={6}>Total interest</TableCell>
                   <TableCell className="text-right">
                     {formatCurrency(statement.thrift.interestEarned)}
                   </TableCell>
