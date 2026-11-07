@@ -102,7 +102,7 @@ export class PaymentService {
       }
     }
 
-    await preparePaymentProvider();
+    await preparePaymentProvider(profile.organization_id);
     const provider = getPaymentProvider();
     if (!provider.supportsCollections()) {
       return {
@@ -214,7 +214,7 @@ export class PaymentService {
       return { ok: false, error: "Your membership is not active. Contact your organization." };
     }
 
-    await preparePaymentProvider();
+    await preparePaymentProvider(member.organization_id);
     const provider = getPaymentProvider();
     if (!provider.supportsCollections()) {
       return {
@@ -348,7 +348,7 @@ export class PaymentService {
       return { ok: false, paid: false, status: "REVERSED", message: "Payment was reversed" };
     }
 
-    await preparePaymentProvider();
+    await preparePaymentProvider(intent.organization_id as string);
     const provider = getPaymentProvider();
     const verification = await provider.verifyCollection(internalReference);
 

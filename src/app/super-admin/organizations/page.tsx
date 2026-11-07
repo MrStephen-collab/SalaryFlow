@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -9,6 +10,8 @@ import {
 } from "@/components/ui/table";
 import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Plug } from "lucide-react";
 import { SuperAdminService } from "@/services/super-admin-service";
 import { requireSuperAdmin } from "@/lib/auth";
 import { EnrollOrganizationForm } from "@/components/super-admin/enroll-organization-form";
@@ -62,14 +65,15 @@ export default async function OrganizationsPage() {
                 <TableHead>Plan</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead>APIs</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <CollapsibleTableBody columns={9} itemLabel="organizations">
+            <CollapsibleTableBody columns={10} itemLabel="organizations">
               {organizations.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={10}
                     className="py-8 text-center text-muted-foreground"
                   >
                     No organizations yet
@@ -100,8 +104,29 @@ export default async function OrganizationsPage() {
                     <TableCell>
                       {new Date(org.created_at).toLocaleDateString()}
                     </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={org.integrationCount ? "default" : "secondary"}
+                      >
+                        {org.integrationCount
+                          ? `${org.integrationCount} configured`
+                          : "Platform defaults"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          render={
+                            <Link
+                              href={`/super-admin/organizations/${org.id}/integrations`}
+                            />
+                          }
+                        >
+                          <Plug className="size-4" />
+                          APIs
+                        </Button>
                         <EditOrganizationDialog organization={org} />
                         <DeleteOrganizationButton
                           organizationId={org.id}

@@ -106,7 +106,7 @@ let runtimeConfig: {
 } = {};
 
 export function setPaymentRuntimeConfig(config: typeof runtimeConfig) {
-  runtimeConfig = { ...runtimeConfig, ...config };
+  runtimeConfig = { ...config };
 }
 
 function toMinorUnits(amount: number) {

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -26,7 +28,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SuperAdminPage() {
-  await requireSuperAdmin();
+  const { user } = await requireSuperAdmin();
 
   const service = new SuperAdminService();
   const [stats, organizations] = await Promise.all([
@@ -87,14 +89,44 @@ export default async function SuperAdminPage() {
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Platform Overview</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          High-level metrics across all organizations
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">
+              Platform Overview
+            </h1>
+            <Badge variant="outline">Platform owner</Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {user.email} · High-level metrics across all organizations
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            render={<Link href="/super-admin/organizations" />}
+          >
+            Organizations
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            render={<Link href="/super-admin/plans" />}
+          >
+            Plans
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            render={<Link href="/super-admin/integrations" />}
+          >
+            Platform APIs
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {cards.map((card, i) => (
           <StatCard
             key={card.label}
@@ -103,7 +135,8 @@ export default async function SuperAdminPage() {
             href={card.href}
             icon={card.icon}
             accent={card.accent}
-            delay={i * 80}
+            delay={i * 60}
+            size="compact"
           />
         ))}
       </div>

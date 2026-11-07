@@ -562,7 +562,7 @@ export class WithdrawalService {
     const account = await this.getBankAccount(existing.bank_account_id);
     if (!account) return { error: "Bank account not found" };
 
-    await preparePaymentProvider();
+    await preparePaymentProvider(this.orgId);
     const provider = getPaymentProvider();
     const transfer = await provider.createTransfer({
       amount: Number(existing.net_amount),
@@ -617,7 +617,7 @@ export class WithdrawalService {
       return { error: `Cannot confirm payment in ${existing.status} status` };
     }
 
-    await preparePaymentProvider();
+    await preparePaymentProvider(this.orgId);
     const provider = getPaymentProvider();
     const settlementReference = String(externalReference ?? "").trim();
     const providerReference = existing.provider_reference ?? existing.reference;

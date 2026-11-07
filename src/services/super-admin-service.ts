@@ -58,6 +58,17 @@ export class SuperAdminService {
 
     if (error) return [];
 
+    const { data: integrationRows } = await this.admin
+      .from("organization_integrations")
+      .select("organization_id")
+      .not("value", "is", null)
+      .neq("value", "");
+    const integrationCounts = new Map<string, number>();
+    for (const row of integrationRows ?? []) {
+      const id = row.organization_id as string;
+      integrationCounts.set(id, (integrationCounts.get(id) ?? 0) + 1);
+    }
+
     return (
       data?.map((org) => ({
         id: org.id as string,
@@ -72,6 +83,7 @@ export class SuperAdminService {
         currency: org.currency as string,
         created_at: org.created_at as string,
         employeeCount: (org.employees?.[0]?.count as number) ?? 0,
+        integrationCount: integrationCounts.get(org.id as string) ?? 0,
         subscription:
           (org.subscriptions?.[0] as {
             status?: string;
@@ -79,6 +91,17 @@ export class SuperAdminService {
           } | null) ?? null,
       })) ?? []
     );
+  }
+
+  async getOrganization(organizationId: string) {
+    const { data, error } = await this.admin
+      .from("organizations")
+      .select("id, name, type, email, phone, currency, created_at")
+      .eq("id", organizationId)
+      .maybeSingle();
+
+    if (error) return null;
+    return data ?? null;
   }
 
   async listPlans() {

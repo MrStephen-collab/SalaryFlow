@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireSuperAdmin } from "@/lib/auth";
 import { PlatformIntegrationService } from "@/services/platform-integration-service";
 import { IntegrationsForm } from "@/components/super-admin/integrations-form";
 import { MaintenanceModeCard } from "@/components/super-admin/maintenance-mode-card";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -27,12 +29,21 @@ export default async function SuperAdminIntegrationsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Integrations</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Platform-wide keys for payments, email and SMS. Only the platform owner
-          can change them.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Integrations</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Platform-wide keys for payments, email and SMS. Only the platform
+            owner can change them. Organizations can override these on their own
+            APIs page.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          render={<Link href="/super-admin/organizations" />}
+        >
+          Manage organization APIs
+        </Button>
       </div>
 
       <MaintenanceModeCard enabled={maintenanceMode} />

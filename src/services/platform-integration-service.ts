@@ -25,7 +25,6 @@ export const INTEGRATION_KEYS = [
 
 export class PlatformIntegrationService {
   private constructor(private userId: string | null, private role: string | null) {}
-
   static async create() {
     const supabase = await createClient();
     const {
@@ -124,5 +123,108 @@ export class PlatformIntegrationService {
     }
 
     return { ok: true as const };
+  }
+
+  /** Integration fields for one organization with platform defaults as the template. */
+  async listOrganization(organizationId: string): Promise<IntegrationRow[]> {
+    const admin = createAdminClient();
+    const [platform, organization] = await Promise.all([
+      admin
+        .from("platform_integrations")
+        .select("key, category, label, is_secret")
+        .neq("key", "maintenance_mode")
+        .order("category", { ascending: true })
+        .order("key", { ascending: true }),
+      admin
+        .from("organization_integrations")
+        .select("key, value, updated_at")
+        .eq("organization_id", organizationId),
+    ]);
+
+    const organizationValues = new Map(
+      (organization.data ?? []).map((row) => [
+        row.key as string,
+        {
+          value: (row.value as string | null) ?? "",
+          updatedAt: (row.updated_at as string | null) ?? "",
+        },
+      ])
+    );
+
+    return (platform.data ?? []).map((row) => {
+      const saved = organizationValues.get(row.key as string);
+      return {
+        key: row.key as string,
+        category: row.category as string,
+        label: row.label as string,
+        is_secret: Boolean(row.is_secret),
+        value: saved?.value ?? "",
+        updated_at: saved?.updatedAt ?? "",
+      };
+    });
+  }
+
+  /** Save organization-specific overrides. Blank values fall back to platform defaults. */
+  async saveOrganization(
+    organizationId: string,
+    values: Record<string, string>
+  ) {
+    if (!this.userId) return { ok: false as const, error: "Unauthorized" };
+    if (this.role !== "SUPER_ADMIN") {
+      return {
+        ok: false as const,
+        error: "Only the platform owner can change organization integrations",
+      };
+    }
+
+    const admin = createAdminClient();
+    const { data: template, error: templateError } = await admin
+      .from("platform_integrations")
+      .select("key, category, label, is_secret")
+      .neq("key", "maintenance_mode");
+    if (templateError) {
+      return { ok: false as const, error: templateError.message };
+    }
+
+    const templateByKey = new Map(
+      (template ?? []).map((row) => [row.key as string, row])
+    );
+
+    for (const [key, value] of Object.entries(values)) {
+      if (!(INTEGRATION_KEYS as readonly string[]).includes(key)) continue;
+      const meta = templateByKey.get(key);
+      if (!meta) continue;
+
+      const { error } = await admin
+        .from("organization_integrations")
+        .upsert(
+          {
+            organization_id: organizationId,
+            key,
+            category: meta.category,
+            label: meta.label,
+            is_secret: meta.is_secret,
+            value: value ?? "",
+            updated_by: this.userId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "organization_id,key" }
+        );
+      if (error) return { ok: false as const, error: error.message };
+    }
+
+    return { ok: true as const };
+  }
+
+  /** Number of non-empty organization overrides, used for the owner overview. */
+  async countOrganizationOverrides(organizationId: string) {
+    const admin = createAdminClient();
+    const { count } = await admin
+      .from("organization_integrations")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .not("value", "is", null)
+      .neq("value", "");
+    return count ?? 0;
   }
 }

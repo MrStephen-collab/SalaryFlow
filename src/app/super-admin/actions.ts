@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/auth";
+import { clearOrganizationConfigCache } from "@/lib/platform-config";
+import { PlatformIntegrationService } from "@/services/platform-integration-service";
 import {
   subscriptionPlanSchema,
   enrollOrganizationSchema,
@@ -137,6 +139,71 @@ export async function togglePlan(
 
     revalidatePath("/super-admin/plans");
     return { success: "Plan updated" };
+  } catch (err) {
+    if (err instanceof Error && "digest" in err) {
+      throw err;
+    }
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+export async function deletePlan(planId: string): Promise<ActionResult> {
+  try {
+    const adminClient = await requireSuperAdminAction();
+
+    const { count, error: countError } = await adminClient
+      .from("subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("plan_id", planId);
+
+    if (countError) {
+      return { error: countError.message };
+    }
+
+    if ((count ?? 0) > 0) {
+      return {
+        error: `This plan is assigned to ${count} organization${
+          count === 1 ? "" : "s"
+        }. Deactivate it instead of deleting it.`,
+      };
+    }
+
+    const { error } = await adminClient
+      .from("subscription_plans")
+      .delete()
+      .eq("id", planId);
+
+    if (error) {
+      return { error: "Unable to delete plan" };
+    }
+
+    revalidatePath("/super-admin/plans");
+    revalidatePath("/super-admin");
+    return { success: "Plan deleted" };
+  } catch (err) {
+    if (err instanceof Error && "digest" in err) {
+      throw err;
+    }
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+export async function saveOrganizationIntegrations(
+  organizationId: string,
+  values: Record<string, string>
+): Promise<ActionResult> {
+  try {
+    const service = await PlatformIntegrationService.create();
+    const result = await service.saveOrganization(organizationId, values);
+    if (!result.ok) {
+      return { error: result.error ?? "Unable to save integrations" };
+    }
+
+    clearOrganizationConfigCache(organizationId);
+    revalidatePath(`/super-admin/organizations/${organizationId}/integrations`);
+    revalidatePath("/super-admin/organizations");
+    revalidatePath("/super-admin");
+    return { success: "Organization integrations saved" };
   } catch (err) {
     if (err instanceof Error && "digest" in err) {
       throw err;

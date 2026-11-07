@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { CreatePlanForm } from "@/components/super-admin/create-plan-form";
+import { DeletePlanButton } from "@/components/super-admin/delete-plan-button";
 import {
   EditPlanDialog,
   type Plan,
@@ -132,7 +133,18 @@ export function PlansTable({ plans: initial }: { plans: Plan[] }) {
                   >
                     {plan.active ? "Active plan" : "Disabled"}
                   </Badge>
-                  <EditPlanDialog plan={plan} onUpdated={handleUpdated} />
+                  <div className="flex items-center gap-2">
+                    <DeletePlanButton
+                      planId={plan.id}
+                      planName={plan.name}
+                      onDeleted={() =>
+                        setPlans((prev) =>
+                          prev.filter((current) => current.id !== plan.id)
+                        )
+                      }
+                    />
+                    <EditPlanDialog plan={plan} onUpdated={handleUpdated} />
+                  </div>
                 </div>
               </CardContent>
             </Card>

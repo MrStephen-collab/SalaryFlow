@@ -3,7 +3,8 @@ import { setPaymentRuntimeConfig } from "@/services/payment-provider";
 
 type Cache = { at: number; values: Record<string, string> };
 
-let cache: Cache | null = null;
+let platformCache: Cache | null = null;
+const organizationCache = new Map<string, Cache>();
 const TTL = 5 * 60 * 1000;
 
 /**
@@ -12,8 +13,8 @@ const TTL = 5 * 60 * 1000;
  * fallback when a value is empty.
  */
 export async function loadPlatformConfig(force = false) {
-  if (!force && cache && Date.now() - cache.at < TTL) {
-    return cache.values;
+  if (!force && platformCache && Date.now() - platformCache.at < TTL) {
+    return platformCache.values;
   }
 
   try {
@@ -24,16 +25,53 @@ export async function loadPlatformConfig(force = false) {
     const values = Object.fromEntries(
       (data ?? []).map((row) => [row.key as string, (row.value as string) ?? ""])
     );
-    cache = { at: Date.now(), values };
+    platformCache = { at: Date.now(), values };
     return values;
   } catch {
-    return cache?.values ?? {};
+    return platformCache?.values ?? {};
+  }
+}
+
+/**
+ * Load the effective integration configuration for one organization. Non-empty
+ * organization overrides take precedence over platform defaults.
+ */
+export async function loadOrganizationConfig(
+  organizationId?: string | null,
+  force = false
+) {
+  const platform = await loadPlatformConfig(force);
+  if (!organizationId) return platform;
+
+  if (!force) {
+    const cached = organizationCache.get(organizationId);
+    if (cached && Date.now() - cached.at < TTL) return cached.values;
+  }
+
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("organization_integrations")
+      .select("key, value")
+      .eq("organization_id", organizationId);
+
+    const overrides = Object.fromEntries(
+      (data ?? [])
+        .filter((row) => String(row.value ?? "").trim().length > 0)
+        .map((row) => [row.key as string, row.value as string])
+    );
+
+    const values = { ...platform, ...overrides };
+    organizationCache.set(organizationId, { at: Date.now(), values });
+    return values;
+  } catch {
+    return platform;
   }
 }
 
 /** Apply the saved payment credentials before a provider call. */
-export async function preparePaymentProvider() {
-  const values = await loadPlatformConfig();
+export async function preparePaymentProvider(organizationId?: string | null) {
+  const values = await loadOrganizationConfig(organizationId);
   setPaymentRuntimeConfig({
     provider: values.payment_provider?.trim() || undefined,
     paystackSecretKey: values.paystack_secret_key?.trim() || undefined,
@@ -44,5 +82,10 @@ export async function preparePaymentProvider() {
 }
 
 export function clearPlatformConfigCache() {
-  cache = null;
+  platformCache = null;
+  organizationCache.clear();
+}
+
+export function clearOrganizationConfigCache(organizationId: string) {
+  organizationCache.delete(organizationId);
 }
