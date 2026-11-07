@@ -10,18 +10,127 @@ export interface IntegrationRow {
   updated_at: string;
 }
 
-export const INTEGRATION_KEYS = [
-  "payment_provider",
-  "paystack_public_key",
-  "paystack_secret_key",
-  "flutterwave_secret_key",
-  "email_provider",
-  "email_api_key",
-  "email_from",
-  "sms_provider",
-  "sms_api_key",
-  "sms_sender",
-] as const;
+export interface IntegrationDefinition {
+  key: string;
+  category: string;
+  label: string;
+  is_secret: boolean;
+}
+
+export const INTEGRATION_DEFINITIONS: IntegrationDefinition[] = [
+  {
+    key: "payment_mode",
+    category: "payment",
+    label: "Payment mode (test / live)",
+    is_secret: false,
+  },
+  {
+    key: "payment_provider",
+    category: "payment",
+    label: "Payment provider (paystack / flutterwave / manual)",
+    is_secret: false,
+  },
+  {
+    key: "paystack_public_key_test",
+    category: "payment",
+    label: "Paystack public key",
+    is_secret: false,
+  },
+  {
+    key: "paystack_public_key_live",
+    category: "payment",
+    label: "Paystack public key",
+    is_secret: false,
+  },
+  {
+    key: "paystack_secret_key_test",
+    category: "payment",
+    label: "Paystack secret key",
+    is_secret: true,
+  },
+  {
+    key: "paystack_secret_key_live",
+    category: "payment",
+    label: "Paystack secret key",
+    is_secret: true,
+  },
+  {
+    key: "flutterwave_secret_key_test",
+    category: "payment",
+    label: "Flutterwave secret key",
+    is_secret: true,
+  },
+  {
+    key: "flutterwave_secret_key_live",
+    category: "payment",
+    label: "Flutterwave secret key",
+    is_secret: true,
+  },
+  {
+    key: "email_mode",
+    category: "email",
+    label: "Email mode (test / live)",
+    is_secret: false,
+  },
+  {
+    key: "email_provider",
+    category: "email",
+    label: "Email provider (resend / smtp)",
+    is_secret: false,
+  },
+  {
+    key: "email_from",
+    category: "email",
+    label: "From address",
+    is_secret: false,
+  },
+  {
+    key: "email_api_key_test",
+    category: "email",
+    label: "Email API key",
+    is_secret: true,
+  },
+  {
+    key: "email_api_key_live",
+    category: "email",
+    label: "Email API key",
+    is_secret: true,
+  },
+  {
+    key: "sms_mode",
+    category: "sms",
+    label: "SMS mode (test / live)",
+    is_secret: false,
+  },
+  {
+    key: "sms_provider",
+    category: "sms",
+    label: "SMS provider (termii / twilio)",
+    is_secret: false,
+  },
+  {
+    key: "sms_sender",
+    category: "sms",
+    label: "SMS sender ID",
+    is_secret: false,
+  },
+  {
+    key: "sms_api_key_test",
+    category: "sms",
+    label: "SMS API key",
+    is_secret: true,
+  },
+  {
+    key: "sms_api_key_live",
+    category: "sms",
+    label: "SMS API key",
+    is_secret: true,
+  },
+];
+
+export const INTEGRATION_KEYS = INTEGRATION_DEFINITIONS.map(
+  (definition) => definition.key
+);
 
 export class PlatformIntegrationService {
   private constructor(private userId: string | null, private role: string | null) {}
@@ -51,12 +160,26 @@ export class PlatformIntegrationService {
     const admin = createAdminClient();
     const { data } = await admin
       .from("platform_integrations")
-      .select("key, category, label, value, is_secret, updated_at")
-      .neq("key", "maintenance_mode")
-      .order("category", { ascending: true })
-      .order("key", { ascending: true });
+      .select("key, value, updated_at");
 
-    return (data ?? []) as IntegrationRow[];
+    const saved = new Map(
+      (data ?? []).map((row) => [
+        row.key as string,
+        {
+          value: (row.value as string | null) ?? "",
+          updatedAt: (row.updated_at as string | null) ?? "",
+        },
+      ])
+    );
+
+    return INTEGRATION_DEFINITIONS.map((definition) => {
+      const row = saved.get(definition.key);
+      return {
+        ...definition,
+        value: row?.value ?? "",
+        updated_at: row?.updatedAt ?? "",
+      };
+    });
   }
 
   async getMaintenanceMode(): Promise<boolean> {
@@ -106,13 +229,23 @@ export class PlatformIntegrationService {
     }
 
     const admin = createAdminClient();
+    const definitions = new Map(
+      INTEGRATION_DEFINITIONS.map((definition) => [definition.key, definition])
+    );
+
     for (const [key, value] of Object.entries(values)) {
-      if (!(INTEGRATION_KEYS as readonly string[]).includes(key)) continue;
+      if (!INTEGRATION_KEYS.includes(key)) continue;
+      const meta = definitions.get(key);
+      if (!meta) continue;
+
       const { error } = await admin
         .from("platform_integrations")
         .upsert(
           {
             key,
+            category: meta.category,
+            label: meta.label,
+            is_secret: meta.is_secret,
             value: value ?? "",
             updated_by: this.userId,
             updated_at: new Date().toISOString(),
@@ -128,21 +261,13 @@ export class PlatformIntegrationService {
   /** Integration fields for one organization with platform defaults as the template. */
   async listOrganization(organizationId: string): Promise<IntegrationRow[]> {
     const admin = createAdminClient();
-    const [platform, organization] = await Promise.all([
-      admin
-        .from("platform_integrations")
-        .select("key, category, label, is_secret")
-        .neq("key", "maintenance_mode")
-        .order("category", { ascending: true })
-        .order("key", { ascending: true }),
-      admin
-        .from("organization_integrations")
-        .select("key, value, updated_at")
-        .eq("organization_id", organizationId),
-    ]);
+    const { data: organization } = await admin
+      .from("organization_integrations")
+      .select("key, value, updated_at")
+      .eq("organization_id", organizationId);
 
     const organizationValues = new Map(
-      (organization.data ?? []).map((row) => [
+      (organization ?? []).map((row) => [
         row.key as string,
         {
           value: (row.value as string | null) ?? "",
@@ -151,13 +276,10 @@ export class PlatformIntegrationService {
       ])
     );
 
-    return (platform.data ?? []).map((row) => {
-      const saved = organizationValues.get(row.key as string);
+    return INTEGRATION_DEFINITIONS.map((definition) => {
+      const saved = organizationValues.get(definition.key);
       return {
-        key: row.key as string,
-        category: row.category as string,
-        label: row.label as string,
-        is_secret: Boolean(row.is_secret),
+        ...definition,
         value: saved?.value ?? "",
         updated_at: saved?.updatedAt ?? "",
       };
@@ -178,21 +300,13 @@ export class PlatformIntegrationService {
     }
 
     const admin = createAdminClient();
-    const { data: template, error: templateError } = await admin
-      .from("platform_integrations")
-      .select("key, category, label, is_secret")
-      .neq("key", "maintenance_mode");
-    if (templateError) {
-      return { ok: false as const, error: templateError.message };
-    }
-
-    const templateByKey = new Map(
-      (template ?? []).map((row) => [row.key as string, row])
+    const definitions = new Map(
+      INTEGRATION_DEFINITIONS.map((definition) => [definition.key, definition])
     );
 
     for (const [key, value] of Object.entries(values)) {
-      if (!(INTEGRATION_KEYS as readonly string[]).includes(key)) continue;
-      const meta = templateByKey.get(key);
+      if (!INTEGRATION_KEYS.includes(key)) continue;
+      const meta = definitions.get(key);
       if (!meta) continue;
 
       const { error } = await admin

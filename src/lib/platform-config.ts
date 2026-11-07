@@ -72,11 +72,22 @@ export async function loadOrganizationConfig(
 /** Apply the saved payment credentials before a provider call. */
 export async function preparePaymentProvider(organizationId?: string | null) {
   const values = await loadOrganizationConfig(organizationId);
+  const mode = values.payment_mode?.trim() === "live" ? "live" : "test";
+
   setPaymentRuntimeConfig({
     provider: values.payment_provider?.trim() || undefined,
-    paystackSecretKey: values.paystack_secret_key?.trim() || undefined,
-    paystackPublicKey: values.paystack_public_key?.trim() || undefined,
-    flutterwaveSecretKey: values.flutterwave_secret_key?.trim() || undefined,
+    paystackSecretKey:
+      values[`paystack_secret_key_${mode}`]?.trim() ||
+      values.paystack_secret_key?.trim() ||
+      undefined,
+    paystackPublicKey:
+      values[`paystack_public_key_${mode}`]?.trim() ||
+      values.paystack_public_key?.trim() ||
+      undefined,
+    flutterwaveSecretKey:
+      values[`flutterwave_secret_key_${mode}`]?.trim() ||
+      values.flutterwave_secret_key?.trim() ||
+      undefined,
   });
   return values;
 }
