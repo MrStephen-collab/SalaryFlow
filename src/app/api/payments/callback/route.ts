@@ -25,7 +25,11 @@ export async function GET(request: NextRequest) {
     const result = await PaymentService.settle(reference);
 
     const target =
-      result.purpose === "SAVINGS_DEPOSIT" ? "/member/savings" : "/dashboard/funds";
+      result.purpose === "SAVINGS_DEPOSIT"
+        ? "/member/savings"
+        : result.purpose === "SUBSCRIPTION"
+          ? "/dashboard/settings/subscription"
+          : "/dashboard/funds";
     const query = new URLSearchParams({
       payment: result.ok && result.paid ? "success" : "pending",
     });
@@ -36,9 +40,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`${target}?${query.toString()}`, origin));
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Could not confirm payment";
+    const fallback = reference?.startsWith("SF-SUB")
+      ? "/dashboard/settings/subscription"
+      : "/dashboard/funds";
     return NextResponse.redirect(
       new URL(
-        `/dashboard/funds?payment=failed&reason=${encodeURIComponent(reason)}`,
+        `${fallback}?payment=failed&reason=${encodeURIComponent(reason)}`,
         origin
       )
     );

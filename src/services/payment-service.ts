@@ -28,6 +28,11 @@ export const FUNDING_ROLES = new Set([
 export const MIN_FUNDING_AMOUNT = 1000;
 export const MAX_FUNDING_AMOUNT = 50_000_000;
 
+export const SUBSCRIPTION_PAYMENT_ROLES = new Set([
+  "ORGANIZATION_OWNER",
+  "ORGANIZATION_ADMIN",
+]);
+
 export interface StartFundingResult {
   ok: boolean;
   authorizationUrl?: string;
@@ -284,6 +289,158 @@ export class PaymentService {
   }
 
   /**
+   * Start a subscription payment from an organization to the platform owner.
+   * This deliberately uses the platform payment credentials, not the
+   * organization's own gateway keys.
+   */
+  static async startSubscriptionPayment(input: {
+    planId: string;
+    billingCycle: "monthly" | "annually";
+    callbackUrl: string;
+  }): Promise<StartFundingResult> {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Sign in to continue" };
+
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("organization_id, role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!profile?.organization_id) {
+      return { ok: false, error: "No organization is linked to this account" };
+    }
+    if (!SUBSCRIPTION_PAYMENT_ROLES.has(profile.role)) {
+      return {
+        ok: false,
+        error: "Only the chairman or an admin can pay for the subscription",
+      };
+    }
+
+    const admin = createAdminClient();
+    const { data: plan } = await admin
+      .from("subscription_plans")
+      .select("id, name, price_monthly, price_annually, active")
+      .eq("id", input.planId)
+      .maybeSingle();
+
+    if (!plan || !plan.active) {
+      return { ok: false, error: "This subscription plan is not available" };
+    }
+
+    const amount =
+      input.billingCycle === "annually"
+        ? Number(plan.price_annually) || 0
+        : Number(plan.price_monthly) || 0;
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return {
+        ok: false,
+        error: "This plan has no price set. Contact the platform owner.",
+      };
+    }
+
+    // Platform keys receive subscription revenue.
+    await preparePaymentProvider();
+    const provider = getPaymentProvider();
+    if (!provider.supportsCollections()) {
+      return {
+        ok: false,
+        error:
+          "Subscription payments are not set up yet. Contact the platform owner.",
+      };
+    }
+
+    const internalReference = reference("SF-SUB");
+    const email = user.email ?? "";
+
+    const { data: intent, error } = await admin
+      .from("payment_transactions")
+      .insert({
+        organization_id: profile.organization_id,
+        purpose: "SUBSCRIPTION",
+        payer_user_id: user.id,
+        payer_email: email,
+        provider: provider.name,
+        internal_reference: internalReference,
+        amount,
+        currency: "NGN",
+        status: "PENDING",
+        metadata: {
+          source: "dashboard/settings/subscription",
+          planId: plan.id,
+          planName: plan.name,
+          billingCycle: input.billingCycle,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (error) return { ok: false, error: error.message };
+
+    const init = await provider.initializeCollection({
+      email,
+      amount,
+      currency: "NGN",
+      reference: internalReference,
+      callbackUrl: input.callbackUrl,
+      metadata: {
+        purpose: "SUBSCRIPTION",
+        organizationId: profile.organization_id,
+        planId: plan.id,
+        billingCycle: input.billingCycle,
+        paymentTransactionId: intent.id,
+      },
+    });
+
+    if (!init.ok || !init.authorizationUrl) {
+      await admin
+        .from("payment_transactions")
+        .update({
+          status: "FAILED",
+          metadata: { failure: init.error ?? "Gateway error" },
+        })
+        .eq("id", intent.id);
+      return {
+        ok: false,
+        error: init.error ?? "The payment gateway did not return a checkout link",
+      };
+    }
+
+    await admin
+      .from("payment_transactions")
+      .update({
+        authorization_url: init.authorizationUrl,
+        access_code: init.accessCode ?? null,
+        provider_reference: init.providerReference ?? null,
+      })
+      .eq("id", intent.id);
+
+    await recordAudit({
+      organizationId: profile.organization_id,
+      userId: user.id,
+      action: "subscription.payment_started",
+      entityType: "payment_transaction",
+      entityId: intent.id,
+      after: {
+        planId: plan.id,
+        billingCycle: input.billingCycle,
+        amount,
+        provider: provider.name,
+      },
+    });
+
+    return {
+      ok: true,
+      authorizationUrl: init.authorizationUrl,
+      reference: internalReference,
+    };
+  }
+
+  /**
    * Recent gateway attempts for the caller's organization (funding history).
    */
   static async listOrganizationPayments(limit = 20) {
@@ -348,7 +505,9 @@ export class PaymentService {
       return { ok: false, paid: false, status: "REVERSED", message: "Payment was reversed" };
     }
 
-    await preparePaymentProvider(intent.organization_id as string);
+    await preparePaymentProvider(
+      intent.purpose === "SUBSCRIPTION" ? null : (intent.organization_id as string)
+    );
     const provider = getPaymentProvider();
     const verification = await provider.verifyCollection(internalReference);
 
@@ -431,7 +590,9 @@ export class PaymentService {
     const applied =
       intent.purpose === "ORGANIZATION_FUNDING"
         ? await this.applyOrganizationFunding(admin, intent, paidAmount)
-        : await this.applySavingsDeposit(admin, intent, paidAmount);
+        : intent.purpose === "SUBSCRIPTION"
+          ? await this.applySubscriptionPayment(admin, intent, paidAmount)
+          : await this.applySavingsDeposit(admin, intent, paidAmount);
 
     if (applied.error) {
       await admin
@@ -652,5 +813,91 @@ export class PaymentService {
     if (error) return { error: error.message };
 
     return { reference: depositReference, message: "Savings credited" };
+  }
+
+  private static async applySubscriptionPayment(
+    admin: ReturnType<typeof createAdminClient>,
+    intent: {
+      id: string;
+      organization_id: string;
+      internal_reference: string;
+      metadata?: Record<string, unknown> | null;
+    },
+    amount: number
+  ): Promise<{ error?: string; reference?: string; message?: string }> {
+    const planId = String(intent.metadata?.planId ?? "");
+    const billingCycle =
+      intent.metadata?.billingCycle === "annually" ? "annually" : "monthly";
+
+    if (!planId) {
+      return { error: "This payment is not linked to a subscription plan" };
+    }
+
+    const { data: plan } = await admin
+      .from("subscription_plans")
+      .select("id, name, price_monthly, price_annually")
+      .eq("id", planId)
+      .maybeSingle();
+
+    if (!plan) {
+      return { error: "The subscription plan no longer exists" };
+    }
+
+    const expected =
+      billingCycle === "annually"
+        ? Number(plan.price_annually) || 0
+        : Number(plan.price_monthly) || 0;
+    if (Math.abs(expected - amount) > 1) {
+      return {
+        error: `Paid amount ${amount} does not match the plan price ${expected}`,
+      };
+    }
+
+    const start = new Date();
+    const end = new Date(start);
+    if (billingCycle === "annually") {
+      end.setUTCFullYear(end.getUTCFullYear() + 1);
+    } else {
+      end.setUTCMonth(end.getUTCMonth() + 1);
+    }
+
+    const { data: existing } = await admin
+      .from("subscriptions")
+      .select("id")
+      .eq("organization_id", intent.organization_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const values = {
+      plan_id: planId,
+      status: "active",
+      current_period_start: start.toISOString(),
+      current_period_end: end.toISOString(),
+      trial_ends_at: null,
+      canceled_at: null,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (existing?.id) {
+      const { error } = await admin
+        .from("subscriptions")
+        .update(values)
+        .eq("id", existing.id);
+      if (error) return { error: error.message };
+    } else {
+      const { error } = await admin.from("subscriptions").insert({
+        organization_id: intent.organization_id,
+        ...values,
+      });
+      if (error) return { error: error.message };
+    }
+
+    return {
+      reference: `SUB-${intent.internal_reference}`,
+      message: `${plan.name} subscription active until ${end.toLocaleDateString(
+        "en-GB"
+      )}`,
+    };
   }
 }

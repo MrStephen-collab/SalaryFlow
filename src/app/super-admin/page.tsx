@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SuperAdminPage() {
-  const { user } = await requireSuperAdmin();
+  await requireSuperAdmin();
 
   const service = new SuperAdminService();
   const [stats, organizations] = await Promise.all([
@@ -97,9 +97,6 @@ export default async function SuperAdminPage() {
             </h1>
             <Badge variant="outline">Platform owner</Badge>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {user.email} · High-level metrics across all organizations
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button

@@ -5,6 +5,7 @@ import { PlatformIntegrationService } from "@/services/platform-integration-serv
 import { IntegrationsForm } from "@/components/super-admin/integrations-form";
 import { MaintenanceModeCard } from "@/components/super-admin/maintenance-mode-card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -27,6 +28,13 @@ export default async function SuperAdminIntegrationsPage() {
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
     "https://salaryflow-two.vercel.app";
 
+  const paymentMode =
+    rows.find((row) => row.key === "payment_mode")?.value || "test";
+  const paymentConfigured = [
+    `paystack_secret_key_${paymentMode}`,
+    `flutterwave_secret_key_${paymentMode}`,
+  ].some((key) => (rows.find((row) => row.key === key)?.value ?? "").trim());
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -47,6 +55,34 @@ export default async function SuperAdminIntegrationsPage() {
       </div>
 
       <MaintenanceModeCard enabled={maintenanceMode} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Subscription payments</CardTitle>
+          <CardDescription>
+            Organizations choose and pay for plans from Settings → Subscription.
+            Those payments are collected with the platform payment keys above
+            and go to the platform owner, not the organization&apos;s own
+            gateway.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">
+              Mode: {paymentMode === "live" ? "Live" : "Test"}
+            </Badge>
+            <Badge variant={paymentConfigured ? "default" : "destructive"}>
+              {paymentConfigured ? "Payment keys configured" : "Payment keys missing"}
+            </Badge>
+          </div>
+          <Button
+            variant="outline"
+            render={<Link href="/super-admin/plans" />}
+          >
+            Manage subscription plans
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
