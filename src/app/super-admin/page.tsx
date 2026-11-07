@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -138,9 +138,15 @@ export default async function SuperAdminPage() {
         ))}
       </div>
 
-      <Card className="animate-fade-up" style={{ animationDelay: "480ms" }}>
+      <Card
+        className="mt-8 animate-fade-up sm:mt-10"
+        style={{ animationDelay: "480ms" }}
+      >
         <CardHeader>
-          <CardTitle>Recent Organizations</CardTitle>
+          <CardTitle>Active Organizations</CardTitle>
+          <CardDescription>
+            Organizations currently enrolled on the platform
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
