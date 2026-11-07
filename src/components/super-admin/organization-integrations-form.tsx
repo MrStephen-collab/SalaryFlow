@@ -39,6 +39,12 @@ import {
   Save,
 } from "lucide-react";
 import type { IntegrationRow } from "@/services/platform-integration-service";
+import {
+  MODE_KEYS,
+  PAIR_BASES,
+  PROVIDER_OPTIONS,
+  SINGLE_KEYS,
+} from "@/lib/integration-fields";
 
 const CATEGORY_META: Record<
   string,
@@ -62,31 +68,6 @@ const CATEGORY_META: Record<
       "SMS provider and sender ID. Test and live credentials are stored separately.",
     icon: MessageSquare,
   },
-};
-
-const MODE_KEYS = new Set(["payment_mode", "email_mode", "sms_mode"]);
-const SINGLE_KEYS = new Set([
-  "payment_mode",
-  "payment_provider",
-  "email_mode",
-  "email_provider",
-  "email_from",
-  "sms_mode",
-  "sms_provider",
-  "sms_sender",
-]);
-const PAIR_BASES = [
-  "paystack_public_key",
-  "paystack_secret_key",
-  "flutterwave_secret_key",
-  "email_api_key",
-  "sms_api_key",
-];
-
-const PROVIDER_OPTIONS: Record<string, string[]> = {
-  payment_provider: ["paystack", "flutterwave", "manual"],
-  email_provider: ["resend", "smtp"],
-  sms_provider: ["termii", "twilio"],
 };
 
 export function OrganizationIntegrationsForm({
