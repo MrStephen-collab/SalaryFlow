@@ -152,6 +152,7 @@ export default async function SuperAdminPage() {
                 <TableHead>Organization</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Employees</TableHead>
+                <TableHead>Members</TableHead>
                 <TableHead>Subscription</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -160,7 +161,7 @@ export default async function SuperAdminPage() {
               {organizations.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="py-8 text-center text-muted-foreground"
                   >
                     No organizations yet
@@ -172,6 +173,7 @@ export default async function SuperAdminPage() {
                     <TableCell className="font-medium">{org.name}</TableCell>
                     <TableCell>{org.type}</TableCell>
                     <TableCell>{org.employeeCount}</TableCell>
+                    <TableCell>{org.memberCount}</TableCell>
                     <TableCell>
                       {org.subscription?.subscription_plans?.name ?? "No plan"}
                     </TableCell>

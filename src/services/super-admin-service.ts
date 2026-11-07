@@ -51,6 +51,7 @@ export class SuperAdminService {
       .select(
         `id, name, type, registration_number, email, phone, address, state, lga, currency, created_at,
          employees(count),
+         members(count),
          subscriptions(status, subscription_plans(name))`
       )
       .order("created_at", { ascending: false })
@@ -83,6 +84,7 @@ export class SuperAdminService {
         currency: org.currency as string,
         created_at: org.created_at as string,
         employeeCount: (org.employees?.[0]?.count as number) ?? 0,
+        memberCount: (org.members?.[0]?.count as number) ?? 0,
         integrationCount: integrationCounts.get(org.id as string) ?? 0,
         subscription:
           (org.subscriptions?.[0] as {

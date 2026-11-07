@@ -62,6 +62,7 @@ export default async function OrganizationsPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Currency</TableHead>
                 <TableHead>Employees</TableHead>
+                <TableHead>Members</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
@@ -69,11 +70,11 @@ export default async function OrganizationsPage() {
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <CollapsibleTableBody columns={10} itemLabel="organizations">
+            <CollapsibleTableBody columns={11} itemLabel="organizations">
               {organizations.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={10}
+                    colSpan={11}
                     className="py-8 text-center text-muted-foreground"
                   >
                     No organizations yet
@@ -87,6 +88,7 @@ export default async function OrganizationsPage() {
                     <TableCell>{org.email}</TableCell>
                     <TableCell>{org.currency}</TableCell>
                     <TableCell>{org.employeeCount}</TableCell>
+                    <TableCell>{org.memberCount}</TableCell>
                     <TableCell>
                       {org.subscription?.subscription_plans?.name ?? "—"}
                     </TableCell>
