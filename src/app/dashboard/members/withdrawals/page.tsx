@@ -11,9 +11,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -114,7 +114,7 @@ export default async function MemberWithdrawalsPage() {
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <CollapsibleTableBody columns={6} itemLabel="withdrawals">
                   {withdrawals.map((withdrawal) => (
                     <TableRow key={withdrawal.id}>
                       <TableCell>
@@ -154,7 +154,7 @@ export default async function MemberWithdrawalsPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
+                </CollapsibleTableBody>
               </Table>
             </div>
           )}

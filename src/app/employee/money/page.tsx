@@ -4,6 +4,7 @@ import { EmployeePortalService } from "@/services/employee-portal-service";
 import { ThriftService } from "@/services/thrift-service";
 import { ThriftInterestService } from "@/services/thrift-interest-service";
 import { ThriftReleaseRequest } from "@/components/employee/thrift-release-request";
+import { CollapsibleList } from "@/components/ui/collapsible-list";
 import {
   Card,
   CardContent,
@@ -228,7 +229,7 @@ export default async function EmployeeMoneyPage() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col">
+            <CollapsibleList className="flex flex-col" itemLabel="months">
               {interest.months.map((month, index) => (
                 <div
                   key={month.id}
@@ -253,7 +254,7 @@ export default async function EmployeeMoneyPage() {
                   </div>
                 </div>
               ))}
-            </div>
+            </CollapsibleList>
           )}
         </CardContent>
       </Card>
@@ -271,7 +272,7 @@ export default async function EmployeeMoneyPage() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col">
+            <CollapsibleList className="flex flex-col" itemLabel="entries">
               {thriftLedger.map((entry, index) => (
                 <div
                   key={entry.id}
@@ -315,7 +316,7 @@ export default async function EmployeeMoneyPage() {
                   </div>
                 </div>
               ))}
-            </div>
+            </CollapsibleList>
           )}
         </CardContent>
       </Card>
@@ -333,7 +334,7 @@ export default async function EmployeeMoneyPage() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col">
+            <CollapsibleList className="flex flex-col" itemLabel="transactions">
               {transactions.map((tx, index) => (
                 <div
                   key={tx.id}
@@ -369,7 +370,7 @@ export default async function EmployeeMoneyPage() {
                   </div>
                 </div>
               ))}
-            </div>
+            </CollapsibleList>
           )}
         </CardContent>
       </Card>
@@ -423,7 +424,7 @@ export default async function EmployeeMoneyPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col">
+              <CollapsibleList className="flex flex-col" itemLabel="months">
                 {thriftSummary.fundings.map((funding, index) => {
                   const interestEarned =
                     interestByMonth.get(funding.periodMonth) ?? 0;
@@ -485,7 +486,7 @@ export default async function EmployeeMoneyPage() {
                     </div>
                   );
                 })}
-              </div>
+              </CollapsibleList>
             </>
           )}
         </CardContent>

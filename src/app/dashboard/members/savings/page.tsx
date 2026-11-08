@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -155,7 +154,7 @@ export default async function MemberSavingsPage() {
                     <TableHead className="text-right">Withdrawn</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <CollapsibleTableBody columns={6} itemLabel="members">
                   {overview.members.map((member) => (
                     <TableRow key={member.id}>
                       <TableCell>
@@ -187,7 +186,7 @@ export default async function MemberSavingsPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
+                </CollapsibleTableBody>
               </Table>
             </div>
           )}

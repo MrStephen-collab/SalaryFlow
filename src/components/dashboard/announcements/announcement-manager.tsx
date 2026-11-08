@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Megaphone, Plus, Trash2 } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
 import type { Announcement } from "@/services/announcement-service";
 
 export function AnnouncementManager({
@@ -31,7 +32,16 @@ export function AnnouncementManager({
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState<"ALL" | "EMPLOYEE" | "MEMBER">("ALL");
+  const [page, setPage] = useState(1);
   const [isPending, startTransition] = useTransition();
+
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(announcements.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const visibleAnnouncements = announcements.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   function create() {
     if (!message.trim()) {
@@ -131,7 +141,7 @@ export function AnnouncementManager({
         </div>
       ) : (
         <ul className="space-y-2">
-          {announcements.map((announcement) => (
+          {visibleAnnouncements.map((announcement) => (
             <li
               key={announcement.id}
               className="flex items-start justify-between gap-3 rounded-lg border p-3"
@@ -171,6 +181,17 @@ export function AnnouncementManager({
           ))}
         </ul>
       )}
+
+      {announcements.length > pageSize ? (
+        <Pagination
+          page={currentPage}
+          pageCount={pageCount}
+          totalItems={announcements.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          itemLabel="announcements"
+        />
+      ) : null}
     </div>
   );
 }

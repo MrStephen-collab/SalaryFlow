@@ -13,9 +13,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -198,7 +198,7 @@ export default async function SubscriptionPage({
                   <TableHead>Paid</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={6} itemLabel="payments">
                 {payments.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell className="font-mono text-xs">
@@ -229,7 +229,7 @@ export default async function SubscriptionPage({
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
+              </CollapsibleTableBody>
             </Table>
           )}
         </CardContent>

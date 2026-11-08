@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import {
   TableBody,
   TableCell,
@@ -22,19 +21,17 @@ function flattenRows(children: React.ReactNode): React.ReactNode[] {
 }
 
 type CollapsibleTableBodyProps = React.ComponentProps<typeof TableBody> & {
-  /** Number of columns in the table, used so the toggle spans the full row. */
+  /** Number of columns in the table, used so the pagination spans the full row. */
   columns: number;
-  /** Number of rows to show before collapsing. Defaults to 10. */
+  /** Number of rows per page. Defaults to 10. */
   limit?: number;
-  /** Plural noun used in the toggle label, e.g. "repayments". */
+  /** Plural noun used in the pagination summary, e.g. "repayments". */
   itemLabel?: string;
 };
 
 /**
- * A table body that collapses long result sets.
- *
- * Tables with `limit` rows or fewer render normally. Longer tables show the
- * first `limit` rows with a "Show all" toggle so pages stay compact.
+ * A table body with client-side pagination. Long result sets are split into
+ * pages and the page controls live in a footer row, keeping tables compact.
  */
 export function CollapsibleTableBody({
   children,
@@ -44,39 +41,27 @@ export function CollapsibleTableBody({
   className,
   ...props
 }: CollapsibleTableBodyProps) {
-  const [expanded, setExpanded] = React.useState(false);
+  const [page, setPage] = React.useState(1);
   const rows = React.useMemo(() => flattenRows(children), [children]);
-  const hasMore = rows.length > limit;
-  const visibleRows = hasMore && !expanded ? rows.slice(0, limit) : rows;
-  const hiddenCount = rows.length - limit;
+  const pageCount = Math.max(1, Math.ceil(rows.length / limit));
+  const currentPage = Math.min(page, pageCount);
+  const start = (currentPage - 1) * limit;
+  const visibleRows = rows.slice(start, start + limit);
 
   return (
     <TableBody className={className} {...props}>
       {visibleRows}
-      {hasMore ? (
+      {pageCount > 1 ? (
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={columns} className="py-2 text-center">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              aria-expanded={expanded}
-              onClick={() => setExpanded((value) => !value)}
-            >
-              {expanded ? (
-                <>
-                  <ChevronUp className="size-4" />
-                  Show less
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="size-4" />
-                  Show all {rows.length} {itemLabel}
-                  <span className="sr-only"> ({hiddenCount} hidden)</span>
-                </>
-              )}
-            </Button>
+          <TableCell colSpan={columns} className="py-2">
+            <Pagination
+              page={currentPage}
+              pageCount={pageCount}
+              totalItems={rows.length}
+              pageSize={limit}
+              onPageChange={setPage}
+              itemLabel={itemLabel}
+            />
           </TableCell>
         </TableRow>
       ) : null}

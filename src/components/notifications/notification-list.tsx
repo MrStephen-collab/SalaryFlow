@@ -2,21 +2,24 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCheck, ChevronDown, ChevronUp, BellOff } from "lucide-react";
+import { CheckCheck, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
 import type { NotificationItem } from "@/services/notification-service";
 import { useReadNotifications } from "./use-read-notifications";
 import { NotificationGlyph, formatNotificationTime } from "./notification-visuals";
 
 export function NotificationList({ items }: { items: NotificationItem[] }) {
-  const [expanded, setExpanded] = useState(false);
+  const [page, setPage] = useState(1);
   const { readIds, unreadCount, markRead, markAllRead } =
     useReadNotifications(items.map((item) => item.id));
 
   const limit = 10;
-  const hasMore = items.length > limit;
-  const visibleItems = hasMore && !expanded ? items.slice(0, limit) : items;
+  const pageCount = Math.max(1, Math.ceil(items.length / limit));
+  const currentPage = Math.min(page, pageCount);
+  const start = (currentPage - 1) * limit;
+  const visibleItems = items.slice(start, start + limit);
 
   return (
     <Card>
@@ -97,28 +100,16 @@ export function NotificationList({ items }: { items: NotificationItem[] }) {
           </ul>
         )}
 
-        {hasMore ? (
-          <div className="border-t px-4 py-2 text-center">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              aria-expanded={expanded}
-              onClick={() => setExpanded((value) => !value)}
-            >
-              {expanded ? (
-                <>
-                  <ChevronUp className="size-4" aria-hidden />
-                  Show less
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="size-4" aria-hidden />
-                  Show all {items.length} notifications
-                </>
-              )}
-            </Button>
+        {pageCount > 1 ? (
+          <div className="border-t px-4 py-2">
+            <Pagination
+              page={currentPage}
+              pageCount={pageCount}
+              totalItems={items.length}
+              pageSize={limit}
+              onPageChange={setPage}
+              itemLabel="notifications"
+            />
           </div>
         ) : null}
       </CardContent>

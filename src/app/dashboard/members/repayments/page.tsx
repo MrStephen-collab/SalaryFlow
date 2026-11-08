@@ -10,9 +10,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -120,7 +120,7 @@ export default async function MemberRepaymentsPage({
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <CollapsibleTableBody columns={6} itemLabel="repayments">
                   {filtered.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="text-sm">
@@ -152,7 +152,7 @@ export default async function MemberRepaymentsPage({
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
+                </CollapsibleTableBody>
               </Table>
             </div>
           )}

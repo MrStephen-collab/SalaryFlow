@@ -10,9 +10,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -174,7 +174,7 @@ export default async function MemberSavingsPage({
                   <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={6} itemLabel="transactions">
                 {summary.transactions.map((tx) => (
                   <TableRow key={tx.id}>
                     <TableCell className="text-sm">
@@ -204,7 +204,7 @@ export default async function MemberSavingsPage({
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
+              </CollapsibleTableBody>
             </Table>
           )}
         </CardContent>

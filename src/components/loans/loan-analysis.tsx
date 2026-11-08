@@ -8,12 +8,12 @@ import {
 } from "@/components/ui/card";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 
 export type LoanAnalysisLoan = {
   amount: number;
@@ -252,7 +252,7 @@ export function LoanAnalysis({
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <CollapsibleTableBody columns={8} itemLabel="instalments">
               {schedules.map((entry) => (
                 <TableRow key={entry.month}>
                   <TableCell className="text-sm">{entry.month}</TableCell>
@@ -283,7 +283,7 @@ export function LoanAnalysis({
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
+            </CollapsibleTableBody>
           </Table>
         </CardContent>
       </Card>

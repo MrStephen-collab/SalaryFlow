@@ -11,9 +11,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -264,7 +264,7 @@ export default async function MemberLoansPage() {
                   <TableHead className="text-right">Analysis</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={10} itemLabel="loans">
                 {loans.map((loan) => (
                   <TableRow key={loan.id}>
                     <TableCell className="text-sm">
@@ -314,7 +314,7 @@ export default async function MemberLoansPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
+              </CollapsibleTableBody>
             </Table>
           )}
         </CardContent>

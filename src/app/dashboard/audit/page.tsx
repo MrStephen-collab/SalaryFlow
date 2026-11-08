@@ -183,7 +183,11 @@ export default async function AuditPage({
                 <TableHead>Details</TableHead>
               </TableRow>
             </TableHeader>
-            <CollapsibleTableBody columns={5} itemLabel="events">
+            <CollapsibleTableBody
+              columns={5}
+              itemLabel="events"
+              limit={result.pageSize}
+            >
               {result.rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">

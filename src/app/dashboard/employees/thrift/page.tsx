@@ -20,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -321,7 +320,7 @@ export default async function ThriftSavingsPage({
                       <TableHead className="text-right">Closing</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
+                  <CollapsibleTableBody columns={7} itemLabel="months">
                     {interest.history.map((month) => (
                       <TableRow key={month.periodMonth}>
                         <TableCell className="text-sm font-medium">
@@ -347,7 +346,7 @@ export default async function ThriftSavingsPage({
                         </TableCell>
                       </TableRow>
                     ))}
-                  </TableBody>
+                  </CollapsibleTableBody>
                 </Table>
               </div>
             )}
@@ -601,7 +600,7 @@ export default async function ThriftSavingsPage({
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <CollapsibleTableBody columns={5} itemLabel="requests">
                   {requests.map((request) => (
                     <TableRow key={request.id}>
                       <TableCell>
@@ -638,7 +637,7 @@ export default async function ThriftSavingsPage({
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
+                </CollapsibleTableBody>
               </Table>
             </div>
           )}

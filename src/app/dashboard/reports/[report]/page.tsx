@@ -22,6 +22,7 @@ import {
 import {
   Table,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -194,10 +195,14 @@ export default async function ReportPage({
                     ))}
                   </TableRow>
                 ))}
-                {Object.keys(report.totals).length > 0 && (
+              </CollapsibleTableBody>
+              {Object.keys(report.totals).length > 0 ? (
+                <TableFooter>
                   <TableRow className="bg-muted/50 font-medium">
                     <TableCell>
-                      <span className="font-semibold">Total ({report.rows.length} rows)</span>
+                      <span className="font-semibold">
+                        Total ({report.rows.length} rows)
+                      </span>
                     </TableCell>
                     {report.columns.slice(1).map((column) => {
                       const value = report.totals[column.key];
@@ -217,8 +222,8 @@ export default async function ReportPage({
                       );
                     })}
                   </TableRow>
-                )}
-              </CollapsibleTableBody>
+                </TableFooter>
+              ) : null}
             </Table>
           </div>
         )}

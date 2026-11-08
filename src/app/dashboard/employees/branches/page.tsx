@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CollapsibleList } from "@/components/ui/collapsible-list";
 import { AddBranchDialog } from "@/components/dashboard/employees/add-branch-dialog";
 import { ManageBranch } from "@/components/dashboard/employees/manage-branch";
 
@@ -39,7 +40,11 @@ export default async function BranchesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <CollapsibleList
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          limit={9}
+          itemLabel="branches"
+        >
           {branches.map((branch) => (
             <Card key={branch.id}>
               <CardHeader className="flex flex-row items-start justify-between space-y-0">
@@ -59,7 +64,7 @@ export default async function BranchesPage() {
               </CardContent>
             </Card>
           ))}
-        </div>
+        </CollapsibleList>
       )}
     </div>
   );

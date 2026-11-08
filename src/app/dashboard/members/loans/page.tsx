@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -157,7 +157,7 @@ export default async function MemberLoansPage({
                     <TableHead className="text-right">Decision</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <CollapsibleTableBody columns={5} itemLabel="requests">
                   {pending.map((application) => (
                     <TableRow key={application.id}>
                       <TableCell>
@@ -185,7 +185,7 @@ export default async function MemberLoansPage({
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
+                </CollapsibleTableBody>
               </Table>
             </div>
           )}
@@ -220,7 +220,7 @@ export default async function MemberLoansPage({
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <CollapsibleTableBody columns={5} itemLabel="loans">
                   {approved.map((application) => (
                     <TableRow key={application.id}>
                       <TableCell>
@@ -248,7 +248,7 @@ export default async function MemberLoansPage({
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
+                </CollapsibleTableBody>
               </Table>
             </div>
           )}
@@ -282,7 +282,7 @@ export default async function MemberLoansPage({
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <CollapsibleTableBody columns={6} itemLabel="loans">
                   {filteredActiveLoans.map((loan) => {
                     const progress =
                       loan.total > 0
@@ -335,7 +335,7 @@ export default async function MemberLoansPage({
                       </TableRow>
                     );
                   })}
-                </TableBody>
+                </CollapsibleTableBody>
               </Table>
             </div>
           )}
@@ -369,7 +369,7 @@ export default async function MemberLoansPage({
                     <TableHead>Submitted</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <CollapsibleTableBody columns={5} itemLabel="applications">
                   {filteredApplications.map((application) => (
                     <TableRow key={application.id}>
                       <TableCell>
@@ -396,7 +396,7 @@ export default async function MemberLoansPage({
                       </TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
+                </CollapsibleTableBody>
               </Table>
             </div>
           )}

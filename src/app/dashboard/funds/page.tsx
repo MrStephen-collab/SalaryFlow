@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { PiggyBank } from "lucide-react";
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -248,7 +247,7 @@ export default async function FundsPage({
                   <TableHead>Initiated</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <CollapsibleTableBody columns={5} itemLabel="payments">
                 {gatewayPayments.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell className="font-mono text-xs">
@@ -278,7 +277,7 @@ export default async function FundsPage({
                     </TableCell>
                   </TableRow>
                 ))}
-              </TableBody>
+              </CollapsibleTableBody>
             </Table>
           )}
         </CardContent>
