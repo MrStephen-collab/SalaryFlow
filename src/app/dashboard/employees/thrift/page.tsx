@@ -159,10 +159,10 @@ export default async function ThriftSavingsPage({
           <div>
             <CardTitle className="text-base">Thrift Interest</CardTitle>
             <CardDescription>
-              Monthly interest on each employee&apos;s opening thrift balance:
-              opening × {interest?.annualRate ?? 5}% × eligible days ÷ 365. The
-              interest is credited to their savings account and posted to the
-              ledger.
+              Interest is earned daily on each employee&apos;s opening thrift
+              balance at {interest?.annualRate ?? 5}% per annum. The projected
+              monthly figure is the sum of every day&apos;s growth; posted
+              months are credited to savings and the ledger.
             </CardDescription>
           </div>
           <Badge variant={interest?.totals.posted ? "default" : "secondary"}>
@@ -194,6 +194,30 @@ export default async function ThriftSavingsPage({
               <p className="text-xs text-muted-foreground">Interest YTD</p>
               <p className="mt-1 text-lg font-semibold">
                 {naira(interest?.totals.ytdInterest ?? 0)}
+              </p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">
+                Daily Interest Growth
+              </p>
+              <p className="mt-1 text-lg font-semibold text-emerald-600">
+                {naira(interest?.live.accruedToDate ?? 0)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Today +{naira(interest?.live.dailyGrowth ?? 0)} · Day{" "}
+                {interest?.live.dayOfMonth ?? 0} of{" "}
+                {interest?.live.daysInMonth ?? 0}
+              </p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">
+                Projected Thrift Interest
+              </p>
+              <p className="mt-1 text-lg font-semibold">
+                {naira(interest?.live.projected ?? 0)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Month-end sum of daily growth
               </p>
             </div>
           </div>
@@ -264,6 +288,70 @@ export default async function ThriftSavingsPage({
               </Table>
             </div>
           )}
+
+          <div className="mt-2">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">Interest payment history</p>
+                <p className="text-xs text-muted-foreground">
+                  Monthly interest sums credited to employees&apos; thrift
+                  accounts and posted to the ledger.
+                </p>
+              </div>
+              <Badge variant="outline">
+                {interest?.history.length ?? 0} month
+                {(interest?.history.length ?? 0) === 1 ? "" : "s"} posted
+              </Badge>
+            </div>
+            {!interest || interest.history.length === 0 ? (
+              <p className="rounded-md border py-4 text-center text-sm text-muted-foreground">
+                No interest has been posted yet.
+              </p>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Month</TableHead>
+                      <TableHead className="text-right">Employees</TableHead>
+                      <TableHead className="text-right">Opening</TableHead>
+                      <TableHead className="text-right">Contribution</TableHead>
+                      <TableHead className="text-right">Released</TableHead>
+                      <TableHead className="text-right">Interest</TableHead>
+                      <TableHead className="text-right">Closing</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {interest.history.map((month) => (
+                      <TableRow key={month.periodMonth}>
+                        <TableCell className="text-sm font-medium">
+                          {month.periodLabel}
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          {month.posted}
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          {naira(month.opening)}
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          {naira(month.contributions)}
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          {naira(month.payouts)}
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-medium text-emerald-600">
+                          {naira(month.interest)}
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          {naira(month.closing)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

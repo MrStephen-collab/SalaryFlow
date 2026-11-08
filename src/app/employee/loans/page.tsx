@@ -37,16 +37,17 @@ function statusVariant(status: string) {
 
 export default async function EmployeeLoansPage() {
   const service = await EmployeePortalService.create();
-  const [loans, eligibility, thriftBalance] = await Promise.all([
+  const [loans, eligibility, thriftBalance, activeLoan] = await Promise.all([
     service.getLoans(),
     service.getLoanEligibility(),
     service.getThriftBalance(),
+    service.getActiveLoan(),
   ]);
 
   const requiredMonths = eligibility?.requiredMonths ?? 0;
   const eligible = eligibility?.eligible ?? true;
   const loanLimit = thriftBackedLoanLimit(thriftBalance);
-  const canApply = eligible && loanLimit > 0;
+  const canApply = eligible && loanLimit > 0 && !activeLoan;
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,6 +86,17 @@ export default async function EmployeeLoansPage() {
               )} thrift savings). Your monthly repayment must fit within your monthly thrift amount.`
             : "Save in thrift to unlock a loan — your limit is 3× your thrift savings."}
         </p>
+      ) : null}
+
+      {activeLoan ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-medium">You already have an active loan</p>
+          <p className="mt-1">
+            Another loan cannot be taken until your current{" "}
+            {activeLoan.productName} loan ({naira(activeLoan.outstanding)}{" "}
+            outstanding) is fully repaid. The Apply for Loan button is disabled.
+          </p>
+        </div>
       ) : null}
 
       {!eligible ? (

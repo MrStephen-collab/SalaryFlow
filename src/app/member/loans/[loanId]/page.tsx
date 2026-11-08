@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MemberService } from "@/services/member-service";
 import { LoanAnalysis } from "@/components/loans/loan-analysis";
+import { LoanScheduleActions } from "@/components/loans/loan-schedule-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -64,6 +65,10 @@ export default async function MemberLoanDetailPage({
           {String(loan.status)}
         </Badge>
       </div>
+
+      {schedules.length > 0 ? (
+        <LoanScheduleActions loanId={loan.id as string} />
+      ) : null}
 
       <LoanAnalysis
         loan={{

@@ -410,6 +410,29 @@ export class LoanService {
   ) {
     if (!this.orgId) return { error: "No organization found" };
 
+    // Only one loan may be in progress at a time.
+    const admin = createAdminClient();
+    const { data: loanInProgress } = await admin
+      .from("loan_applications")
+      .select("id, status")
+      .eq("employee_id", employeeId)
+      .eq("organization_id", this.orgId)
+      .in("status", [
+        "APPROVED",
+        "READY_FOR_DISBURSEMENT",
+        "DISBURSED",
+        "ACTIVE",
+      ])
+      .limit(1)
+      .maybeSingle();
+
+    if (loanInProgress) {
+      return {
+        error:
+          "You already have an active loan in progress. Repay it in full before applying for another one.",
+      };
+    }
+
     const { data: product } = await this.supabase
       .from("loan_products")
       .select("*")
@@ -441,7 +464,6 @@ export class LoanService {
     }
 
     // Employment-period eligibility is defined on the loan product.
-    const admin = createAdminClient();
     const { data: employee } = await admin
       .from("employees")
       .select("date_joined, thrift_enabled, thrift_amount")
@@ -491,8 +513,9 @@ export class LoanService {
       annualInterestRate: product.interest_rate,
       interestMethod: product.interest_method as InterestMethod,
       durationMonths,
-      processingFee: product.processing_fee,
-      insuranceFee: product.insurance_fee,
+      // Employee loans carry no processing or insurance fee.
+      processingFee: 0,
+      insuranceFee: 0,
     });
 
     // The employer settles the loan from the monthly thrift funding, so the
@@ -767,8 +790,9 @@ export class LoanService {
       annualInterestRate: product.interest_rate,
       interestMethod: product.interest_method as InterestMethod,
       durationMonths: existing.duration_months,
-      processingFee: product.processing_fee,
-      insuranceFee: product.insurance_fee,
+      // No insurance or processing fee is deducted from employee disbursements.
+      processingFee: 0,
+      insuranceFee: 0,
     });
 
     const scheduleInserts = calculation.schedule.map((entry) => ({

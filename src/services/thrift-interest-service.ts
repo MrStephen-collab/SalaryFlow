@@ -58,12 +58,42 @@ export interface ThriftInterestAccrual {
   sample: boolean;
 }
 
+/** One month's aggregate interest across every employee in the organization. */
+export interface ThriftInterestHistoryRow {
+  periodMonth: string;
+  periodLabel: string;
+  opening: number;
+  contributions: number;
+  payouts: number;
+  closing: number;
+  interest: number;
+  posted: number;
+}
+
+/**
+ * Live, month-to-date interest position. Interest is earned daily
+ * (opening balance × annual rate ÷ 365), so the projected monthly figure is
+ * the sum of every day's growth for the month.
+ */
+export interface ThriftInterestLive {
+  openingBalance: number;
+  dailyGrowth: number;
+  accruedToDate: number;
+  projected: number;
+  dayOfMonth: number;
+  daysInMonth: number;
+  annualRate: number;
+  asOf: string;
+}
+
 export interface ThriftInterestOverview {
   periodMonth: string;
   periodLabel: string;
   closed: boolean;
   annualRate: number;
   accruals: ThriftInterestAccrual[];
+  live: ThriftInterestLive;
+  history: ThriftInterestHistoryRow[];
   totals: {
     interest: number;
     opening: number;
@@ -72,6 +102,8 @@ export interface ThriftInterestOverview {
     closing: number;
     posted: number;
     ytdInterest: number;
+    accruedToDate: number;
+    projected: number;
   };
 }
 
@@ -83,6 +115,10 @@ export interface MyThriftInterestSummary {
   ytdInterest: number;
   lifetimeInterest: number;
   currentProjection: number;
+  dailyGrowth: number;
+  dailyGrowthToDate: number;
+  dayOfMonth: number;
+  daysInMonth: number;
   currentMonthLabel: string;
   lastAccrual: ThriftInterestAccrual | null;
   months: ThriftInterestAccrual[];
@@ -109,6 +145,10 @@ function previousMonth() {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
     .toISOString()
     .slice(0, 10);
+}
+
+function isoToday() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function monthName(periodMonth: string) {
@@ -174,6 +214,208 @@ export class ThriftInterestService {
       .maybeSingle();
     const rate = Number(data?.thrift_interest_rate);
     return Number.isFinite(rate) ? rate : 5;
+  }
+
+  private async getHistory(): Promise<ThriftInterestHistoryRow[]> {
+    if (!this.organizationId) return [];
+
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("thrift_interest_accruals")
+      .select(
+        "period_month, opening_balance, contributions, payouts, closing_balance, interest_amount"
+      )
+      .eq("organization_id", this.organizationId)
+      .eq("status", "POSTED")
+      .order("period_month", { ascending: false })
+      .limit(5000);
+
+    const byMonth = new Map<string, ThriftInterestHistoryRow>();
+    for (const row of data ?? []) {
+      const periodMonth = String(row.period_month);
+      const current =
+        byMonth.get(periodMonth) ??
+        ({
+          periodMonth,
+          periodLabel: monthName(periodMonth),
+          opening: 0,
+          contributions: 0,
+          payouts: 0,
+          closing: 0,
+          interest: 0,
+          posted: 0,
+        } satisfies ThriftInterestHistoryRow);
+
+      current.opening = round2(current.opening + (Number(row.opening_balance) || 0));
+      current.contributions = round2(
+        current.contributions + (Number(row.contributions) || 0)
+      );
+      current.payouts = round2(current.payouts + (Number(row.payouts) || 0));
+      current.closing = round2(
+        current.closing + (Number(row.closing_balance) || 0)
+      );
+      current.interest = round2(
+        current.interest + (Number(row.interest_amount) || 0)
+      );
+      current.posted += 1;
+      byMonth.set(periodMonth, current);
+    }
+
+    return [...byMonth.values()].sort((a, b) =>
+      b.periodMonth.localeCompare(a.periodMonth)
+    );
+  }
+
+  /**
+   * Live interest for the current month across the whole organization.
+   * Daily growth is calculated on the month's opening thrift balance and the
+   * projected monthly interest is the sum of each day's growth.
+   */
+  private async computeLiveTotals(
+    periodMonth: string,
+    annualRate: number
+  ): Promise<ThriftInterestLive> {
+    const empty: ThriftInterestLive = {
+      openingBalance: 0,
+      dailyGrowth: 0,
+      accruedToDate: 0,
+      projected: 0,
+      dayOfMonth: 0,
+      daysInMonth: daysInMonth(periodMonth),
+      annualRate,
+      asOf: isoToday(),
+    };
+    if (!this.organizationId) return empty;
+
+    const admin = createAdminClient();
+    const { data: accounts } = await admin
+      .from("financial_accounts")
+      .select("id, employee_id")
+      .eq("organization_id", this.organizationId)
+      .eq("account_type", "THRIFT");
+
+    const accountIds = (accounts ?? []).map((row) => row.id as string);
+    if (accountIds.length === 0) return empty;
+
+    const employeeByAccount = new Map<string, string>();
+    for (const account of accounts ?? []) {
+      employeeByAccount.set(
+        account.id as string,
+        account.employee_id as string
+      );
+    }
+
+    const chunk = <T,>(rows: T[], size = 200) =>
+      Array.from({ length: Math.ceil(rows.length / size) }, (_, index) =>
+        rows.slice(index * size, index * size + size)
+      );
+
+    const priorByEmployee = new Map<string, number>();
+    for (const ids of chunk(accountIds)) {
+      const { data: entries } = await admin
+        .from("ledger_entries")
+        .select(
+          "financial_account_id, debit, credit, ledger_transactions!inner(transaction_date, status)"
+        )
+        .in("financial_account_id", ids)
+        .lt("ledger_transactions.transaction_date", periodMonth)
+        .neq("ledger_transactions.status", "REVERSED");
+
+      for (const entry of entries ?? []) {
+        const employeeId = employeeByAccount.get(
+          entry.financial_account_id as string
+        );
+        if (!employeeId) continue;
+        priorByEmployee.set(
+          employeeId,
+          round2(
+            (priorByEmployee.get(employeeId) ?? 0) +
+              (Number(entry.credit) || 0) -
+              (Number(entry.debit) || 0)
+          )
+        );
+      }
+    }
+
+    const { data: fundings } = await admin
+      .from("thrift_fundings")
+      .select("employee_id, thrift_credit")
+      .eq("organization_id", this.organizationId)
+      .eq("period_month", periodMonth)
+      .eq("status", "POSTED");
+
+    const contributionsByEmployee = new Map<string, number>();
+    for (const funding of fundings ?? []) {
+      const employeeId = funding.employee_id as string;
+      contributionsByEmployee.set(
+        employeeId,
+        round2(
+          (contributionsByEmployee.get(employeeId) ?? 0) +
+            (Number(funding.thrift_credit) || 0)
+        )
+      );
+    }
+
+    const payoutsByEmployee = new Map<string, number>();
+    for (const ids of chunk(accountIds)) {
+      const { data: payoutEntries } = await admin
+        .from("ledger_entries")
+        .select(
+          "financial_account_id, debit, ledger_transactions!inner(transaction_date, transaction_type, status)"
+        )
+        .in("financial_account_id", ids)
+        .eq("ledger_transactions.transaction_type", "THRIFT_PAYOUT")
+        .neq("ledger_transactions.status", "REVERSED")
+        .gte("ledger_transactions.transaction_date", periodMonth)
+        .lte("ledger_transactions.transaction_date", periodEnd(periodMonth));
+
+      for (const entry of payoutEntries ?? []) {
+        const employeeId = employeeByAccount.get(
+          entry.financial_account_id as string
+        );
+        if (!employeeId) continue;
+        payoutsByEmployee.set(
+          employeeId,
+          round2(
+            (payoutsByEmployee.get(employeeId) ?? 0) +
+              (Number(entry.debit) || 0)
+          )
+        );
+      }
+    }
+
+    const employees = new Set(employeeByAccount.values());
+    let openingBalance = 0;
+    for (const employeeId of employees) {
+      openingBalance += Math.max(
+        0,
+        (priorByEmployee.get(employeeId) ?? 0) +
+          (contributionsByEmployee.get(employeeId) ?? 0) -
+          (payoutsByEmployee.get(employeeId) ?? 0)
+      );
+    }
+    openingBalance = round2(openingBalance);
+
+    const days = daysInMonth(periodMonth);
+    const dailyGrowth = round2(
+      (openingBalance * (annualRate / 100)) / 365
+    );
+
+    const currentMonth = currentPeriodMonth();
+    let dayOfMonth = new Date().getUTCDate();
+    if (periodMonth > currentMonth) dayOfMonth = 0;
+    else if (periodMonth < currentMonth) dayOfMonth = days;
+
+    return {
+      openingBalance,
+      dailyGrowth,
+      accruedToDate: round2(dailyGrowth * dayOfMonth),
+      projected: round2(dailyGrowth * days),
+      dayOfMonth,
+      daysInMonth: days,
+      annualRate,
+      asOf: isoToday(),
+    };
   }
 
   private async computeAccrual(
@@ -879,7 +1121,8 @@ export class ThriftInterestService {
       (periodMonthInput ? normalizePeriodMonth(periodMonthInput) : null) ??
       previousMonth();
     const admin = createAdminClient();
-    const [rate, monthResult, yearResult] = await Promise.all([
+    const currentMonth = currentPeriodMonth();
+    const [rate, monthResult, yearResult, history] = await Promise.all([
       this.getAnnualRate(),
       admin
         .from("thrift_interest_accruals")
@@ -901,7 +1144,10 @@ export class ThriftInterestService {
         .eq("status", "POSTED")
         .gte("period_month", `${periodMonth.slice(0, 4)}-01-01`)
         .lte("period_month", periodMonth),
+      this.getHistory(),
     ]);
+
+    const live = await this.computeLiveTotals(currentMonth, rate);
 
     const mapRow = (row: Record<string, unknown>): ThriftInterestAccrual => {
       const employee = row.employees as unknown as {
@@ -947,6 +1193,8 @@ export class ThriftInterestService {
       closed: isClosedMonth(periodMonth),
       annualRate: rate,
       accruals,
+      live,
+      history,
       totals: {
         interest: round2(accruals.reduce((sum, row) => sum + row.interest, 0)),
         opening: round2(
@@ -963,6 +1211,8 @@ export class ThriftInterestService {
         ),
         posted: accruals.length,
         ytdInterest: round2(ytdInterest),
+        accruedToDate: live.accruedToDate,
+        projected: live.projected,
       },
     };
   }
@@ -1095,16 +1345,21 @@ export class ThriftInterestService {
         .reduce((sum, row) => sum + row.interest, 0)
     );
 
-    let currentProjection = 0;
+    const monthDays = daysInMonth(currentMonth);
+    const today = Math.min(new Date().getUTCDate(), monthDays);
+    let dailyGrowth = 0;
+
     try {
       const projection = await this.computeAccrual(
         employee.id as string,
         currentMonth,
         rate
       );
-      currentProjection = projection.interest;
+      dailyGrowth = round2(
+        (projection.openingBalance * (rate / 100)) / 365
+      );
     } catch {
-      currentProjection = 0;
+      dailyGrowth = 0;
     }
 
     return {
@@ -1114,10 +1369,15 @@ export class ThriftInterestService {
       balance,
       ytdInterest,
       lifetimeInterest,
-      currentProjection,
+      // Projected interest is the sum of every day's growth in the month.
+      currentProjection: round2(dailyGrowth * monthDays),
+      dailyGrowth,
+      dailyGrowthToDate: round2(dailyGrowth * today),
+      dayOfMonth: today,
+      daysInMonth: monthDays,
       currentMonthLabel: monthName(currentMonth),
       lastAccrual: months[0] ?? null,
-      months: months.slice(0, 12),
+      months: months.slice(0, 36),
     };
   }
 }

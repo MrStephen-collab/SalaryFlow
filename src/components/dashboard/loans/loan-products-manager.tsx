@@ -177,8 +177,8 @@ export function LoanProductsManager({
       interestMethod: form.interestMethod,
       durationMonths: form.durationMonths,
       repaymentFrequency: form.repaymentFrequency,
-      processingFee: form.processingFee,
-      insuranceFee: form.insuranceFee,
+      processingFee: memberScope ? form.processingFee : 0,
+      insuranceFee: memberScope ? form.insuranceFee : 0,
       minimumEmploymentPeriodMonths: memberScope
         ? 0
         : form.minimumEmploymentPeriodMonths,
@@ -526,23 +526,27 @@ export function LoanProductsManager({
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Processing Fee (₦)</Label>
-                  <Input
-                    type="number"
-                    value={form.processingFee}
-                    onChange={(e) => set("processingFee", Number(e.target.value))}
-                  />
-                </div>
+                {isMemberProduct ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Processing Fee (₦)</Label>
+                      <Input
+                        type="number"
+                        value={form.processingFee}
+                        onChange={(e) => set("processingFee", Number(e.target.value))}
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label>Insurance Fee (₦)</Label>
-                  <Input
-                    type="number"
-                    value={form.insuranceFee}
-                    onChange={(e) => set("insuranceFee", Number(e.target.value))}
-                  />
-                </div>
+                    <div className="space-y-2">
+                      <Label>Insurance Fee (₦)</Label>
+                      <Input
+                        type="number"
+                        value={form.insuranceFee}
+                        onChange={(e) => set("insuranceFee", Number(e.target.value))}
+                      />
+                    </div>
+                  </>
+                ) : null}
 
                 {!isMemberProduct ? (
                   <div className="space-y-2">

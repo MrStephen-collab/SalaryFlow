@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
+import { AutoRefresh } from "@/components/dashboard/auto-refresh";
 import {
   HandCoins,
   Banknote,
@@ -80,6 +81,7 @@ export default async function EmployeeHomePage() {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
+      <AutoRefresh />
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">
@@ -235,8 +237,9 @@ export default async function EmployeeHomePage() {
             <div>
               <CardTitle className="text-base">Thrift Interest Growth</CardTitle>
               <CardDescription>
-                Monthly interest on your opening thrift balance at{" "}
-                {interest?.annualRate ?? 5}% per annum.
+                Daily interest on your opening thrift balance at{" "}
+                {interest?.annualRate ?? 5}% per annum. The projected figure is
+                the sum of every day&apos;s growth.
               </CardDescription>
             </div>
             {interest?.sample ? (
@@ -251,7 +254,7 @@ export default async function EmployeeHomePage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">
-                  Interest this year
+                  Thrift Interest Sum
                 </p>
                 <p className="mt-1 text-lg font-bold text-emerald-600">
                   {naira(interest?.ytdInterest ?? 0)}
@@ -259,10 +262,13 @@ export default async function EmployeeHomePage() {
               </div>
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">
-                  Projected {interest?.currentMonthLabel ?? "this month"}
+                  Projected Thrift Interest
                 </p>
                 <p className="mt-1 text-lg font-bold">
                   {naira(interest?.currentProjection ?? 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {interest?.currentMonthLabel ?? "This month"} month-end
                 </p>
               </div>
               <div className="rounded-lg border p-3">
@@ -274,14 +280,15 @@ export default async function EmployeeHomePage() {
                 </p>
               </div>
               <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">Last posted</p>
+                <p className="text-xs text-muted-foreground">
+                  Daily Interest Growth
+                </p>
                 <p className="mt-1 text-lg font-bold">
-                  {interest?.lastAccrual
-                    ? naira(interest.lastAccrual.interest)
-                    : "—"}
+                  {naira(interest?.dailyGrowthToDate ?? 0)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {interest?.lastAccrual?.periodLabel ?? "Nothing yet"}
+                  Today +{naira(interest?.dailyGrowth ?? 0)} · Day{" "}
+                  {interest?.dayOfMonth ?? 0} of {interest?.daysInMonth ?? 0}
                 </p>
               </div>
             </div>
@@ -344,10 +351,23 @@ export default async function EmployeeHomePage() {
             <CardTitle className="text-base">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2">
-            <Button render={<Link href="/employee/loans/apply" />}>
-              Apply for Loan
-              <ArrowRight className="size-4" />
-            </Button>
+            {activeLoan ? (
+              <>
+                <Button disabled>
+                  Apply for Loan
+                  <ArrowRight className="size-4" />
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  You have an active loan. Repay it in full before applying for
+                  another one.
+                </p>
+              </>
+            ) : (
+              <Button render={<Link href="/employee/loans/apply" />}>
+                Apply for Loan
+                <ArrowRight className="size-4" />
+              </Button>
+            )}
             <Button variant="outline" render={<Link href="/employee/money" />}>
               Account Statement
             </Button>

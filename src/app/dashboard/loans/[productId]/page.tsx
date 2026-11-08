@@ -14,6 +14,7 @@ import {
 import { ArrowLeft } from "lucide-react";
 import { EditProductDialog } from "@/components/dashboard/loans/edit-product-dialog";
 import { ToggleProductActive } from "@/components/dashboard/loans/toggle-product-active";
+import { isMemberLoanProduct } from "@/lib/loan-products";
 
 export const metadata: Metadata = {
   title: "Loan Product",
@@ -92,18 +93,34 @@ export default async function LoanProductPage({
                 {product.repayment_frequency}
               </p>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Processing Fee</p>
-              <p className="text-sm font-medium">
-                {naira(product.processing_fee)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Insurance Fee</p>
-              <p className="text-sm font-medium">
-                {naira(product.insurance_fee)}
-              </p>
-            </div>
+            {isMemberLoanProduct(product) ? (
+              <>
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Processing Fee
+                  </p>
+                  <p className="text-sm font-medium">
+                    {naira(product.processing_fee)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Insurance Fee
+                  </p>
+                  <p className="text-sm font-medium">
+                    {naira(product.insurance_fee)}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="sm:col-span-2">
+                <p className="text-xs text-muted-foreground">Fees</p>
+                <p className="text-sm font-medium">
+                  None — employee loans do not deduct processing or insurance
+                  fees at disbursement.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

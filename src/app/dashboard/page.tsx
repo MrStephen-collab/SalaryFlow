@@ -141,8 +141,10 @@ export default async function DashboardPage() {
       value: naira(thriftOverview?.totals.savings ?? 0),
       description: thriftOverview
         ? `${thriftOverview.totals.fundedCount}/${thriftOverview.totals.employeeCount} funded this month · ${naira(
+            thriftInterest?.live.projected ?? 0
+          )} projected interest · ${naira(
             thriftInterest?.totals.ytdInterest ?? 0
-          )} interest YTD`
+          )} YTD`
         : "Employer-funded employee savings",
       href: "/dashboard/employees/thrift",
       icon: Wallet,

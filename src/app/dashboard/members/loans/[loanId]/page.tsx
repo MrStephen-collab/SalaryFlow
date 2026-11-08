@@ -5,6 +5,7 @@ import { MemberService } from "@/services/member-service";
 import { LoanAnalysis } from "@/components/loans/loan-analysis";
 import { MemberRepaymentDialog } from "@/components/dashboard/members/member-repayment-dialog";
 import { MemberLoanActions } from "@/components/dashboard/members/member-loan-actions";
+import { LoanScheduleActions } from "@/components/loans/loan-schedule-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -77,7 +78,10 @@ export default async function MemberLoanDetailPage({
             {loan.purpose ? ` · ${loan.purpose}` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {schedules.length > 0 ? (
+            <LoanScheduleActions loanId={String(loan.id)} />
+          ) : null}
           <Badge variant={statusVariant(status)}>{status}</Badge>
           {isPending || status === "APPROVED" ? (
             <MemberLoanActions

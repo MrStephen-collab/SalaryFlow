@@ -23,6 +23,7 @@ import { CollapsibleTableBody } from "@/components/ui/collapsible-table-body";
 import { ArrowLeft } from "lucide-react";
 import { ApplicationActions } from "@/components/dashboard/loans/application-actions";
 import { SettlementActions, RestructureHistoryTable } from "@/components/dashboard/loans/settlement-actions";
+import { LoanScheduleActions } from "@/components/loans/loan-schedule-actions";
 
 export const metadata: Metadata = {
   title: "Loan Application",
@@ -99,7 +100,10 @@ export default async function LoanApplicationDetailPage({
             {application.employeeName} — {application.productName}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {schedule.length > 0 ? (
+            <LoanScheduleActions loanId={application.id} />
+          ) : null}
           <Button
             variant="outline"
             render={<Link href="/dashboard/loans/applications" />}

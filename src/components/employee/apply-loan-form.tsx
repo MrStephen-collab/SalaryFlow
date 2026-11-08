@@ -84,8 +84,9 @@ export function ApplyLoanForm({
           annualInterestRate: selectedProduct.interest_rate,
           interestMethod: selectedProduct.interest_method as InterestMethod,
           durationMonths: duration,
-          processingFee: selectedProduct.processing_fee,
-          insuranceFee: selectedProduct.insurance_fee,
+          // Employee loans have no processing or insurance fees.
+          processingFee: 0,
+          insuranceFee: 0,
         })
       : null;
 
@@ -349,19 +350,6 @@ export function ApplyLoanForm({
                   <p className="text-lg font-bold">{naira(calculation.totalRepayment)}</p>
                 </div>
               </div>
-
-              {calculation.processingFee > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Processing Fee</span>
-                  <span>{naira(calculation.processingFee)}</span>
-                </div>
-              )}
-              {calculation.insuranceFee > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Insurance Fee</span>
-                  <span>{naira(calculation.insuranceFee)}</span>
-                </div>
-              )}
 
               <div className="rounded-lg border p-4">
                 <p className="text-xs text-muted-foreground">

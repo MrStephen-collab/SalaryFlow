@@ -805,6 +805,24 @@ export class ThriftService {
       return { ok: false as const, error: "Enter a valid amount" };
     }
 
+    const admin = createAdminClient();
+    const { data: activeLoan } = await admin
+      .from("loan_applications")
+      .select("id")
+      .eq("employee_id", employee.id)
+      .eq("organization_id", employee.organization_id)
+      .in("status", ["ACTIVE", "DISBURSED"])
+      .limit(1)
+      .maybeSingle();
+
+    if (activeLoan) {
+      return {
+        ok: false as const,
+        error:
+          "Thrift release is unavailable while you have an active loan. Repay the loan in full first.",
+      };
+    }
+
     const ledger = LedgerService.createForOrganization(employee.organization_id);
     const balance = await ledger.getThriftBalance(employee.id);
     if (requested > balance) {
@@ -814,7 +832,6 @@ export class ThriftService {
       };
     }
 
-    const admin = createAdminClient();
     const { data: pending } = await admin
       .from("thrift_release_requests")
       .select("id")
@@ -981,6 +998,23 @@ export class ThriftService {
       .maybeSingle();
 
     if (!employee) return { ok: false, error: "Employee not found" };
+
+    const { data: activeLoan } = await admin
+      .from("loan_applications")
+      .select("id")
+      .eq("employee_id", employeeId)
+      .eq("organization_id", this.organizationId)
+      .in("status", ["ACTIVE", "DISBURSED"])
+      .limit(1)
+      .maybeSingle();
+
+    if (activeLoan) {
+      return {
+        ok: false,
+        error:
+          "Thrift savings cannot be released while this employee has an active loan. Repay the loan in full first.",
+      };
+    }
 
     const ledger = LedgerService.createForOrganization(
       this.organizationId,

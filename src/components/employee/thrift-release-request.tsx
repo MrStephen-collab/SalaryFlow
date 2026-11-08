@@ -28,9 +28,11 @@ function naira(amount: number) {
 export function ThriftReleaseRequest({
   balance,
   pending,
+  hasActiveLoan = false,
 }: {
   balance: number;
   pending: { amount: number; createdAt: string } | null;
+  hasActiveLoan?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -74,6 +76,15 @@ export function ThriftReleaseRequest({
     return (
       <p className="text-xs text-muted-foreground">
         Thrift savings will be released by the chairman.
+      </p>
+    );
+  }
+
+  if (hasActiveLoan) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Thrift release is unavailable while you have an active loan. Repay the
+        loan in full first.
       </p>
     );
   }

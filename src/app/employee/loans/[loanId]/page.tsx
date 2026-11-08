@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { EarlySettlementCard } from "@/components/employee/loans/early-settlement";
 import { LoanAnalysis } from "@/components/loans/loan-analysis";
+import { LoanScheduleActions } from "@/components/loans/loan-schedule-actions";
 
 export const metadata: Metadata = {
   title: "Loan Detail",
@@ -60,6 +61,9 @@ export default async function EmployeeLoanDetailPage({
             {loan.productDuration} months · {String(loan.status)}
           </p>
         </div>
+        {schedules.length > 0 ? (
+          <LoanScheduleActions loanId={loan.id as string} />
+        ) : null}
       </div>
 
       {quoteResult.quote && (
@@ -75,8 +79,8 @@ export default async function EmployeeLoanDetailPage({
           interestRate: Number(loan.interestRate) || 0,
           interestMethod: String(loan.interestMethod ?? "FLAT"),
           durationMonths: Number(loan.productDuration) || Number(loan.duration_months) || 0,
-          processingFee: Number(loan.processing_fee) || 0,
-          insuranceFee: Number(loan.insurance_fee) || 0,
+          processingFee: 0,
+          insuranceFee: 0,
           totalInterest: Number(loan.total_interest) || 0,
           totalRepayment: Number(loan.total_repayment) || 0,
           monthly: Number(loan.monthly_deduction) || 0,

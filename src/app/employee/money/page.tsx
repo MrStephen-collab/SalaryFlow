@@ -43,6 +43,7 @@ export default async function EmployeeMoneyPage() {
     thriftSummary,
     thriftLedger,
     interest,
+    activeLoan,
   ] = await Promise.all([
     service.getAvailableBalance(),
     service.getTransactions(),
@@ -51,6 +52,7 @@ export default async function EmployeeMoneyPage() {
     thriftService.getMySummary(),
     service.getThriftLedger(),
     interestService.getMySummary(),
+    service.getActiveLoan(),
   ]);
   const pendingThriftRequest = (thriftRequests as Array<{
     amount: number;
@@ -60,6 +62,19 @@ export default async function EmployeeMoneyPage() {
 
   const credits = transactions.reduce((s, t) => s + t.credit, 0);
   const debits = transactions.reduce((s, t) => s + t.debit, 0);
+  const interestByMonth = new Map(
+    (interest?.months ?? []).map((month) => [month.periodMonth, month.interest])
+  );
+  const fundingTotals = (thriftSummary?.fundings ?? []).reduce(
+    (totals, funding) => ({
+      funded: totals.funded + funding.amount,
+      toLoan: totals.toLoan + funding.loanRepayment,
+      toSavings: totals.toSavings + funding.thriftCredit,
+      interest:
+        totals.interest + (interestByMonth.get(funding.periodMonth) ?? 0),
+    }),
+    { funded: 0, toLoan: 0, toSavings: 0, interest: 0 }
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -127,6 +142,7 @@ export default async function EmployeeMoneyPage() {
             <div className="mt-2">
               <ThriftReleaseRequest
                 balance={thriftBalance}
+                hasActiveLoan={Boolean(activeLoan)}
                 pending={
                   pendingThriftRequest
                     ? {
@@ -149,25 +165,29 @@ export default async function EmployeeMoneyPage() {
               Thrift Interest Growth
             </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
-              Interest is calculated monthly on your opening thrift balance at{" "}
-              {interest?.annualRate ?? 5}% per annum.
+              Interest grows daily on your opening thrift balance at{" "}
+              {interest?.annualRate ?? 5}% per annum. The projected amount is
+              the sum of every day&apos;s growth for the month.
             </p>
           </div>
           {interest?.sample ? <Badge variant="outline">Sample data</Badge> : null}
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-4">
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Interest this year</p>
+            <p className="text-xs text-muted-foreground">Thrift Interest Sum</p>
             <p className="mt-1 text-lg font-semibold text-emerald-600">
               {naira(interest?.ytdInterest ?? 0)}
             </p>
           </div>
           <div className="rounded-lg border p-3">
             <p className="text-xs text-muted-foreground">
-              Projected for {interest?.currentMonthLabel ?? "this month"}
+              Projected Thrift Interest
             </p>
             <p className="mt-1 text-lg font-semibold">
               {naira(interest?.currentProjection ?? 0)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {interest?.currentMonthLabel ?? "This month"} month-end
             </p>
           </div>
           <div className="rounded-lg border p-3">
@@ -177,16 +197,64 @@ export default async function EmployeeMoneyPage() {
             </p>
           </div>
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Last posted</p>
+            <p className="text-xs text-muted-foreground">
+              Daily Interest Growth
+            </p>
             <p className="mt-1 text-lg font-semibold">
-              {interest?.lastAccrual
-                ? naira(interest.lastAccrual.interest)
-                : "—"}
+              {naira(interest?.dailyGrowthToDate ?? 0)}
             </p>
             <p className="text-xs text-muted-foreground">
-              {interest?.lastAccrual?.periodLabel ?? "No interest posted yet"}
+              Today +{naira(interest?.dailyGrowth ?? 0)} · Day{" "}
+              {interest?.dayOfMonth ?? 0} of {interest?.daysInMonth ?? 0}
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Thrift Interest Payment History</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Every month&apos;s interest credited to your thrift savings account.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {!interest || interest.months.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="text-sm font-medium">No interest posted yet</p>
+              <p className="text-sm text-muted-foreground">
+                Interest starts after your first completed month of thrift
+                savings.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              {interest.months.map((month, index) => (
+                <div
+                  key={month.id}
+                  className={`flex flex-wrap items-center justify-between gap-3 py-3 ${
+                    index > 0 ? "border-t" : ""
+                  }`}
+                >
+                  <div>
+                    <p className="text-sm font-medium">{month.periodLabel}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {month.eligibleDays} days · {month.annualRate}% p.a. ·
+                      Opening {naira(month.openingBalance)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-emerald-600">
+                      +{naira(month.interest)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Closing {naira(month.closingBalance)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -308,7 +376,11 @@ export default async function EmployeeMoneyPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Thrift Funding History</CardTitle>
+          <CardTitle>Monthly Thrift Funding &amp; Repayment History</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Every month shows the thrift funding paid in and the deduction taken
+            out of that thrift to repay your active loan.
+          </p>
         </CardHeader>
         <CardContent>
           {!thriftSummary || thriftSummary.fundings.length === 0 ? (
@@ -319,38 +391,102 @@ export default async function EmployeeMoneyPage() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col">
-              {thriftSummary.fundings.map((funding, index) => (
-                <div
-                  key={funding.id}
-                  className={`flex flex-wrap items-center justify-between gap-3 py-3 ${
-                    index > 0 ? "border-t" : ""
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{funding.periodLabel}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {funding.reference}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">
-                      +{naira(funding.amount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Loan {naira(funding.loanRepayment)} · Savings{" "}
-                      {naira(funding.thriftCredit)}
-                    </p>
-                    <Link
-                      href={`/receipts/thrift/${funding.id}`}
-                      className="text-xs font-medium text-primary underline underline-offset-2"
-                    >
-                      Receipt
-                    </Link>
-                  </div>
+            <>
+              <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Funding In</p>
+                  <p className="mt-1 text-sm font-semibold text-emerald-600">
+                    +{naira(fundingTotals.funded)}
+                  </p>
                 </div>
-              ))}
-            </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Loan Repayment Out
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-red-600">
+                    −{naira(fundingTotals.toLoan)}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Interest In</p>
+                  <p className="mt-1 text-sm font-semibold text-emerald-600">
+                    +{naira(fundingTotals.interest)}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Net Savings In
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-amber-600">
+                    +{naira(fundingTotals.toSavings + fundingTotals.interest)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                {thriftSummary.fundings.map((funding, index) => {
+                  const interestEarned =
+                    interestByMonth.get(funding.periodMonth) ?? 0;
+                  return (
+                    <div
+                      key={funding.id}
+                      className={`flex flex-wrap items-center justify-between gap-3 py-3 ${
+                        index > 0 ? "border-t" : ""
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {funding.periodLabel}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {funding.reference}
+                        </p>
+                        <Link
+                          href={`/receipts/thrift/${funding.id}`}
+                          className="text-xs font-medium text-primary underline underline-offset-2"
+                        >
+                          Receipt
+                        </Link>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-right text-xs sm:grid-cols-4">
+                        <div>
+                          <p className="text-muted-foreground">Funding In</p>
+                          <p className="text-sm font-semibold text-emerald-600">
+                            +{naira(funding.amount)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">
+                            Loan Repayment Out
+                          </p>
+                          <p className="text-sm font-semibold text-red-600">
+                            {funding.loanRepayment > 0
+                              ? `−${naira(funding.loanRepayment)}`
+                              : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Interest In</p>
+                          <p className="text-sm font-semibold text-emerald-600">
+                            {interestEarned > 0
+                              ? `+${naira(interestEarned)}`
+                              : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">
+                            Net Savings In
+                          </p>
+                          <p className="text-sm font-semibold text-amber-600">
+                            +{naira(funding.thriftCredit + interestEarned)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

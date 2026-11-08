@@ -15,15 +15,44 @@ export default async function EmployeeApplyLoanPage() {
   const loanService = await LoanService.create();
   const portal = await EmployeePortalService.create();
 
-  const [products, employee, eligibility, thriftBalance] = await Promise.all([
-    loanService.listProducts("EMPLOYEE"),
-    portal.getEmployee(),
-    portal.getLoanEligibility(),
-    portal.getThriftBalance(),
-  ]);
+  const [products, employee, eligibility, thriftBalance, activeLoan] =
+    await Promise.all([
+      loanService.listProducts("EMPLOYEE"),
+      portal.getEmployee(),
+      portal.getLoanEligibility(),
+      portal.getThriftBalance(),
+      portal.getActiveLoan(),
+    ]);
 
   if (!employee) {
     redirect("/employee/loans");
+  }
+
+  if (activeLoan) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight">Apply for Loan</h1>
+          <Button variant="outline" render={<Link href="/employee/loans" />}>
+            <ArrowLeft className="size-4" />
+            My Loans
+          </Button>
+        </div>
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900">
+          <p className="text-base font-medium">You already have an active loan</p>
+          <p className="mt-2">
+            Another loan cannot be applied for until your current{" "}
+            {activeLoan.productName} loan is fully repaid. You currently owe{" "}
+            {new Intl.NumberFormat("en-NG", {
+              style: "currency",
+              currency: "NGN",
+              maximumFractionDigits: 2,
+            }).format(activeLoan.outstanding)}
+            .
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (eligibility && !eligibility.eligible) {

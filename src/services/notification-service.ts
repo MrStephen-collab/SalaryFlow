@@ -129,7 +129,7 @@ export class NotificationService {
     const admin = createAdminClient();
     const items: NotificationItem[] = [];
 
-    const [loans, savings, schedules, member] = await Promise.all([
+    const [loans, savings, schedules, member, withdrawals] = await Promise.all([
       admin
         .from("loan_applications")
         .select("id, status, amount, created_at, submitted_at, approved_at, rejected_at, disbursed_at, rejection_reason")
@@ -161,6 +161,15 @@ export class NotificationService {
         .select("status, joined_at, created_at")
         .eq("id", this.memberId)
         .maybeSingle(),
+      admin
+        .from("withdrawal_requests")
+        .select(
+          "id, status, amount, reference, created_at, updated_at, paid_at, processed_at, approved_at, failure_reason"
+        )
+        .eq("member_id", this.memberId)
+        .in("status", ["PENDING", "APPROVED", "PROCESSING", "PAID", "REJECTED", "FAILED"])
+        .order("updated_at", { ascending: false })
+        .limit(20),
     ]);
 
     for (const loan of loans.data ?? []) {
@@ -250,16 +259,64 @@ export class NotificationService {
           amount: Number(tx.amount) || 0,
           reference: tx.reference ?? undefined,
         });
+      } else if (
+        tx.transaction_type === "INTEREST" ||
+        tx.transaction_type === "ADJUSTMENT"
+      ) {
+        items.push({
+          id: `member-savings-${tx.transaction_type.toLowerCase()}-${tx.id}`,
+          title:
+            tx.transaction_type === "INTEREST"
+              ? "Savings interest credited"
+              : "Savings adjustment",
+          description: `${amount} was ${
+            tx.transaction_type === "INTEREST" ? "credited as interest" : "adjusted"
+          } on your savings${tx.description ? ` · ${tx.description}` : ""}.`,
+          href: "/member/savings",
+          createdAt: timestamp(tx.created_at),
+          tone: "success",
+          category: "system",
+          amount: Number(tx.amount) || 0,
+          reference: tx.reference ?? undefined,
+        });
       }
     }
 
+    for (const withdrawal of withdrawals.data ?? []) {
+      const amount = naira(Number(withdrawal.amount) || 0);
+      const map: Record<string, { title: string; tone: NotificationTone }> = {
+        PENDING: { title: "Withdrawal request submitted", tone: "info" },
+        APPROVED: { title: "Withdrawal approved", tone: "info" },
+        PROCESSING: { title: "Withdrawal processing", tone: "info" },
+        PAID: { title: "Withdrawal paid", tone: "success" },
+        REJECTED: { title: "Withdrawal declined", tone: "danger" },
+        FAILED: { title: "Withdrawal failed", tone: "danger" },
+      };
+      const entry = map[withdrawal.status];
+      if (!entry) continue;
+
+      items.push({
+        id: `member-withdrawal-${withdrawal.status.toLowerCase()}-${withdrawal.id}`,
+        title: entry.title,
+        description:
+          withdrawal.failure_reason ||
+          `${amount} from your savings wallet${withdrawal.reference ? ` · ${withdrawal.reference}` : ""}.`,
+        href: "/member/withdrawals",
+        createdAt: timestamp(
+          withdrawal.paid_at,
+          withdrawal.processed_at,
+          withdrawal.approved_at,
+          withdrawal.updated_at,
+          withdrawal.created_at
+        ),
+        tone: entry.tone,
+        category: "withdrawal",
+        amount: Number(withdrawal.amount) || 0,
+        reference: withdrawal.reference ?? undefined,
+      });
+    }
+
     for (const schedule of schedules.data ?? []) {
-      const loan = unwrap(
-        schedule.loan_applications as unknown as Embedded<{
-          id: string;
-          status: string;
-        }>
-      );
       const outstanding = Math.max(
         0,
         Number(schedule.total_payment) - Number(schedule.paid_amount ?? 0)
@@ -312,52 +369,75 @@ export class NotificationService {
     const admin = createAdminClient();
     const items: NotificationItem[] = [];
 
-    const [loans, withdrawals, fundings, schedules] = await Promise.all([
-      admin
-        .from("loan_applications")
-        .select(
-          `
-          id, status, amount, created_at, updated_at, approved_at, rejected_at,
+    const [loans, withdrawals, fundings, schedules, thriftRequests, interestAccruals] =
+      await Promise.all([
+        admin
+          .from("loan_applications")
+          .select(
+            `
+          id, status, amount, created_at, submitted_at, updated_at, approved_at, rejected_at,
           rejection_reason,
           loan_products:loan_product_id(name)
         `
-        )
-        .eq("employee_id", this.employeeId)
-        .in("status", ["APPROVED", "REJECTED", "ACTIVE", "DISBURSED", "COMPLETED"])
-        .order("updated_at", { ascending: false })
-        .limit(20),
-      admin
-        .from("withdrawal_requests")
-        .select(
-          "id, status, amount, reference, created_at, updated_at, paid_at, processed_at, approved_at, failure_reason"
-        )
-        .eq("employee_id", this.employeeId)
-        .in("status", ["APPROVED", "PROCESSING", "PAID", "REJECTED", "FAILED"])
-        .order("updated_at", { ascending: false })
-        .limit(20),
-      admin
-        .from("thrift_fundings")
-        .select(
-          "id, period_month, amount, loan_repayment_applied, thrift_credit, reference, created_at"
-        )
-        .eq("employee_id", this.employeeId)
-        .order("period_month", { ascending: false })
-        .limit(20),
-      admin
-        .from("loan_schedules")
-        .select(
-          `
+          )
+          .eq("employee_id", this.employeeId)
+          .in("status", [
+            "SUBMITTED",
+            "UNDER_REVIEW",
+            "APPROVED",
+            "REJECTED",
+            "ACTIVE",
+            "DISBURSED",
+            "COMPLETED",
+          ])
+          .order("updated_at", { ascending: false })
+          .limit(20),
+        admin
+          .from("withdrawal_requests")
+          .select(
+            "id, status, amount, reference, created_at, updated_at, paid_at, processed_at, approved_at, failure_reason"
+          )
+          .eq("employee_id", this.employeeId)
+          .in("status", ["APPROVED", "PROCESSING", "PAID", "REJECTED", "FAILED"])
+          .order("updated_at", { ascending: false })
+          .limit(20),
+        admin
+          .from("thrift_fundings")
+          .select(
+            "id, period_month, amount, loan_repayment_applied, thrift_credit, reference, created_at"
+          )
+          .eq("employee_id", this.employeeId)
+          .order("period_month", { ascending: false })
+          .limit(20),
+        admin
+          .from("loan_schedules")
+          .select(
+            `
           id, status, due_date, total_payment, paid_amount,
           loan_applications!inner(id, employee_id, status)
         `
-        )
-        .eq("loan_applications.employee_id", this.employeeId)
-        .in("loan_applications.status", ["ACTIVE", "DEFAULTED"])
-        .in("status", ["DUE", "LATE", "UPCOMING"])
-        .lte("due_date", daysFromNow(7))
-        .order("due_date", { ascending: true })
-        .limit(10),
-    ]);
+          )
+          .eq("loan_applications.employee_id", this.employeeId)
+          .in("loan_applications.status", ["ACTIVE", "DEFAULTED"])
+          .in("status", ["DUE", "LATE", "UPCOMING"])
+          .lte("due_date", daysFromNow(7))
+          .order("due_date", { ascending: true })
+          .limit(10),
+        admin
+          .from("thrift_release_requests")
+          .select("id, amount, status, notes, reviewed_at, created_at")
+          .eq("employee_id", this.employeeId)
+          .in("status", ["PENDING", "PAID", "REJECTED"])
+          .order("created_at", { ascending: false })
+          .limit(20),
+        admin
+          .from("thrift_interest_accruals")
+          .select("id, period_month, interest_amount, created_at, status")
+          .eq("employee_id", this.employeeId)
+          .eq("status", "POSTED")
+          .order("period_month", { ascending: false })
+          .limit(24),
+      ]);
 
     for (const loan of loans.data ?? []) {
       const product = unwrap(
@@ -367,6 +447,23 @@ export class NotificationService {
       const amount = naira(Number(loan.amount) || 0);
 
       switch (loan.status) {
+        case "SUBMITTED":
+        case "UNDER_REVIEW":
+          items.push({
+            id: `loan-submitted-${loan.id}`,
+            title: "Loan request submitted",
+            description: `Your ${amount} loan request${label} is awaiting approval.`,
+            href: `/employee/loans/${loan.id}`,
+            createdAt: timestamp(
+              loan.submitted_at,
+              loan.updated_at,
+              loan.created_at
+            ),
+            tone: "info",
+            category: "loan",
+            amount: Number(loan.amount) || 0,
+          });
+          break;
         case "APPROVED":
           items.push({
             id: `loan-approved-${loan.id}`,
@@ -478,6 +575,72 @@ export class NotificationService {
         category: "thrift",
         amount,
         reference: funding.reference ?? undefined,
+      });
+    }
+
+    for (const request of thriftRequests.data ?? []) {
+      const amount = Number(request.amount) || 0;
+      const requestDate = new Date(request.created_at).toLocaleDateString(
+        "en-GB"
+      );
+      if (request.status === "PENDING") {
+        items.push({
+          id: `thrift-release-pending-${request.id}`,
+          title: "Thrift release request sent",
+          description: `Your ${naira(amount)} release request is awaiting the chairman's approval.`,
+          href: "/employee/money",
+          createdAt: timestamp(request.created_at),
+          tone: "info",
+          category: "thrift",
+          amount,
+        });
+      } else if (request.status === "PAID") {
+        items.push({
+          id: `thrift-release-approved-${request.id}`,
+          title: "Thrift release approved",
+          description: `${naira(amount)} was released from your thrift savings into your wallet.`,
+          href: "/employee/money",
+          createdAt: timestamp(request.reviewed_at, request.created_at),
+          tone: "success",
+          category: "thrift",
+          amount,
+        });
+      } else if (request.status === "REJECTED") {
+        items.push({
+          id: `thrift-release-rejected-${request.id}`,
+          title: "Thrift release declined",
+          description:
+            request.notes ||
+            `Your ${naira(amount)} release request from ${requestDate} was declined.`,
+          href: "/employee/money",
+          createdAt: timestamp(request.reviewed_at, request.created_at),
+          tone: "danger",
+          category: "thrift",
+          amount,
+        });
+      }
+    }
+
+    for (const accrual of interestAccruals.data ?? []) {
+      const interest = Number(accrual.interest_amount) || 0;
+      if (interest <= 0) continue;
+      const periodLabel = new Date(
+        `${accrual.period_month}T00:00:00Z`
+      ).toLocaleDateString("en-GB", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+
+      items.push({
+        id: `thrift-interest-${accrual.id}`,
+        title: "Thrift interest credited",
+        description: `${naira(interest)} interest was added to your thrift savings for ${periodLabel}.`,
+        href: "/employee/money",
+        createdAt: timestamp(accrual.created_at),
+        tone: "success",
+        category: "thrift",
+        amount: interest,
       });
     }
 
