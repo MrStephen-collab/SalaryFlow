@@ -160,6 +160,17 @@ function monthName(periodMonth: string) {
   return periodLabel(periodMonth);
 }
 
+/**
+ * Interest references include a unique suffix because ledger transaction
+ * references are unique and a recalculation reverses (does not delete) the
+ * original transaction before reposting the month.
+ */
+function interestReference(employeeId: string, periodMonth: string) {
+  return `SLF-THINT-${employeeId}-${periodMonth
+    .slice(0, 7)
+    .replace("-", "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+}
+
 export class ThriftInterestService {
   private constructor(
     private userId: string | null,
@@ -499,9 +510,7 @@ export class ThriftInterestService {
       eligibleDays,
       interest,
       closingBalance,
-      reference: `SLF-THINT-${employeeId}-${periodMonth
-        .slice(0, 7)
-        .replace("-", "")}`,
+      reference: interestReference(employeeId, periodMonth),
     };
   }
 
@@ -1020,9 +1029,7 @@ export class ThriftInterestService {
         payouts: payoutsForEmployee,
         interest,
         closingBalance: round2(openingBalance + interest),
-        reference: `SLF-THINT-${employeeId}-${periodMonth
-          .slice(0, 7)
-          .replace("-", "")}`,
+        reference: interestReference(employeeId, periodMonth),
       });
     }
 
