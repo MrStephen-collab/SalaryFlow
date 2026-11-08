@@ -94,8 +94,8 @@ export function EditProductDialog({
         interestMethod: form.interestMethod,
         durationMonths: form.durationMonths,
         repaymentFrequency: form.repaymentFrequency,
-        processingFee: isMemberProduct ? form.processingFee : 0,
-        insuranceFee: isMemberProduct ? form.insuranceFee : 0,
+        processingFee: form.processingFee,
+        insuranceFee: form.insuranceFee,
         minimumEmploymentPeriodMonths: form.minimumEmploymentPeriodMonths,
         guarantorRequired: form.guarantorRequired,
         collateralRequired: form.collateralRequired,
@@ -229,31 +229,27 @@ export function EditProductDialog({
             </Select>
           </div>
 
-          {isMemberProduct ? (
-            <>
-              <div className="space-y-2">
-                <Label>Processing Fee (₦)</Label>
-                <Input
-                  type="number"
-                  value={form.processingFee}
-                  onChange={(e) =>
-                    set("processingFee", Number(e.target.value))
-                  }
-                />
-              </div>
+          <div className="space-y-2">
+            <Label>Processing Fee (₦)</Label>
+            <Input
+              type="number"
+              value={form.processingFee}
+              onChange={(e) =>
+                set("processingFee", Number(e.target.value))
+              }
+            />
+          </div>
 
-              <div className="space-y-2">
-                <Label>Insurance Fee (₦)</Label>
-                <Input
-                  type="number"
-                  value={form.insuranceFee}
-                  onChange={(e) =>
-                    set("insuranceFee", Number(e.target.value))
-                  }
-                />
-              </div>
-            </>
-          ) : null}
+          <div className="space-y-2">
+            <Label>Insurance Fee (₦)</Label>
+            <Input
+              type="number"
+              value={form.insuranceFee}
+              onChange={(e) =>
+                set("insuranceFee", Number(e.target.value))
+              }
+            />
+          </div>
 
           {!isMemberProduct ? (
             <div className="space-y-2">

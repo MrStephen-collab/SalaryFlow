@@ -513,10 +513,19 @@ export class LoanService {
       annualInterestRate: product.interest_rate,
       interestMethod: product.interest_method as InterestMethod,
       durationMonths,
-      // Employee loans carry no processing or insurance fee.
-      processingFee: 0,
-      insuranceFee: 0,
+      // Preset fees are charged at disbursement; they do not change the
+      // interest-bearing repayment total.
+      processingFee: product.processing_fee,
+      insuranceFee: product.insurance_fee,
     });
+
+    if (calculation.totalUpfrontFees >= amount) {
+      return {
+        error: `The preset processing and insurance fees (${naira(
+          calculation.totalUpfrontFees
+        )}) must be less than the loan amount.`,
+      };
+    }
 
     // The employer settles the loan from the monthly thrift funding, so the
     // instalment must fit inside the employee's agreed monthly thrift amount.
@@ -563,6 +572,8 @@ export class LoanService {
         total_interest: calculation.totalInterest,
         total_repayment: calculation.totalRepayment,
         monthly_deduction: calculation.monthlyPayment,
+        processing_fee: calculation.processingFee,
+        insurance_fee: calculation.insuranceFee,
         purpose: purpose ?? null,
         status: "SUBMITTED",
         submitted_at: new Date().toISOString(),
@@ -773,6 +784,21 @@ export class LoanService {
     }
 
     const loanAmount = Number(existing.amount) || 0;
+    const processingFee = round2(
+      Number(existing.processing_fee) || Number(product.processing_fee) || 0
+    );
+    const insuranceFee = round2(
+      Number(existing.insurance_fee) || Number(product.insurance_fee) || 0
+    );
+    const totalFees = round2(processingFee + insuranceFee);
+    if (totalFees >= loanAmount) {
+      return {
+        error: `The preset processing and insurance fees (${naira(
+          totalFees
+        )}) must be less than the loan amount (${naira(loanAmount)}).`,
+      };
+    }
+
     const poolBalance = await fund.fundAccountBalance(pool.id);
     if (poolBalance < loanAmount) {
       const shortfall = round2(loanAmount - poolBalance);
@@ -790,9 +816,8 @@ export class LoanService {
       annualInterestRate: product.interest_rate,
       interestMethod: product.interest_method as InterestMethod,
       durationMonths: existing.duration_months,
-      // No insurance or processing fee is deducted from employee disbursements.
-      processingFee: 0,
-      insuranceFee: 0,
+      processingFee,
+      insuranceFee,
     });
 
     const scheduleInserts = calculation.schedule.map((entry) => ({
@@ -832,7 +857,8 @@ export class LoanService {
     const ledgerResult = await ledger.postLoanDisbursement(
       existing.employee_id,
       applicationId,
-      existing.amount
+      existing.amount,
+      totalFees
     );
     if (ledgerResult.error) {
       return { error: `Loan disbursed but ledger error: ${ledgerResult.error}` };
@@ -859,10 +885,18 @@ export class LoanService {
         employeeId: existing.employee_id,
         installments: calculation.schedule.length,
         monthlyDeduction: calculation.monthlyPayment,
+        processingFee,
+        insuranceFee,
+        totalFees,
+        netDisbursed: round2(loanAmount - totalFees),
       }
     );
 
-    return { success: "Loan disbursed and repayment schedule created" };
+    return {
+      success: `Loan disbursed and repayment schedule created · ${naira(
+        round2(loanAmount - totalFees)
+      )} credited after ${naira(totalFees)} fees`,
+    };
   }
   async getSchedule(applicationId: string) {
     if (!this.orgId) return [];

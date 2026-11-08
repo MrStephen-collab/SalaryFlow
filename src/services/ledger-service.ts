@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAudit } from "./audit-service";
 
+const round2 = (value: number) => Math.round(value * 100) / 100;
+
 export interface LedgerEntryInput {
   accountId?: string;
   financialAccountId?: string;
@@ -753,8 +755,9 @@ export class LedgerService {
 
   /**
    * Post a loan disbursement to the ledger.
-   * Debit: Loan Receivable         (amount)
-   * Credit: Employee Balance       (amount)  -- disbursed funds available to employee
+   * Debit: Loan Receivable         (principal)
+   * Credit: Employee Balance       (principal less preset fees)
+   * Credit: Fee Income             (processing + insurance fees)
    *
    * The cash itself leaves the Thrift Pool when the employee withdraws, which
    * is where the employee balance is debited against the fund.
@@ -762,20 +765,44 @@ export class LedgerService {
   async postLoanDisbursement(
     employeeId: string,
     loanApplicationId: string,
-    amount: number
+    amount: number,
+    fees = 0
   ) {
     await this.ensureChartOfAccounts();
     const financialAccount = await this.ensureFinancialAccount(employeeId);
     const receivable = await this.getAccountByCode("1100");
+    const feeIncome = await this.getAccountByCode("4100");
+
+    const gross = round2(amount);
+    const totalFees = Math.min(round2(fees), gross);
+    const netCredit = round2(gross - totalFees);
+
+    if (totalFees > 0 && !feeIncome?.id) {
+      return { error: "Loan fee income account is missing" };
+    }
 
     const entries = [
-      { accountId: receivable?.id, debit: amount, credit: 0, description: "Loan disbursement - receivable" },
-      { financialAccountId: financialAccount?.id, debit: 0, credit: amount, description: "Loan disbursed to employee balance" },
+      { accountId: receivable?.id, debit: gross, credit: 0, description: "Loan disbursement - receivable" },
+      {
+        financialAccountId: financialAccount?.id,
+        debit: 0,
+        credit: netCredit,
+        description: "Loan disbursed to employee balance (net of fees)",
+      },
     ].filter((e) => e.accountId || e.financialAccountId);
+
+    if (totalFees > 0 && feeIncome?.id) {
+      entries.push({
+        accountId: feeIncome.id,
+        debit: 0,
+        credit: totalFees,
+        description: "Loan disbursement - processing & insurance fees",
+      });
+    }
 
     return this.postTransaction(
       {
-        description: `Loan disbursement ${loanApplicationId.slice(0, 8)} - amount ${amount}`,
+        description: `Loan disbursement ${loanApplicationId.slice(0, 8)} - amount ${gross}, fees ${totalFees}, net ${netCredit}`,
         transactionType: "LOAN_DISBURSEMENT",
         entries,
       },

@@ -132,7 +132,7 @@ export class NotificationService {
     const [loans, savings, schedules, member, withdrawals] = await Promise.all([
       admin
         .from("loan_applications")
-        .select("id, status, amount, created_at, submitted_at, approved_at, rejected_at, disbursed_at, rejection_reason")
+        .select("id, status, amount, created_at, submitted_at, approved_at, rejected_at, disbursed_at, processing_fee, insurance_fee, rejection_reason")
         .eq("member_id", this.memberId)
         .order("updated_at", { ascending: false })
         .limit(20),
@@ -198,10 +198,18 @@ export class NotificationService {
           amount: Number(loan.amount) || 0,
         });
       } else if (loan.status === "ACTIVE" || loan.status === "DISBURSED") {
+        const fees =
+          (Number(loan.processing_fee) || 0) +
+          (Number(loan.insurance_fee) || 0);
         items.push({
           id: `member-loan-active-${loan.id}`,
           title: "Loan disbursed",
-          description: `Your ${amount} loan has been credited to your savings wallet.`,
+          description:
+            fees > 0
+              ? `Your ${amount} loan has been disbursed. ${naira(
+                  Math.max(0, (Number(loan.amount) || 0) - fees)
+                )} was credited after ${naira(fees)} fees.`
+              : `Your ${amount} loan has been credited to your savings wallet.`,
           href: "/member/loans",
           createdAt: timestamp(loan.disbursed_at, loan.approved_at, loan.created_at),
           tone: "success",
@@ -376,6 +384,7 @@ export class NotificationService {
           .select(
             `
           id, status, amount, created_at, submitted_at, updated_at, approved_at, rejected_at,
+          disbursed_at, processing_fee, insurance_fee,
           rejection_reason,
           loan_products:loan_product_id(name)
         `
@@ -491,11 +500,19 @@ export class NotificationService {
           });
           break;
         case "ACTIVE":
-        case "DISBURSED":
+        case "DISBURSED": {
+          const fees =
+            (Number(loan.processing_fee) || 0) +
+            (Number(loan.insurance_fee) || 0);
           items.push({
             id: `loan-disbursed-${loan.id}`,
             title: "Loan disbursed",
-            description: `Your ${amount} loan${label} has been disbursed. Repayments are now scheduled.`,
+            description:
+              fees > 0
+                ? `Your ${amount} loan${label} has been disbursed. ${naira(
+                    Math.max(0, (Number(loan.amount) || 0) - fees)
+                  )} was credited after ${naira(fees)} fees. Repayments are now scheduled.`
+                : `Your ${amount} loan${label} has been disbursed. Repayments are now scheduled.`,
             href: `/employee/loans/${loan.id}`,
             createdAt: timestamp(loan.approved_at, loan.updated_at, loan.created_at),
             tone: "info",
@@ -503,6 +520,7 @@ export class NotificationService {
             amount: Number(loan.amount) || 0,
           });
           break;
+        }
         case "COMPLETED":
           items.push({
             id: `loan-completed-${loan.id}`,

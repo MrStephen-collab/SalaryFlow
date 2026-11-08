@@ -244,6 +244,31 @@ export default async function LoanApplicationDetailPage({
                 {naira(application.total_interest)}
               </span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Processing Fee</span>
+              <span className="font-medium">
+                {naira(Number(application.processing_fee) || 0)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Insurance Fee</span>
+              <span className="font-medium">
+                {naira(Number(application.insurance_fee) || 0)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Net Disbursed</span>
+              <span className="font-medium">
+                {naira(
+                  Math.max(
+                    0,
+                    Number(application.amount) -
+                      (Number(application.processing_fee) || 0) -
+                      (Number(application.insurance_fee) || 0)
+                  )
+                )}
+              </span>
+            </div>
             {application.purpose && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Purpose</span>
