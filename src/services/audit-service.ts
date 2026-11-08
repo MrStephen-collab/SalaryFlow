@@ -90,6 +90,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "thrift.funded": "Thrift savings funded",
   "thrift.released": "Thrift savings released",
   "thrift.released_all": "All thrift savings released",
+  "thrift.interest_recalculated": "Thrift interest recalculated",
   "employee.thrift_updated": "Thrift amount updated",
   "collections.overdue_swept": "Overdue loans refreshed",
   "collections.loan_defaulted": "Loan marked as defaulted",

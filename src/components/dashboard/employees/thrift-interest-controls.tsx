@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { postThriftInterest } from "@/app/dashboard/employees/thrift-actions";
+import { postThriftInterest, recalculateThriftInterest } from "@/app/dashboard/employees/thrift-actions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,27 @@ export function ThriftInterestControls({
     });
   }
 
+  function recalculate() {
+    startTransition(async () => {
+      const result = await recalculateThriftInterest(periodMonth);
+      if (!result.ok) {
+        toast.error(result.error ?? "Could not recalculate thrift interest");
+        return;
+      }
+      toast.success(
+        `${result.posted} employee${result.posted === 1 ? "" : "s"} reposted · ${naira(
+          result.total
+        )} interest · ${result.reversed} reversed`
+      );
+      if (result.failures.length > 0) {
+        toast.warning(
+          `${result.failures.length} month${result.failures.length === 1 ? "" : "s"} could not be fully recalculated`
+        );
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="flex flex-wrap items-end gap-2">
       <div className="space-y-1">
@@ -80,22 +101,40 @@ export function ThriftInterestControls({
         />
       </div>
       {canPost ? (
-        <ConfirmDialog
-          trigger={
-            <Button disabled={!closed || isPending}>
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Percent className="size-4" />
-              )}
-              {isPending ? "Posting…" : "Post interest"}
-            </Button>
-          }
-          title={`Post interest for ${periodMonth.slice(0, 7)}?`}
-          description={`Interest will be calculated at ${annualRate}% per annum on each employee's opening balance × eligible days ÷ 365 and credited to their thrift savings. Employees already posted are skipped.`}
-          confirmLabel="Post interest"
-          onConfirm={post}
-        />
+        <>
+          <ConfirmDialog
+            trigger={
+              <Button disabled={!closed || isPending}>
+                {isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Percent className="size-4" />
+                )}
+                {isPending ? "Posting…" : "Post interest"}
+              </Button>
+            }
+            title={`Post interest for ${periodMonth.slice(0, 7)}?`}
+            description={`Interest will be calculated at ${annualRate}% per annum on each employee's opening balance × eligible days ÷ 365 and credited to their thrift savings. Employees already posted are skipped.`}
+            confirmLabel="Post interest"
+            onConfirm={post}
+          />
+          {postedCount > 0 ? (
+            <ConfirmDialog
+              trigger={
+                <Button variant="outline" disabled={isPending}>
+                  {isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : null}
+                  Recalculate
+                </Button>
+              }
+              title={`Recalculate interest from ${periodMonth.slice(0, 7)}?`}
+              description="This reverses and reposts interest from the selected month through the latest completed month. Use it after importing or correcting prior thrift savings so every later month uses the corrected balance."
+              confirmLabel="Recalculate interest"
+              onConfirm={recalculate}
+            />
+          ) : null}
+        </>
       ) : null}
       <p className="w-full text-xs text-muted-foreground">
         {!closed

@@ -540,7 +540,8 @@ export class LedgerService {
     employeeId: string,
     reference: string,
     amount: number,
-    description = "Thrift funding from employer"
+    description = "Thrift funding from employer",
+    transactionDate?: string
   ) {
     await this.ensureChartOfAccounts();
     const thrift = await this.ensureThriftAccount(employeeId);
@@ -554,6 +555,7 @@ export class LedgerService {
       {
         description,
         transactionType: "THRIFT_FUNDING",
+        transactionDate,
         entries: [
           {
             accountId: fund?.id,

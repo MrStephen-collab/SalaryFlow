@@ -54,6 +54,16 @@ export function periodLabel(periodMonth: string) {
   });
 }
 
+/** Last calendar day of the period, used to date funding ledger entries. */
+export function periodEnd(periodMonth: string) {
+  const [year, month] = periodMonth.slice(0, 7).split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(
+    2,
+    "0"
+  )}`;
+}
+
 export interface ThriftFundingResult {
   ok: boolean;
   error?: string;
@@ -427,7 +437,8 @@ export class ThriftService {
       employeeId,
       reference,
       amount,
-      `Thrift funding for ${periodLabel(periodMonth)}`
+      `Thrift funding for ${periodLabel(periodMonth)}`,
+      periodEnd(periodMonth)
     );
     if (posted.error) {
       await admin.from("thrift_fundings").delete().eq("id", funding.id);

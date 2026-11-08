@@ -111,3 +111,19 @@ export async function postThriftInterest(periodMonth: string) {
   }
   return result;
 }
+
+export async function recalculateThriftInterest(periodMonth: string) {
+  const service = await ThriftInterestService.create();
+  const result = await service.recalculateFrom(periodMonth);
+  if (result.ok) {
+    revalidatePath("/dashboard/employees/thrift");
+    revalidatePath("/dashboard/employees");
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/reports/thrift-interest");
+    revalidatePath("/dashboard/ledger");
+    revalidatePath("/employee");
+    revalidatePath("/employee/money");
+    revalidatePath("/employee/statement");
+  }
+  return result;
+}

@@ -147,6 +147,11 @@ function previousMonth() {
     .slice(0, 10);
 }
 
+function nextMonth(periodMonth: string) {
+  const [year, month] = periodMonth.slice(0, 7).split("-").map(Number);
+  return new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
+}
+
 function isoToday() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -684,6 +689,153 @@ export class ThriftInterestService {
     }
 
     return this.postMonthForOrganization(periodMonth);
+  }
+
+  /**
+   * Reverse and repost interest from a closed month through the latest closed
+   * month. Use after importing or correcting prior thrift savings so every
+   * later month's opening balance is rebuilt from the corrected history.
+   */
+  async recalculateFrom(periodMonthInput: string) {
+    const forbidden = await this.ensureStaff();
+    if (forbidden) return { ok: false as const, error: forbidden };
+    if (!this.organizationId) {
+      return { ok: false as const, error: "No organization found" };
+    }
+
+    const startMonth = normalizePeriodMonth(periodMonthInput);
+    if (!startMonth) {
+      return { ok: false as const, error: "Choose a valid interest month" };
+    }
+    if (!isClosedMonth(startMonth)) {
+      return {
+        ok: false as const,
+        error: "Interest can only be recalculated for a completed month",
+      };
+    }
+
+    const lastClosedMonth = previousMonth();
+    if (startMonth > lastClosedMonth) {
+      return {
+        ok: false as const,
+        error: "There are no completed months to recalculate",
+      };
+    }
+
+    const ledger = this.ledger();
+    if (!ledger) {
+      return { ok: false as const, error: "No organization found" };
+    }
+
+    const admin = createAdminClient();
+    const months: string[] = [];
+    for (
+      let month = startMonth;
+      month <= lastClosedMonth;
+      month = nextMonth(month)
+    ) {
+      months.push(month);
+    }
+
+    let reversed = 0;
+    let posted = 0;
+    let total = 0;
+    const failures: string[] = [];
+
+    for (const month of months) {
+      const { data: accruals } = await admin
+        .from("thrift_interest_accruals")
+        .select("id, reference")
+        .eq("organization_id", this.organizationId)
+        .eq("period_month", month)
+        .eq("status", "POSTED");
+
+      let monthFailed = false;
+      const transactionIds: string[] = [];
+
+      for (const accrual of accruals ?? []) {
+        const { data: transaction } = await admin
+          .from("ledger_transactions")
+          .select("id")
+          .eq("organization_id", this.organizationId)
+          .eq("reference", accrual.reference as string)
+          .eq("transaction_type", "THRIFT_INTEREST")
+          .maybeSingle();
+
+        if (!transaction?.id) {
+          failures.push(
+            `${monthName(month)}: ledger transaction missing for ${accrual.reference}`
+          );
+          monthFailed = true;
+          break;
+        }
+        transactionIds.push(transaction.id as string);
+      }
+
+      if (monthFailed) continue;
+
+      for (const transactionId of transactionIds) {
+        const reversal = await ledger.reverseTransaction(
+          transactionId,
+          `Thrift interest recalculation for ${monthName(month)}`
+        );
+        if (reversal.error) {
+          failures.push(`${monthName(month)}: ${reversal.error}`);
+          monthFailed = true;
+          break;
+        }
+        reversed += 1;
+      }
+
+      if (monthFailed) continue;
+
+      const { error: deleteError } = await admin
+        .from("thrift_interest_accruals")
+        .delete()
+        .eq("organization_id", this.organizationId)
+        .eq("period_month", month);
+
+      if (deleteError) {
+        failures.push(`${monthName(month)}: ${deleteError.message}`);
+        continue;
+      }
+
+      const result = await this.postMonthForOrganization(month);
+      if (!result.ok) {
+        failures.push(`${monthName(month)}: ${result.error}`);
+        continue;
+      }
+      posted += result.posted;
+      total = round2(total + result.total);
+    }
+
+    await recordAudit({
+      organizationId: this.organizationId,
+      userId: this.userId,
+      action: "thrift.interest_recalculated",
+      entityType: "organization",
+      entityId: this.organizationId,
+      after: {
+        from: startMonth,
+        to: lastClosedMonth,
+        months: months.length,
+        reversed,
+        posted,
+        total,
+        failures,
+      },
+    });
+
+    return {
+      ok: true as const,
+      from: startMonth,
+      to: lastClosedMonth,
+      months: months.length,
+      reversed,
+      posted,
+      total,
+      failures,
+    };
   }
 
   private async postMonthForOrganization(periodMonth: string) {
