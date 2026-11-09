@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { LoanService } from "@/services/loan-service";
 import { EmployeePortalService } from "@/services/employee-portal-service";
 import { ApplyLoanForm } from "@/components/employee/apply-loan-form";
+import { isLoanInProgress, loanStatusDescription, loanStatusLabel } from "@/lib/loan-status";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -15,20 +16,20 @@ export default async function EmployeeApplyLoanPage() {
   const loanService = await LoanService.create();
   const portal = await EmployeePortalService.create();
 
-  const [products, employee, eligibility, thriftBalance, activeLoan] =
+  const [products, employee, eligibility, thriftBalance, currentLoan] =
     await Promise.all([
       loanService.listProducts("EMPLOYEE"),
       portal.getEmployee(),
       portal.getLoanEligibility(),
       portal.getThriftBalance(),
-      portal.getActiveLoan(),
+      portal.getCurrentLoan(),
     ]);
 
   if (!employee) {
     redirect("/employee/loans");
   }
 
-  if (activeLoan) {
+  if (currentLoan && isLoanInProgress(currentLoan.status)) {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
@@ -39,16 +40,17 @@ export default async function EmployeeApplyLoanPage() {
           </Button>
         </div>
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900">
-          <p className="text-base font-medium">You already have an active loan</p>
+          <p className="text-base font-medium">
+            Current loan status: {loanStatusLabel(currentLoan.status)}
+          </p>
+          <p className="mt-2">{loanStatusDescription(currentLoan.status)}</p>
           <p className="mt-2">
-            Another loan cannot be applied for until your current{" "}
-            {activeLoan.productName} loan is fully repaid. You currently owe{" "}
+            {currentLoan.productName} ·{" "}
             {new Intl.NumberFormat("en-NG", {
               style: "currency",
               currency: "NGN",
               maximumFractionDigits: 2,
-            }).format(activeLoan.outstanding)}
-            .
+            }).format(currentLoan.amount)}
           </p>
         </div>
       </div>

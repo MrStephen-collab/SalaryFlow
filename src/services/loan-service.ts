@@ -418,6 +418,8 @@ export class LoanService {
       .eq("employee_id", employeeId)
       .eq("organization_id", this.orgId)
       .in("status", [
+        "SUBMITTED",
+        "UNDER_REVIEW",
         "APPROVED",
         "READY_FOR_DISBURSEMENT",
         "DISBURSED",

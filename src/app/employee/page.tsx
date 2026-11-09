@@ -5,6 +5,12 @@ import { EmployeePortalService } from "@/services/employee-portal-service";
 import { ThriftService } from "@/services/thrift-service";
 import { ThriftInterestService } from "@/services/thrift-interest-service";
 import { thriftBackedLoanLimit } from "@/lib/loan-eligibility";
+import {
+  isLoanInProgress,
+  loanStatusDescription,
+  loanStatusLabel,
+  loanStatusTone,
+} from "@/lib/loan-status";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -52,7 +58,7 @@ export default async function EmployeeHomePage() {
     redirect("/employee/profile");
   }
 
-  const [employee, availableBalance, activeLoan, thriftBalance, thriftSummary, interest] =
+  const [employee, availableBalance, activeLoan, thriftBalance, thriftSummary, interest, currentLoan] =
     await Promise.all([
       service.getEmployee(),
       service.getAvailableBalance(),
@@ -62,6 +68,7 @@ export default async function EmployeeHomePage() {
       ThriftInterestService.create().then((thriftInterest) =>
         thriftInterest.getMySummary()
       ),
+      service.getCurrentLoan(),
     ]);
 
   if (!employee) {
@@ -78,6 +85,9 @@ export default async function EmployeeHomePage() {
 
   const thriftAmount = Number(employee.thrift_amount) || 0;
   const recentFundings = thriftSummary?.fundings.slice(0, 6) ?? [];
+  const hasLoanInProgress = currentLoan
+    ? isLoanInProgress(currentLoan.status)
+    : false;
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
@@ -119,9 +129,13 @@ export default async function EmployeeHomePage() {
           delay={80}
         />
         <StatCard
-          title="Active Loan"
-          value={naira(activeLoan?.outstanding ?? 0)}
-          description={activeLoan ? activeLoan.productName : "No active loan"}
+          title="Loan Status"
+          value={loanStatusLabel(currentLoan?.status)}
+          description={
+            currentLoan
+              ? `${currentLoan.productName} · ${naira(currentLoan.amount)}`
+              : "No application in progress"
+          }
           href="/employee/loans"
           icon={HandCoins}
           accent="violet"
@@ -174,12 +188,16 @@ export default async function EmployeeHomePage() {
         <Card className="animate-fade-up" style={{ animationDelay: "320ms" }}>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-base">Active Loan</CardTitle>
+              <CardTitle className="text-base">Loan Status</CardTitle>
               <CardDescription>
-                Repaid automatically from your monthly thrift funding
+                {loanStatusDescription(currentLoan?.status)}
               </CardDescription>
             </div>
-            {activeLoan && <Badge>{activeLoan.productName}</Badge>}
+            {currentLoan ? (
+              <Badge variant={loanStatusTone(currentLoan.status)}>
+                {loanStatusLabel(currentLoan.status)}
+              </Badge>
+            ) : null}
           </CardHeader>
           <CardContent>
             {activeLoan ? (
@@ -223,6 +241,49 @@ export default async function EmployeeHomePage() {
                 <p className="text-sm text-muted-foreground">
                   {naira(activeLoan.paid)} paid of {naira(activeLoan.totalRepayment)}
                 </p>
+              </div>
+            ) : currentLoan ? (
+              <div className="grid gap-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Loan Amount</p>
+                    <p className="mt-1 font-semibold">
+                      {naira(currentLoan.amount)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Monthly</p>
+                    <p className="mt-1 font-semibold">
+                      {naira(currentLoan.monthlyDeduction)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">
+                      Total Repayment
+                    </p>
+                    <p className="mt-1 font-semibold">
+                      {naira(currentLoan.totalRepayment)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">Submitted</p>
+                    <p className="mt-1 font-semibold">
+                      {formatDate(currentLoan.submittedAt ?? currentLoan.createdAt)}
+                    </p>
+                  </div>
+                </div>
+                {currentLoan.rejectionReason ? (
+                  <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                    {currentLoan.rejectionReason}
+                  </p>
+                ) : null}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  render={<Link href={`/employee/loans/${currentLoan.id}`} />}
+                >
+                  View application
+                </Button>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -351,15 +412,15 @@ export default async function EmployeeHomePage() {
             <CardTitle className="text-base">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2">
-            {activeLoan ? (
+            {hasLoanInProgress ? (
               <>
                 <Button disabled>
                   Apply for Loan
                   <ArrowRight className="size-4" />
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  You have an active loan. Repay it in full before applying for
-                  another one.
+                  You already have a loan in progress. Repay or wait for the
+                  current application to finish before applying again.
                 </p>
               </>
             ) : (

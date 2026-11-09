@@ -731,32 +731,40 @@ export class NotificationService {
       schedules,
       settlementRequests,
       thriftRequests,
+      memberships,
     ] = await Promise.all([
       admin
         .from("loan_applications")
         .select(
           `
-          id, status, amount, created_at, submitted_at,
+          id, status, amount, created_at, submitted_at, approved_at, member_id,
           employees:employee_id(first_name, last_name),
+          members:member_id(first_name, last_name),
           loan_products:loan_product_id(name)
         `
         )
         .eq("organization_id", this.orgId)
-        .in("status", ["SUBMITTED", "UNDER_REVIEW", "READY_FOR_DISBURSEMENT"])
+        .in("status", [
+          "SUBMITTED",
+          "UNDER_REVIEW",
+          "APPROVED",
+          "READY_FOR_DISBURSEMENT",
+        ])
         .order("created_at", { ascending: false })
-        .limit(10),
+        .limit(20),
       admin
         .from("withdrawal_requests")
         .select(
           `
-          id, status, amount, reference, created_at,
-          employees:employee_id(first_name, last_name)
+          id, status, amount, reference, created_at, member_id,
+          employees:employee_id(first_name, last_name),
+          members:member_id(first_name, last_name)
         `
         )
         .eq("organization_id", this.orgId)
         .in("status", ["PENDING", "REVIEW"])
         .order("created_at", { ascending: false })
-        .limit(10),
+        .limit(20),
       admin
         .from("loan_schedules")
         .select(
@@ -789,6 +797,13 @@ export class NotificationService {
         .eq("status", "PENDING")
         .order("created_at", { ascending: false })
         .limit(10),
+      admin
+        .from("members")
+        .select("id, first_name, last_name, member_number, created_at")
+        .eq("organization_id", this.orgId)
+        .eq("status", "PENDING")
+        .order("created_at", { ascending: false })
+        .limit(10),
     ]);
 
     for (const application of applications.data ?? []) {
@@ -798,25 +813,43 @@ export class NotificationService {
           last_name: string | null;
         }>
       );
+      const member = unwrap(
+        application.members as unknown as Embedded<{
+          first_name: string | null;
+          last_name: string | null;
+        }>
+      );
+      const person = employee ?? member;
+      const name = person
+        ? `${person.first_name ?? ""} ${person.last_name ?? ""}`.trim()
+        : "A borrower";
       const product = unwrap(
         application.loan_products as unknown as Embedded<{ name: string | null }>
       );
-      const name = employee
-        ? `${employee.first_name ?? ""} ${employee.last_name ?? ""}`.trim()
-        : "An employee";
+      const awaitingDisbursement =
+        application.status === "APPROVED" ||
+        application.status === "READY_FOR_DISBURSEMENT";
+      const amount = naira(Number(application.amount) || 0);
 
       items.push({
-        id: `approval-loan-${application.id}`,
-        title:
-          application.status === "READY_FOR_DISBURSEMENT"
-            ? "Loan ready for disbursement"
-            : "Loan application awaiting review",
-        description: `${name} requested ${naira(Number(application.amount) || 0)}${
-          product?.name ? ` · ${product.name}` : ""
-        }.`,
-        href: `/dashboard/loans/applications/${application.id}`,
-        createdAt: timestamp(application.submitted_at, application.created_at),
-        tone: application.status === "READY_FOR_DISBURSEMENT" ? "success" : "warning",
+        id: `approval-loan-${application.status.toLowerCase()}-${application.id}`,
+        title: awaitingDisbursement
+          ? "Loan awaiting disbursement"
+          : "Loan application awaiting review",
+        description: awaitingDisbursement
+          ? `${name}'s ${amount} loan${product?.name ? ` · ${product.name}` : ""} is approved and waiting for disbursement.`
+          : `${name} requested ${amount}${
+              product?.name ? ` · ${product.name}` : ""
+            }.`,
+        href: application.member_id
+          ? `/dashboard/members/loans/${application.id}`
+          : `/dashboard/loans/applications/${application.id}`,
+        createdAt: timestamp(
+          application.approved_at,
+          application.submitted_at,
+          application.created_at
+        ),
+        tone: awaitingDisbursement ? "success" : "warning",
         category: "approval",
         amount: Number(application.amount) || 0,
       });
@@ -829,9 +862,16 @@ export class NotificationService {
           last_name: string | null;
         }>
       );
-      const name = employee
-        ? `${employee.first_name ?? ""} ${employee.last_name ?? ""}`.trim()
-        : "An employee";
+      const member = unwrap(
+        withdrawal.members as unknown as Embedded<{
+          first_name: string | null;
+          last_name: string | null;
+        }>
+      );
+      const person = employee ?? member;
+      const name = person
+        ? `${person.first_name ?? ""} ${person.last_name ?? ""}`.trim()
+        : "A borrower";
 
       items.push({
         id: `approval-withdrawal-${withdrawal.id}`,
@@ -839,7 +879,9 @@ export class NotificationService {
         description: `${name} requested ${naira(Number(withdrawal.amount) || 0)}${
           withdrawal.reference ? ` · ${withdrawal.reference}` : ""
         }.`,
-        href: `/dashboard/withdrawals/${withdrawal.id}`,
+        href: withdrawal.member_id
+          ? "/dashboard/members/withdrawals"
+          : `/dashboard/withdrawals/${withdrawal.id}`,
         createdAt: timestamp(withdrawal.created_at),
         tone: "warning",
         category: "approval",
@@ -953,6 +995,24 @@ export class NotificationService {
         tone: "warning",
         category: "approval",
         amount,
+      });
+    }
+
+    for (const membership of memberships.data ?? []) {
+      const name = `${membership.first_name ?? ""} ${
+        membership.last_name ?? ""
+      }`.trim();
+
+      items.push({
+        id: `membership-request-${membership.id}`,
+        title: "Membership awaiting approval",
+        description: `${name || "A new member"} requested to join the organization${
+          membership.member_number ? ` · ${membership.member_number}` : ""
+        }.`,
+        href: "/dashboard/members",
+        createdAt: timestamp(membership.created_at),
+        tone: "warning",
+        category: "approval",
       });
     }
 

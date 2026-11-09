@@ -31,12 +31,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown report" }, { status: 400 });
   }
 
-  const html = buildExcelWorkbook(report, { generatedAt: new Date().toISOString() });
+  const filters: Array<[string, string]> = [];
+  if (options.startDate || options.endDate) {
+    filters.push([
+      "Period",
+      `${options.startDate ?? "start"} to ${options.endDate ?? "today"}`,
+    ]);
+  }
+  if (options.department) filters.push(["Department", options.department]);
+  if (options.branch) filters.push(["Branch", options.branch]);
+  if (options.employee) filters.push(["Employee", options.employee]);
+  if (options.productId) filters.push(["Product", options.productId]);
+  if (options.status) filters.push(["Status", options.status]);
 
-  return new NextResponse(html, {
+  const workbook = buildExcelWorkbook(report, {
+    generatedAt: new Date().toISOString(),
+    filters,
+  });
+
+  return new NextResponse(new Uint8Array(workbook), {
     status: 200,
     headers: {
-      "Content-Type": "application/vnd.ms-excel; charset=utf-8",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${reportFileName(report)}"`,
       "Cache-Control": "no-store",
     },

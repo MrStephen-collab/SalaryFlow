@@ -82,11 +82,18 @@ export default async function DashboardPage() {
     (app) => app.status === "ACTIVE" || app.status === "DISBURSED"
   );
 
-  const pendingApplications = applications.filter(
+  const employeeApplications = applications.filter(
+    (app) => app.borrowerType === "EMPLOYEE"
+  );
+  const pendingApplications = employeeApplications.filter(
     (app) =>
       app.status === "PENDING" ||
       app.status === "SUBMITTED" ||
       app.status === "UNDER_REVIEW"
+  );
+  const awaitingDisbursement = employeeApplications.filter(
+    (app) =>
+      app.status === "APPROVED" || app.status === "READY_FOR_DISBURSEMENT"
   );
   const pendingWithdrawals = withdrawals.filter(
     (w) => w.status === "PENDING" || w.status === "REVIEW"
@@ -94,6 +101,9 @@ export default async function DashboardPage() {
 
   const pendingMemberLoans = memberApplications.filter((application) =>
     ["PENDING", "SUBMITTED", "UNDER_REVIEW"].includes(application.status)
+  );
+  const awaitingMemberDisbursement = memberApplications.filter((application) =>
+    ["APPROVED", "READY_FOR_DISBURSEMENT"].includes(application.status)
   );
   const pendingMemberships = membersOverview?.pending ?? 0;
   const pendingThriftRequests = thriftRequests.filter(
@@ -104,12 +114,49 @@ export default async function DashboardPage() {
       isSampleEmployeeNumber(employee.employeeNumber)
     )
   );
-  const totalPendingApprovals =
-    pendingApplications.length +
-    pendingWithdrawals.length +
-    pendingMemberLoans.length +
-    pendingMemberships +
-    pendingThriftRequests.length;
+
+  const actionItems = [
+    {
+      label: "Loan applications awaiting review",
+      count: pendingApplications.length,
+      href: "/dashboard/loans/applications",
+    },
+    {
+      label: "Loans awaiting disbursement",
+      count: awaitingDisbursement.length,
+      href: "/dashboard/loans/applications",
+    },
+    {
+      label: "Member loans awaiting review",
+      count: pendingMemberLoans.length,
+      href: "/dashboard/members/loans",
+    },
+    {
+      label: "Member loans awaiting disbursement",
+      count: awaitingMemberDisbursement.length,
+      href: "/dashboard/members/loans",
+    },
+    {
+      label: "Membership requests",
+      count: pendingMemberships,
+      href: "/dashboard/members",
+    },
+    {
+      label: "Withdrawal requests",
+      count: pendingWithdrawals.length,
+      href: "/dashboard/withdrawals",
+    },
+    {
+      label: "Thrift release requests",
+      count: pendingThriftRequests.length,
+      href: "/dashboard/employees/thrift",
+    },
+  ];
+  const pendingActionItems = actionItems.filter((item) => item.count > 0);
+  const totalPendingApprovals = actionItems.reduce(
+    (sum, item) => sum + item.count,
+    0
+  );
 
   const stats = [
     {
@@ -178,31 +225,18 @@ export default async function DashboardPage() {
           only and are not real savings, interest or payment records.
         </div>
       ) : null}
-      {(pendingApplications.length > 0 || pendingWithdrawals.length > 0) && (
+      {pendingActionItems.length > 0 ? (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          <p className="font-medium">Approvals waiting for the chairman</p>
+          <p className="font-medium">Actions waiting for the chairman</p>
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-            {pendingWithdrawals.length > 0 ? (
-              <Link href="/dashboard/withdrawals" className="underline">
-                {pendingWithdrawals.length} withdrawal request
-                {pendingWithdrawals.length === 1 ? "" : "s"}
+            {pendingActionItems.map((item) => (
+              <Link key={item.label} href={item.href} className="underline">
+                {item.count} {item.label.toLowerCase()}
               </Link>
-            ) : null}
-            {pendingApplications.length > 0 ? (
-              <Link href="/dashboard/loans/applications" className="underline">
-                {pendingApplications.length} loan application
-                {pendingApplications.length === 1 ? "" : "s"}
-              </Link>
-            ) : null}
-            {pendingThriftRequests.length > 0 ? (
-              <Link href="/dashboard/employees/thrift" className="underline">
-                {pendingThriftRequests.length} thrift release request
-                {pendingThriftRequests.length === 1 ? "" : "s"}
-              </Link>
-            ) : null}
+            ))}
           </div>
         </div>
-      )}
+      ) : null}
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
         {stats.map((stat, i) => (
@@ -251,7 +285,11 @@ export default async function DashboardPage() {
           <StatCard
             title="Pending Approvals"
             value={totalPendingApprovals.toLocaleString()}
-            description="Members · loans · withdrawals"
+            description={
+              totalPendingApprovals > 0
+                ? "Loans · disbursements · members · withdrawals"
+                : "You're all caught up"
+            }
             href="/dashboard/approvals"
             icon={ClipboardCheck}
             accent="rose"
@@ -266,30 +304,29 @@ export default async function DashboardPage() {
             <CardTitle className="text-base">Pending Approvals</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3">
-            <Link
-              href="/dashboard/loans/applications"
-              className="group flex items-center justify-between rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:bg-muted/60 hover:shadow-sm"
-            >
-              <div>
-                <p className="text-sm font-medium">Loan applications</p>
-                <p className="text-xs text-muted-foreground">
-                  Awaiting review or approval
-                </p>
-              </div>
-              <Badge variant="secondary">{pendingApplications.length}</Badge>
-            </Link>
-            <Link
-              href="/dashboard/withdrawals"
-              className="group flex items-center justify-between rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:bg-muted/60 hover:shadow-sm"
-            >
-              <div>
-                <p className="text-sm font-medium">Withdrawal requests</p>
-                <p className="text-xs text-muted-foreground">
-                  Awaiting review or processing
-                </p>
-              </div>
-              <Badge variant="secondary">{pendingWithdrawals.length}</Badge>
-            </Link>
+            {pendingActionItems.length === 0 ? (
+              <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                No actions are waiting for you right now.
+              </p>
+            ) : (
+              pendingActionItems.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="group flex items-center justify-between rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:bg-muted/60 hover:shadow-sm"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.count === 1
+                        ? "1 item needs your attention"
+                        : `${item.count} items need your attention`}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">{item.count}</Badge>
+                </Link>
+              ))
+            )}
           </CardContent>
         </Card>
 

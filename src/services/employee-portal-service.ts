@@ -2,6 +2,7 @@ import { cache as reactCache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isEmployeeLoanProduct } from "@/lib/loan-products";
+import { isLoanActive, isLoanInProgress } from "@/lib/loan-status";
 
 interface EmployeeRow {
   id: string;
@@ -38,6 +39,25 @@ export interface PortalDashboard {
     productName: string;
   } | null;
   nextDeduction: string | null;
+}
+
+export interface PortalCurrentLoan {
+  id: string;
+  status: string;
+  productName: string;
+  amount: number;
+  totalRepayment: number;
+  monthlyDeduction: number;
+  paid: number;
+  outstanding: number;
+  progressPercent: number;
+  nextPaymentDate: string | null;
+  nextPaymentDue: number | null;
+  rejectionReason: string | null;
+  createdAt: string;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  disbursedAt: string | null;
 }
 
 export class EmployeePortalService {
@@ -357,6 +377,52 @@ export class EmployeePortalService {
       nextPaymentDate: next?.due_date ?? null,
       nextPaymentDue: next ? Number(next.total_payment) : null,
       productName: active.productName,
+    };
+  }
+
+  /**
+   * Latest loan that matters to the employee: an in-progress application if
+   * there is one, otherwise the most recent loan (completed/rejected/etc.).
+   */
+  async getCurrentLoan(): Promise<PortalCurrentLoan | null> {
+    const loans = await this.getLoans();
+    if (loans.length === 0) return null;
+
+    const current =
+      loans.find((loan) => isLoanInProgress(loan.status as string)) ?? loans[0];
+
+    let nextPaymentDate: string | null = null;
+    let nextPaymentDue: number | null = null;
+
+    if (isLoanActive(current.status as string)) {
+      const schedules = await this.getSchedule(current.id);
+      const next = schedules.find(
+        (schedule) => schedule.status === "DUE" || schedule.status === "UPCOMING"
+      );
+      nextPaymentDate = next?.due_date ?? null;
+      nextPaymentDue = next ? Number(next.total_payment) : null;
+    }
+
+    const totalRepayment = Number(current.total_repayment) || 0;
+    const paid = Number(current.paidAmount) || 0;
+
+    return {
+      id: current.id,
+      status: String(current.status),
+      productName: current.productName,
+      amount: Number(current.amount) || 0,
+      totalRepayment,
+      monthlyDeduction: Number(current.monthly_deduction) || 0,
+      paid,
+      outstanding: Math.max(0, totalRepayment - paid),
+      progressPercent: Number(current.progressPercent) || 0,
+      nextPaymentDate,
+      nextPaymentDue,
+      rejectionReason: (current.rejection_reason as string | null) ?? null,
+      createdAt: String(current.created_at),
+      submittedAt: (current.submitted_at as string | null) ?? null,
+      approvedAt: (current.approved_at as string | null) ?? null,
+      disbursedAt: (current.disbursed_at as string | null) ?? null,
     };
   }
 

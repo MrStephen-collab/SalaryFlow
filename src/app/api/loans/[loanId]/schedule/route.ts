@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildLoanScheduleHtml,
   buildLoanSchedulePdf,
+  buildLoanScheduleWorkbook,
   loanScheduleFileName,
   type LoanScheduleExportData,
 } from "@/lib/loan-schedule-export";
@@ -143,17 +144,30 @@ export async function GET(
     });
   }
 
-  const html = buildLoanScheduleHtml(data, format === "xls" ? "excel" : "doc");
+  if (format === "xls") {
+    const workbook = buildLoanScheduleWorkbook(data);
+    return new NextResponse(new Uint8Array(workbook), {
+      status: 200,
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${loanScheduleFileName(
+          data,
+          "xlsx"
+        )}"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  const html = buildLoanScheduleHtml(data, "doc");
   return new NextResponse(html, {
     status: 200,
     headers: {
-      "Content-Type":
-        format === "xls"
-          ? "application/vnd.ms-excel; charset=utf-8"
-          : "application/msword; charset=utf-8",
+      "Content-Type": "application/msword; charset=utf-8",
       "Content-Disposition": `attachment; filename="${loanScheduleFileName(
         data,
-        format === "xls" ? "xls" : "doc"
+        "doc"
       )}"`,
       "Cache-Control": "no-store",
     },

@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { EmployeePortalService } from "@/services/employee-portal-service";
 import { thriftBackedLoanLimit } from "@/lib/loan-eligibility";
+import {
+  isLoanInProgress,
+  loanStatusDescription,
+  loanStatusLabel,
+} from "@/lib/loan-status";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,17 +42,20 @@ function statusVariant(status: string) {
 
 export default async function EmployeeLoansPage() {
   const service = await EmployeePortalService.create();
-  const [loans, eligibility, thriftBalance, activeLoan] = await Promise.all([
+  const [loans, eligibility, thriftBalance, currentLoan] = await Promise.all([
     service.getLoans(),
     service.getLoanEligibility(),
     service.getThriftBalance(),
-    service.getActiveLoan(),
+    service.getCurrentLoan(),
   ]);
 
   const requiredMonths = eligibility?.requiredMonths ?? 0;
   const eligible = eligibility?.eligible ?? true;
   const loanLimit = thriftBackedLoanLimit(thriftBalance);
-  const canApply = eligible && loanLimit > 0 && !activeLoan;
+  const loanInProgress = currentLoan
+    ? isLoanInProgress(currentLoan.status)
+    : false;
+  const canApply = eligible && loanLimit > 0 && !loanInProgress;
 
   return (
     <div className="flex flex-col gap-6">
@@ -88,13 +96,21 @@ export default async function EmployeeLoansPage() {
         </p>
       ) : null}
 
-      {activeLoan ? (
+      {currentLoan && loanInProgress ? (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-          <p className="font-medium">You already have an active loan</p>
+          <p className="font-medium">
+            Current loan status: {loanStatusLabel(currentLoan.status)}
+          </p>
+          <p className="mt-1">{loanStatusDescription(currentLoan.status)}</p>
           <p className="mt-1">
-            Another loan cannot be taken until your current{" "}
-            {activeLoan.productName} loan ({naira(activeLoan.outstanding)}{" "}
-            outstanding) is fully repaid. The Apply for Loan button is disabled.
+            {currentLoan.productName} · {naira(currentLoan.amount)}
+            {currentLoan.status === "ACTIVE"
+              ? ` · ${naira(currentLoan.outstanding)} outstanding`
+              : ""}
+          </p>
+          <p className="mt-1 text-xs">
+            The Apply for Loan button is disabled until this application is
+            completed or declined.
           </p>
         </div>
       ) : null}

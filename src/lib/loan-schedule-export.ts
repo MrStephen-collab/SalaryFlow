@@ -1,9 +1,11 @@
+import { buildWorkbook } from "@/lib/workbook-export";
+
 /**
  * Loan repayment schedule exports.
  *
  * The schedule is shared by employees, members and staff, so the same data is
- * rendered to Excel (.xls), Word (.doc) and a small hand-built PDF. Keeping the
- * PDF generator here avoids pulling a heavy PDF dependency into the app.
+ * rendered to Excel (.xlsx), Word (.doc) and a small hand-built PDF. Keeping
+ * the PDF generator here avoids pulling a heavy PDF dependency into the app.
  */
 
 export interface LoanScheduleExportRow {
@@ -197,6 +199,55 @@ ${summaryHtml(data)}
 ${tableHtml(data, mode === "excel")}
 </body>
 </html>`;
+}
+
+export function buildLoanScheduleWorkbook(
+  data: LoanScheduleExportData
+): Buffer {
+  const totals = data.schedule.reduce(
+    (sum, row) => ({
+      principal: sum.principal + row.principal,
+      interest: sum.interest + row.interest,
+      total: sum.total + row.total,
+      paid: sum.paid + row.paid,
+    }),
+    { principal: 0, interest: 0, total: 0, paid: 0 }
+  );
+
+  return buildWorkbook({
+    sheetName: "Repayment Schedule",
+    title: "SalaryFlow Loan Repayment Schedule",
+    subtitle: `${data.borrowerName} · ${data.productName}`,
+    metadata: [
+      ["Borrower", data.borrowerName],
+      ["Borrower number", data.borrowerNumber || "—"],
+      ["Product", data.productName],
+      ["Loan amount (NGN)", amount(data.amount)],
+      ["Interest", `${data.interestRate}% ${data.interestMethod}`],
+      ["Duration", `${data.durationMonths} months`],
+      ["Monthly instalment (NGN)", amount(data.monthly)],
+      ["Total interest (NGN)", amount(data.totalInterest)],
+      ["Total repayment (NGN)", amount(data.totalRepayment)],
+      ["Status", data.status],
+      ["Disbursed", date(data.disbursedAt)],
+    ],
+    columns: [
+      { key: "month", label: "#" },
+      { key: "dueDate", label: "Due date", format: "date" },
+      { key: "opening", label: "Opening (NGN)", format: "currency" },
+      { key: "principal", label: "Principal (NGN)", format: "currency" },
+      { key: "interest", label: "Interest (NGN)", format: "currency" },
+      { key: "total", label: "Total (NGN)", format: "currency" },
+      { key: "paid", label: "Paid (NGN)", format: "currency" },
+      { key: "status", label: "Status" },
+    ],
+    rows: data.schedule.map((row) => ({
+      ...row,
+      dueDate: row.dueDate,
+    })),
+    totals,
+    generatedAt: data.generatedAt,
+  });
 }
 
 function fixed(value: string, width: number, align: "left" | "right" = "left") {
