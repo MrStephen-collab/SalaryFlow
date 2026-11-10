@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { redirect } from "next/navigation";
 import { LoanService } from "@/services/loan-service";
 import { ApplyForLoanForm } from "@/components/dashboard/loans/apply-for-loan-form";
@@ -34,7 +34,7 @@ export default async function ApplyForLoanPage() {
         </div>
         <Button
           variant="outline"
-          render={<Link href="/dashboard/loans/applications" />}
+          render={<BackLink href="/dashboard/loans/applications" />}
         >
           <ArrowLeft className="size-4" />
           Back to Applications

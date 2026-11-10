@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { notFound } from "next/navigation";
 import { WithdrawalService } from "@/services/withdrawal-service";
 import { WithdrawalActions } from "@/components/dashboard/withdrawals/withdrawal-actions";
@@ -84,7 +85,7 @@ export default async function WithdrawalDetailPage({
           )}
           <Button
             variant="outline"
-            render={<Link href="/dashboard/withdrawals" />}
+            render={<BackLink href="/dashboard/withdrawals" />}
           >
             <ArrowLeft className="size-4" />
             Back

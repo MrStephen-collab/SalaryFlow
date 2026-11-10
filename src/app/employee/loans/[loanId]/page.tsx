@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { notFound } from "next/navigation";
 import { EmployeePortalService } from "@/services/employee-portal-service";
 import { LoanSettlementService } from "@/services/loan-settlement-service";
@@ -48,7 +48,7 @@ export default async function EmployeeLoanDetailPage({
             variant="ghost"
             size="sm"
             className="-ml-2 mb-2"
-            render={<Link href="/employee/loans" />}
+            render={<BackLink href="/employee/loans" />}
           >
             <ArrowLeft className="size-4" />
             My Loans

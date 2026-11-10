@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { ReceiptService } from "@/services/receipt-service";
 import { ReceiptSheet } from "@/components/receipts/receipt-sheet";
 import { ReceiptActions } from "@/components/receipts/receipt-actions";
-import { APP_NAME } from "@/config/constants";
+import { BackLink } from "@/components/ui/back-link";
 import { SalaryFlowLogo } from "@/components/brand/salaryflow-logo";
 import { ArrowLeft } from "lucide-react";
 
@@ -55,13 +54,13 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <SalaryFlowLogo layout="horizontal" size="sm" label={null} />
-            <Link
-              href="/"
+            <BackLink
+              href="/dashboard"
               className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               <ArrowLeft className="size-4" />
-              Back to {APP_NAME}
-            </Link>
+              Back
+            </BackLink>
           </div>
           <p className="text-xs text-muted-foreground">
             Receipt {receipt.receiptNumber}

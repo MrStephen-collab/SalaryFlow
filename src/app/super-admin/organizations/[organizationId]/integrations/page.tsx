@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { notFound } from "next/navigation";
 import { requireSuperAdmin } from "@/lib/auth";
 import { SuperAdminService } from "@/services/super-admin-service";
@@ -38,7 +38,7 @@ export default async function OrganizationIntegrationsPage({
             variant="ghost"
             size="sm"
             className="-ml-2 mb-2"
-            render={<Link href="/super-admin/organizations" />}
+            render={<BackLink href="/super-admin/organizations" />}
           >
             <ArrowLeft className="size-4" />
             Organizations

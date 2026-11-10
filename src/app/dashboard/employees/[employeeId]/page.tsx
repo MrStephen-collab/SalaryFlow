@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { notFound } from "next/navigation";
 import { EmployeeService } from "@/services/employee-service";
 import { Badge } from "@/components/ui/badge";
@@ -146,7 +146,7 @@ export default async function EmployeeProfilePage({
             variant="ghost"
             size="sm"
             className="-ml-2 mb-2"
-            render={<Link href="/dashboard/employees" />}
+            render={<BackLink href="/dashboard/employees" />}
           >
             <ArrowLeft className="size-4" />
             Back to employees

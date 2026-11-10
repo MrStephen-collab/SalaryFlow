@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { redirect } from "next/navigation";
 import { LoanService } from "@/services/loan-service";
 import { EmployeePortalService } from "@/services/employee-portal-service";
@@ -34,7 +34,7 @@ export default async function EmployeeApplyLoanPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight">Apply for Loan</h1>
-          <Button variant="outline" render={<Link href="/employee/loans" />}>
+          <Button variant="outline" render={<BackLink href="/employee/loans" />}>
             <ArrowLeft className="size-4" />
             My Loans
           </Button>
@@ -62,7 +62,7 @@ export default async function EmployeeApplyLoanPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight">Apply for Loan</h1>
-          <Button variant="outline" render={<Link href="/employee/loans" />}>
+          <Button variant="outline" render={<BackLink href="/employee/loans" />}>
             <ArrowLeft className="size-4" />
             My Loans
           </Button>
@@ -102,7 +102,7 @@ export default async function EmployeeApplyLoanPage() {
             Choose a product and get an instant repayment estimate
           </p>
         </div>
-        <Button variant="outline" render={<Link href="/employee/loans" />}>
+        <Button variant="outline" render={<BackLink href="/employee/loans" />}>
           <ArrowLeft className="size-4" />
           My Loans
         </Button>

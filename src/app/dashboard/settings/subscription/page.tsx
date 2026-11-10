@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { SubscriptionService } from "@/services/subscription-service";
@@ -72,7 +72,7 @@ export default async function SubscriptionPage({
           variant="ghost"
           size="sm"
           className="-ml-2 mb-2"
-          render={<Link href="/dashboard/settings" />}
+          render={<BackLink href="/dashboard/settings" />}
         >
           <ArrowLeft className="size-4" />
           Settings

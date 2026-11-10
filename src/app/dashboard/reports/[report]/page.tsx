@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { notFound } from "next/navigation";
 import {
   requireUser,
@@ -85,13 +85,13 @@ export default async function ReportPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Link
+          <BackLink
             href="/dashboard/reports"
             className="mb-1 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-3.5" />
             All reports
-          </Link>
+          </BackLink>
           <h1 className="text-2xl font-bold tracking-tight">{meta.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {meta.description}

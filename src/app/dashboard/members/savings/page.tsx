@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { MemberService } from "@/services/member-service";
 import {
   Card,
@@ -73,7 +73,7 @@ export default async function MemberSavingsPage() {
             variant="ghost"
             size="sm"
             className="-ml-2 mb-2"
-            render={<Link href="/dashboard/members" />}
+            render={<BackLink href="/dashboard/members" />}
           >
             <ArrowLeft className="size-4" />
             Back to members

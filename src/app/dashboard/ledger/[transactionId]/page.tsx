@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { notFound } from "next/navigation";
 import { LedgerService } from "@/services/ledger-service";
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +85,7 @@ export default async function LedgerTransactionDetailPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" render={<Link href="/dashboard/ledger" />}>
+          <Button variant="outline" render={<BackLink href="/dashboard/ledger" />}>
             <ArrowLeft className="size-4" />
             Back
           </Button>

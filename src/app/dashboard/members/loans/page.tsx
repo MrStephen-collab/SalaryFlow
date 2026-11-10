@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { MemberService } from "@/services/member-service";
 import { MemberLoanActions } from "@/components/dashboard/members/member-loan-actions";
 import { MemberRepaymentDialog } from "@/components/dashboard/members/member-repayment-dialog";
@@ -94,7 +95,7 @@ export default async function MemberLoansPage({
             variant="ghost"
             size="sm"
             className="-ml-2 mb-2"
-            render={<Link href="/dashboard/members" />}
+            render={<BackLink href="/dashboard/members" />}
           >
             <ArrowLeft className="size-4" />
             Back to members

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { notFound } from "next/navigation";
 import { LoanService } from "@/services/loan-service";
 import { LoanSettlementService } from "@/services/loan-settlement-service";
@@ -106,7 +106,7 @@ export default async function LoanApplicationDetailPage({
           ) : null}
           <Button
             variant="outline"
-            render={<Link href="/dashboard/loans/applications" />}
+            render={<BackLink href="/dashboard/loans/applications" />}
           >
             <ArrowLeft className="size-4" />
             Back
@@ -127,7 +127,7 @@ export default async function LoanApplicationDetailPage({
               the proceeds go to their savings wallet.
             </p>
           </div>
-          <Button render={<Link href="/dashboard/members" />}>
+          <Button render={<BackLink href="/dashboard/members" />}>
             Review on Members page
           </Button>
         </div>

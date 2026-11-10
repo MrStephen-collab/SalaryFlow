@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { notFound } from "next/navigation";
 import { LoanService } from "@/services/loan-service";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +50,7 @@ export default async function LoanProductPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" render={<Link href="/dashboard/loans" />}>
+          <Button variant="outline" render={<BackLink href="/dashboard/loans" />}>
             <ArrowLeft className="size-4" />
             Back
           </Button>

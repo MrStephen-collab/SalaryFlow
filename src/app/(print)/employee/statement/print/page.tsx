@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import { StatementService } from "@/services/statement-service";
 import { StatementDocument } from "@/components/employee/statement-document";
 import { PrintNowButton } from "@/components/employee/print-now-button";
@@ -27,7 +27,7 @@ export default async function StatementPrintPage({
           <p className="mt-1 text-sm text-muted-foreground">
             Your account is not linked to an employee record yet.
           </p>
-          <Button className="mt-4" render={<Link href="/employee/statement" />}>
+          <Button className="mt-4" render={<BackLink href="/employee/statement" />}>
             <ArrowLeft className="size-4" />
             Back to statement
           </Button>
@@ -44,7 +44,7 @@ export default async function StatementPrintPage({
     <div className="min-h-screen bg-muted/40 print:bg-white">
       <div className="mx-auto w-full max-w-5xl p-4 sm:p-6 print:max-w-none print:p-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 print:hidden">
-          <Button variant="outline" render={<Link href={backHref} />}>
+          <Button variant="outline" render={<BackLink href={backHref} />}>
             <ArrowLeft className="size-4" />
             Back to statement
           </Button>
