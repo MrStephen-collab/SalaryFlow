@@ -9,6 +9,7 @@ export function formatDate(value: string | number | Date): string {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 
@@ -69,7 +70,7 @@ export function buildExcelWorkbook(
     sheetName: report.title,
     title: report.title,
     subtitle: "SalaryFlow report",
-    metadata: [["Report", report.key], ...(extra.filters ?? [])],
+    metadata: extra.filters ?? [],
     columns: report.columns.map((column) => ({
       key: column.key,
       label: column.label,

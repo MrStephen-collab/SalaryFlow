@@ -48,7 +48,7 @@ export function StatementActions({
       </Button>
       <Button variant="outline" render={<a href={downloadHref} />}>
         <Download />
-        Download CSV
+        Download Excel
       </Button>
       <Button variant="ghost" onClick={share}>
         <Share2 />

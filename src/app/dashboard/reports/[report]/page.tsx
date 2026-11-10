@@ -77,6 +77,10 @@ export default async function ReportPage({
     service.runReport(reportKey, options),
   ]);
 
+  const mappedTotalKeys = report.columns
+    .filter((column) => report.totals[column.key] !== undefined)
+    .map((column) => column.key);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -185,7 +189,8 @@ export default async function ReportPage({
                       <TableCell
                         key={column.key}
                         className={
-                          column.format === "currency"
+                          column.format === "currency" ||
+                          column.format === "number"
                             ? "whitespace-nowrap tabular-nums text-right"
                             : "whitespace-nowrap"
                         }
@@ -196,7 +201,7 @@ export default async function ReportPage({
                   </TableRow>
                 ))}
               </CollapsibleTableBody>
-              {Object.keys(report.totals).length > 0 ? (
+              {mappedTotalKeys.length > 0 ? (
                 <TableFooter>
                   <TableRow className="bg-muted/50 font-medium">
                     <TableCell>

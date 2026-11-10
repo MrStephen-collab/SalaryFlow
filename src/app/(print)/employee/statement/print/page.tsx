@@ -52,7 +52,7 @@ export default async function StatementPrintPage({
             <PrintNowButton />
             <Button variant="outline" render={<a href={downloadHref} />}>
               <Download className="size-4" />
-              Download CSV
+              Download Excel
             </Button>
           </div>
         </div>

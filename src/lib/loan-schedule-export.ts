@@ -62,6 +62,14 @@ function escapeHtml(value: unknown) {
     .replace(/"/g, "&quot;");
 }
 
+function statusLabel(value: string) {
+  if (!value) return "";
+  return value
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/^./, (character) => character.toUpperCase());
+}
+
 const columns = [
   "#",
   "Due date",
@@ -84,7 +92,7 @@ function summaryRows(data: LoanScheduleExportData) {
     ["Monthly instalment", `NGN ${amount(data.monthly)}`],
     ["Total interest", `NGN ${amount(data.totalInterest)}`],
     ["Total repayment", `NGN ${amount(data.totalRepayment)}`],
-    ["Status", data.status],
+    ["Status", statusLabel(data.status)],
     ["Disbursed", date(data.disbursedAt)],
     ["Generated", date(data.generatedAt)],
   ];
@@ -102,7 +110,7 @@ function tableHtml(data: LoanScheduleExportData, excel = false) {
 <td${excel ? ' class="money"' : ""}>${amount(row.interest)}</td>
 <td${excel ? ' class="money"' : ""}>${amount(row.total)}</td>
 <td${excel ? ' class="money"' : ""}>${amount(row.paid)}</td>
-<td>${escapeHtml(row.status)}</td>
+<td>${escapeHtml(statusLabel(row.status))}</td>
 </tr>`
     )
     .join("");
@@ -228,7 +236,7 @@ export function buildLoanScheduleWorkbook(
       ["Monthly instalment (NGN)", amount(data.monthly)],
       ["Total interest (NGN)", amount(data.totalInterest)],
       ["Total repayment (NGN)", amount(data.totalRepayment)],
-      ["Status", data.status],
+      ["Status", statusLabel(data.status)],
       ["Disbursed", date(data.disbursedAt)],
     ],
     columns: [
@@ -259,27 +267,34 @@ function scheduleLine(row: LoanScheduleExportRow) {
   return [
     fixed(String(row.month), 4, "right"),
     fixed(date(row.dueDate), 12),
-    fixed(amount(row.opening), 15, "right"),
-    fixed(amount(row.principal), 14, "right"),
-    fixed(amount(row.interest), 14, "right"),
-    fixed(amount(row.total), 15, "right"),
-    fixed(amount(row.paid), 14, "right"),
-    fixed(row.status, 10),
+    fixed(amount(row.opening), 18, "right"),
+    fixed(amount(row.principal), 18, "right"),
+    fixed(amount(row.interest), 18, "right"),
+    fixed(amount(row.total), 18, "right"),
+    fixed(amount(row.paid), 18, "right"),
+    fixed(statusLabel(row.status), 22),
   ].join(" ");
 }
 
 const scheduleHeader = [
   fixed("#", 4, "right"),
   fixed("Due date", 12),
-  fixed("Opening", 15, "right"),
-  fixed("Principal", 14, "right"),
-  fixed("Interest", 14, "right"),
-  fixed("Total", 15, "right"),
-  fixed("Paid", 14, "right"),
-  fixed("Status", 10),
+  fixed("Opening", 18, "right"),
+  fixed("Principal", 18, "right"),
+  fixed("Interest", 18, "right"),
+  fixed("Total", 18, "right"),
+  fixed("Paid", 18, "right"),
+  fixed("Status", 22),
 ].join(" ");
 
 export function buildLoanSchedulePdf(data: LoanScheduleExportData): Buffer {
+  const pageHeight = 595;
+  const startY = pageHeight - 36;
+  const lineHeight = 12;
+  const bottomMargin = 36;
+  const maxLinesPerPage =
+    Math.floor((startY - bottomMargin) / lineHeight) + 1;
+
   const summary: string[] = [
     "SalaryFlow Loan Repayment Schedule",
     "",
@@ -287,22 +302,36 @@ export function buildLoanSchedulePdf(data: LoanScheduleExportData): Buffer {
   ];
 
   const rows = data.schedule.map(scheduleLine);
-  const linesPerPage = 40;
-  const pages: string[][] = [];
+  const firstPageLines = summary.length + 2;
+  const firstPageRowCount = Math.max(1, maxLinesPerPage - firstPageLines);
+  const continuedHeader = [
+    "SalaryFlow Loan Repayment Schedule (continued)",
+    "",
+    scheduleHeader,
+  ];
+  const otherPageRowCount = Math.max(
+    1,
+    maxLinesPerPage - continuedHeader.length
+  );
 
-  pages.push([...summary, "", scheduleHeader, ...rows.slice(0, linesPerPage)]);
-  for (let index = linesPerPage; index < rows.length; index += linesPerPage) {
+  const pages: string[][] = [];
+  pages.push([
+    ...summary,
+    "",
+    scheduleHeader,
+    ...rows.slice(0, firstPageRowCount),
+  ]);
+
+  for (
+    let index = firstPageRowCount;
+    index < rows.length;
+    index += otherPageRowCount
+  ) {
     pages.push([
-      "SalaryFlow Loan Repayment Schedule (continued)",
-      "",
-      scheduleHeader,
-      ...rows.slice(index, index + linesPerPage),
+      ...continuedHeader,
+      ...rows.slice(index, index + otherPageRowCount),
     ]);
   }
-
-  const pageHeight = 595;
-  const startY = pageHeight - 36;
-  const lineHeight = 12;
 
   const objects: string[] = [];
   objects.push("<< /Type /Catalog /Pages 2 0 R >>");

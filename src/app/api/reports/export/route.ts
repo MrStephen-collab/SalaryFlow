@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ReportService } from "@/services/report-service";
-import { buildExcelWorkbook, reportFileName } from "@/lib/report-export";
+import {
+  buildExcelWorkbook,
+  formatDate,
+  reportFileName,
+} from "@/lib/report-export";
 
 export const runtime = "nodejs";
 
@@ -31,18 +35,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown report" }, { status: 400 });
   }
 
+  const readable = (value: string) =>
+    value
+      .toLowerCase()
+      .replaceAll("_", " ")
+      .replace(/^./, (character) => character.toUpperCase());
+
   const filters: Array<[string, string]> = [];
   if (options.startDate || options.endDate) {
-    filters.push([
-      "Period",
-      `${options.startDate ?? "start"} to ${options.endDate ?? "today"}`,
-    ]);
+    const from = options.startDate ? formatDate(options.startDate) : "Start";
+    const to = options.endDate ? formatDate(options.endDate) : "Today";
+    filters.push(["Period", `${from} to ${to}`]);
   }
   if (options.department) filters.push(["Department", options.department]);
   if (options.branch) filters.push(["Branch", options.branch]);
   if (options.employee) filters.push(["Employee", options.employee]);
-  if (options.productId) filters.push(["Product", options.productId]);
-  if (options.status) filters.push(["Status", options.status]);
+  if (options.productId) {
+    const products = await service.listProducts();
+    const product = products.find((item) => item.id === options.productId);
+    filters.push(["Product", product?.name ?? options.productId]);
+  }
+  if (options.status) filters.push(["Status", readable(options.status)]);
 
   const workbook = buildExcelWorkbook(report, {
     generatedAt: new Date().toISOString(),

@@ -746,10 +746,10 @@ export class ReportService {
             : maxDays > 90
               ? "90+ days"
               : maxDays > 60
-                ? "61â€“90 days"
+                ? "61-90 days"
                 : maxDays > 30
-                  ? "31â€“60 days"
-                  : "1â€“30 days";
+                  ? "31-60 days"
+                  : "1-30 days";
         return {
           employeeNumber: emp?.employee_number ?? "",
           employeeName: emp ? fullName(emp.first_name, emp.last_name) : "",
@@ -902,7 +902,7 @@ export class ReportService {
         const emp = app?.employees ?? null;
         const due = r.due_date ?? "";
         const daysOverdue = due ? Math.floor((new Date(today).getTime() - new Date(due).getTime()) / 86400000) : 0;
-        const aging = daysOverdue > 90 ? "90+ days" : daysOverdue > 60 ? "61â€“90 days" : daysOverdue > 30 ? "31â€“60 days" : "1â€“30 days";
+        const aging = daysOverdue > 90 ? "90+ days" : daysOverdue > 60 ? "61-90 days" : daysOverdue > 30 ? "31-60 days" : "1-30 days";
         return {
           employeeNumber: emp?.employee_number ?? "",
           employeeName: emp ? fullName(emp.first_name, emp.last_name) : "",
